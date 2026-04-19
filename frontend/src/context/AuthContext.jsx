@@ -58,7 +58,7 @@ export const AuthProvider = ({ children }) => {
             }
             return true;
         } catch (error) {
-            const errorMsg = error.response?.data?.error || "Failed to connect to authentication service.";
+            const errorMsg = error.response?.data?.details || error.response?.data?.error || "Failed to connect to authentication service.";
             alert(`Error: ${errorMsg}`);
             console.error("Auth Login Error:", error);
             return false;

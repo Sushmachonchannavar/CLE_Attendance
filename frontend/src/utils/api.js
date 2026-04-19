@@ -18,7 +18,7 @@ api.interceptors.request.use((config) => {
             const userData = JSON.parse(user);
             config.headers['X-User-Role'] = userData.role;
             config.headers['X-User-Id'] = userData.id;
-        } catch (e) {
+        } catch {
             console.error('Error parsing user data from localStorage');
         }
     }

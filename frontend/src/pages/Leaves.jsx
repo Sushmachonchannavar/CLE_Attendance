@@ -37,6 +37,7 @@ const Leaves = () => {
         } catch (err) {
             console.error("Failed to apply leave", err);
             const errorMessage = err.response?.data?.error || err.message || "Failed to apply leave";
+            alert(`Error: ${errorMessage}`);
         }
     };
 

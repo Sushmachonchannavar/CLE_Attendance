@@ -6,12 +6,19 @@ exports.login = async (req, res) => {
     const { phone } = req.body;
     if (!phone) return res.status(400).json({ error: 'Phone number is required' });
 
+    const existingUser = db.prepare('SELECT * FROM users WHERE phone = ?').get(phone);
+    if (!existingUser) {
+        return res.status(403).json({ error: 'Mobile number not found. Please register first.' });
+    }
+
     const result = await sendVerification(phone);
 
     if (result.success) {
         const responseData = { message: 'Verification code sent successfully' };
         if (result.mock) {
-            responseData.debug = "Running in MOCK mode. Set TWILIO_AUTH_TOKEN in .env for real SMS. Use '123456' to verify.";
+            responseData.debug = result.trialFallback
+                ? "Running in MOCK mode (Twilio Service Unavailable/Restricted). Use '123456' to verify."
+                : "Running in MOCK mode. Set TWILIO_API_KEY/SECRET in .env for real SMS. Use '123456' to verify.";
         }
         res.json(responseData);
     } else {
@@ -56,11 +63,9 @@ exports.verify = async (req, res) => {
     }
 
     // OTP is valid (approved by Twilio)
-    // Check if user exists, if not create one
     let user = db.prepare('SELECT * FROM users WHERE phone = ?').get(phone);
     if (!user) {
-        const info = db.prepare('INSERT INTO users (phone, name) VALUES (?, ?)').run(phone, 'New User');
-        user = { id: info.lastInsertRowid, phone, role: 'staff', name: 'New User' };
+        return res.status(403).json({ error: 'User does not exist. Please register first.' });
     }
 
     console.log('Logging in user:', user);

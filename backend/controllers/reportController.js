@@ -1,4 +1,5 @@
 const db = require('../database');
+const ExcelJS = require('exceljs');
 
 exports.getDailyReport = (req, res) => {
     const { date } = req.query; // YYYY-MM-DD
@@ -58,4 +59,47 @@ exports.getMonthlyReport = (req, res) => {
     `).all(startDate, endDate);
 
     res.json(attendance);
+};
+
+exports.downloadMonthlyReport = async (req, res) => {
+    const { month, year } = req.query; // month (1-12), year (YYYY)
+    if (!month || !year) return res.status(400).json({ error: 'Month and Year required' });
+
+    const startDate = `${year}-${month.toString().padStart(2, '0')}-01`;
+    const endDate = `${year}-${month.toString().padStart(2, '0')}-31`; // Simple approximation
+
+    const attendance = db.prepare(`
+        SELECT a.*, u.name 
+        FROM attendance a
+        JOIN users u ON a.user_id = u.id
+        WHERE date BETWEEN ? AND ?
+        ORDER BY date ASC
+    `).all(startDate, endDate);
+
+    const workbook = new ExcelJS.Workbook();
+    const worksheet = workbook.addWorksheet('Monthly Report');
+
+    worksheet.columns = [
+        { header: 'Name', key: 'name', width: 20 },
+        { header: 'Date', key: 'date', width: 15 },
+        { header: 'In Time', key: 'punch_in_time', width: 15 },
+        { header: 'Out Time', key: 'punch_out_time', width: 15 },
+        { header: 'Late', key: 'is_late', width: 10 },
+    ];
+
+    attendance.forEach(record => {
+        worksheet.addRow({
+            name: record.name,
+            date: record.date,
+            punch_in_time: record.punch_in_time || '-',
+            punch_out_time: record.punch_out_time || '-',
+            is_late: record.is_late ? 'Yes' : 'No'
+        });
+    });
+
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    res.setHeader('Content-Disposition', `attachment; filename=Monthly_Report_${month}_${year}.xlsx`);
+
+    await workbook.xlsx.write(res);
+    res.end();
 };

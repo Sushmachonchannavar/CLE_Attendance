@@ -57,7 +57,7 @@ const RecenterMap = ({ coords }) => {
 
 const CAMPUS_LAT = 16.42578;
 const CAMPUS_LNG = 74.58970;
-const GEOFENCE_RADIUS_METERS = 200;
+const GEOFENCE_RADIUS_METERS = 100;
 const PRIVACY_RADIUS_METERS = 500; // Hide map if further than this
 const DUTY_START_HOUR = 9;   // 9:00 AM
 
@@ -94,7 +94,7 @@ const AttendancePanel = () => {
         };
 
         const timer = setInterval(checkTime, 60000);
-        const forceInitialCheck = checkTime();
+        checkTime();
 
         let watchId;
         const startWatching = () => {
@@ -105,19 +105,14 @@ const AttendancePanel = () => {
 
             watchId = navigator.geolocation.watchPosition(
                 (position) => {
-                    // Only update location if it's within duty hours
-                    if (checkTime()) {
-                        const { latitude, longitude } = position.coords;
-                        console.log("Trace success:", latitude, longitude);
-                        setLocation({ lat: latitude, lng: longitude });
-                        const dist = getDistanceFromLatLonInMeters(latitude, longitude, CAMPUS_LAT, CAMPUS_LNG);
-                        setDistance(dist);
-                        setError('');
-                    } else {
-                        setLocation(null);
-                        setDistance(null);
-                        setError('Tracing is suspended: Outside of duty hours (09:00 - 18:30)');
-                    }
+                    // Update location regardless of duty hours so late punch-outs are possible
+                    checkTime();
+                    const { latitude, longitude } = position.coords;
+                    console.log("Trace success:", latitude, longitude);
+                    setLocation({ lat: latitude, lng: longitude });
+                    const dist = getDistanceFromLatLonInMeters(latitude, longitude, CAMPUS_LAT, CAMPUS_LNG);
+                    setDistance(dist);
+                    setError('');
                 },
 
                 (err) => {
@@ -362,12 +357,12 @@ const AttendancePanel = () => {
                             <div className="w-full h-full bg-gray-100 flex items-center justify-center flex-col p-6 text-center">
                                 <Navigation className="w-8 h-8 text-gray-300 animate-pulse mb-3" />
                                 <p className="text-sm font-bold text-gray-500 uppercase tracking-tighter">
-                                    {isWithinDutyHours ? 'Privacy Shield Active' : 'Off Duty Suspension'}
+                                    {isWithinDutyHours ? 'Privacy Shield Active' : 'Off Duty Mode'}
                                 </p>
                                 <p className="text-[10px] text-gray-400 mt-2 italic leading-relaxed">
                                     {isWithinDutyHours
                                         ? 'Map tracing is hidden because you are far from campus. Enter the 500m zone to reveal coordinates.'
-                                        : 'Tracing is completely disabled outside duty hours (09:00 - 18:30).'}
+                                        : 'You are outside standard duty hours (09:00 - 18:30). Note: You can still punch out if needed.'}
                                 </p>
                             </div>
                         )}
@@ -401,7 +396,7 @@ const AttendancePanel = () => {
             {!status.punchedOut && (
                 <button
                     onClick={handlePunch}
-                    disabled={loading || (!status.punchedIn && !isInside && !location)}
+                    disabled={loading || !location || (!status.punchedIn && !isInside)}
                     className={`group relative w-full py-4 px-6 rounded-xl font-black text-lg shadow-lg transition-all active:scale-95 disabled:grayscale disabled:opacity-50
                         ${status.punchedIn
                             ? 'bg-gradient-to-r from-red-500 to-red-700 text-white hover:shadow-red-200'
@@ -454,10 +449,10 @@ const AttendancePanel = () => {
                             <Navigation className="w-4 h-4 text-indigo-500" />
                         </div>
                         <div>
-                            <p className="text-xs font-bold text-indigo-900">Time-Bound Tracing Only</p>
+                            <p className="text-xs font-bold text-indigo-900">Campus-Bound Tracing Only</p>
                             <p className="text-[10px] text-indigo-700 leading-relaxed font-medium">
-                                Active tracing is strictly restricted to duty hours **(09:00 - 18:30)**.
-                                Sensors are automatically suspended outside this window.
+                                Active tracing is primarily for duty hours **(09:00 - 18:30)**.
+                                Location data is only used to verify your presence on campus during punch-in/out.
                             </p>
                         </div>
                     </div>

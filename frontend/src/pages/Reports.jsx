@@ -25,6 +25,25 @@ const Reports = () => {
         }
     };
 
+    const downloadExcel = async () => {
+        try {
+            const res = await api.get(`/reports/monthly/download?month=${month}&year=${year}`, {
+                responseType: 'blob',
+            });
+            
+            const url = window.URL.createObjectURL(new Blob([res.data]));
+            const link = document.createElement('a');
+            link.href = url;
+            link.setAttribute('download', `Monthly_Report_${month}_${year}.xlsx`);
+            document.body.appendChild(link);
+            link.click();
+            link.remove();
+        } catch (err) {
+            console.error("Failed to download report", err);
+            alert("Failed to download Excel report.");
+        }
+    };
+
     useEffect(() => {
         fetchReport();
     }, [activeTab, date, month, year]);
@@ -85,6 +104,12 @@ const Reports = () => {
                                 onChange={(e) => setYear(e.target.value)}
                             />
                         </div>
+                        <button
+                            onClick={downloadExcel}
+                            className="px-4 py-2 text-white bg-green-500 rounded hover:bg-green-600"
+                        >
+                            Download Excel
+                        </button>
                     </div>
                 )}
             </div>

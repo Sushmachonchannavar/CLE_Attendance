@@ -4,7 +4,7 @@ const db = require('../database');
 // Replace with actual campus coordinates or env variables
 const CAMPUS_LAT = 16.42578;
 const CAMPUS_LNG = 74.58970;
-const GEOFENCE_RADIUS_METERS = 200;
+const GEOFENCE_RADIUS_METERS = 100;
 
 function getDistanceFromLatLonInMeters(lat1, lon1, lat2, lon2) {
     var R = 6371; // Radius of the earth in km
@@ -39,23 +39,21 @@ exports.punch = (req, res) => {
         return res.status(400).json({ error: 'Location required for attendance tracking' });
     }
 
+    // Check if already exist for today
+    let record = db.prepare('SELECT * FROM attendance WHERE user_id = ? AND date = ?').get(userId, today);
+
     // Check Geofence
     const distance = getDistanceFromLatLonInMeters(lat, lng, CAMPUS_LAT, CAMPUS_LNG);
     const isInside = distance <= GEOFENCE_RADIUS_METERS;
 
-    // RULE: Only regular staff MUST be inside geofence. 
-    const canBypass = (userRole === 'admin' || userRole === 'hoi' || userRole === 'principal');
-
-    if (!isInside && !canBypass) {
-        console.log(`Punch rejected for user ${userId}: Outside geofence (${Math.round(distance)}m away)`);
+    if (!record && !isInside) {
+        // Enforce geofence strictly for punch-in for ALL users
+        console.log(`Punch-in rejected for user ${userId}: Outside geofence (${Math.round(distance)}m away)`);
         return res.status(400).json({
             error: `You are outside the campus geofence. Distance: ${Math.round(distance)}m.`,
             distance: Math.round(distance)
         });
     }
-
-    // Check if already exist for today
-    let record = db.prepare('SELECT * FROM attendance WHERE user_id = ? AND date = ?').get(userId, today);
 
     if (record) {
         if (record.punch_out_time) {
