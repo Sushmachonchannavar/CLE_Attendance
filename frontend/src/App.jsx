@@ -5,6 +5,10 @@ import Leaves from './pages/Leaves';
 import OD from './pages/OD';
 import Reports from './pages/Reports';
 import Register from './pages/Register';
+import LeaveRequests from './pages/LeaveRequests';
+import ODRequests from './pages/ODRequests';
+import Profile from './pages/Profile';
+import Attendance from './pages/Attendance';
 import { AuthProvider, useAuth } from './context/AuthContext';
 
 const PrivateRoute = ({ children }) => {
@@ -29,6 +33,22 @@ function App() {
             }
           />
           <Route
+            path="/attendance"
+            element={
+              <PrivateRoute>
+                <Attendance />
+              </PrivateRoute>
+            }
+          />
+          <Route
+            path="/profile"
+            element={
+              <PrivateRoute>
+                <Profile />
+              </PrivateRoute>
+            }
+          />
+          <Route
             path="/leaves"
             element={
               <PrivateRoute>
@@ -41,6 +61,22 @@ function App() {
             element={
               <PrivateRoute>
                 <OD />
+              </PrivateRoute>
+            }
+          />
+          <Route
+            path="/leave-requests"
+            element={
+              <PrivateRoute>
+                <LeaveRequests />
+              </PrivateRoute>
+            }
+          />
+          <Route
+            path="/od-requests"
+            element={
+              <PrivateRoute>
+                <ODRequests />
               </PrivateRoute>
             }
           />

@@ -64,7 +64,7 @@ const Leaves = () => {
     return (
         <Layout>
             <div className="flex items-center justify-between mb-6">
-                <h3 className="text-3xl font-medium text-gray-700">Leave Management</h3>
+                <h3 className="text-3xl font-medium text-gray-700">Leave Requests</h3>
                 <button
                     onClick={() => setShowModal(true)}
                     className="flex items-center px-4 py-2 font-bold text-white bg-blue-500 rounded hover:bg-blue-700"

@@ -1,5 +1,5 @@
 import { Link, useLocation } from 'react-router-dom';
-import { Home, MapPin, Calendar, FileText, BarChart, LogOut, X } from 'lucide-react';
+import { Home, MapPin, Calendar, FileText, BarChart, LogOut, X, User } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 
 const Sidebar = ({ isOpen, toggleSidebar }) => {
@@ -14,15 +14,27 @@ const Sidebar = ({ isOpen, toggleSidebar }) => {
     const hoverBg = 'hover:bg-[#007b8a]';
     const textColor = 'text-white';
 
+    const isPrincipal = user?.role?.toLowerCase() === 'hoi' || user?.role?.toLowerCase() === 'principal';
+    const isAdmin = user?.role?.toLowerCase() === 'admin';
+
     const links = [
         { name: 'Dashboard', path: '/dashboard', icon: Home },
-        { name: 'Attendance', path: '/attendance', icon: MapPin },
-        { name: 'Leaves', path: '/leaves', icon: Calendar },
-        { name: 'OD Requests', path: '/od', icon: FileText },
     ];
 
-    if (user?.role === 'admin' || user?.role === 'hoi' || user?.role === 'principal') {
+    if (isPrincipal) {
+        links.push({ name: 'Attendance', path: '/attendance', icon: MapPin });
+        links.push({ name: 'Leave Requests', path: '/leaves', icon: Calendar });
+        links.push({ name: 'OD Requests', path: '/od', icon: FileText });
         links.push({ name: 'Reports', path: '/reports', icon: BarChart });
+        links.push({ name: 'Profile', path: '/profile', icon: User });
+    } else if (isAdmin) {
+        links.push({ name: 'Leave Requests', path: '/leave-requests', icon: Calendar });
+        links.push({ name: 'OD Requests', path: '/od-requests', icon: FileText });
+        links.push({ name: 'Reports', path: '/reports', icon: BarChart });
+    } else {
+        links.push({ name: 'Attendance', path: '/attendance', icon: MapPin });
+        links.push({ name: 'Leave Requests', path: '/leaves', icon: Calendar });
+        links.push({ name: 'OD Requests', path: '/od', icon: FileText });
     }
 
     return (
