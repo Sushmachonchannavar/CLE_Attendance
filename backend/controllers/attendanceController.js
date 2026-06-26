@@ -60,17 +60,20 @@ exports.punch = (req, res) => {
             return res.status(400).json({ error: 'Already completed attendance for today.' });
         }
         // Punch Out
-        db.prepare('UPDATE attendance SET punch_out_time = ?, location_lat_out = ?, location_lng_out = ? WHERE id = ?')
-            .run(timeString, lat, lng, record.id);
+        const distanceOut = getDistanceFromLatLonInMeters(lat, lng, CAMPUS_LAT, CAMPUS_LNG);
+        db.prepare('UPDATE attendance SET punch_out_time = ?, location_lat_out = ?, location_lng_out = ?, distance_out = ? WHERE id = ?')
+            .run(timeString, lat, lng, distanceOut, record.id);
         res.json({ message: 'Punched Out successfully', time: timeString });
     } else {
         // Punch In - Calculate Late Status
         const hour = now.getHours();
         const minute = now.getMinutes();
         const isLate = (hour > DUTY_START_HOUR || (hour === DUTY_START_HOUR && minute > LATE_THRESHOLD_MINUTE)) ? 1 : 0;
+        const roleVal = (req.user.role === 'hoi' || req.user.role === 'principal') ? 'PRINCIPAL' : 'STAFF';
+        const statusVal = isLate ? 'late' : 'present';
 
-        db.prepare('INSERT INTO attendance (user_id, date, punch_in_time, location_lat, location_lng, is_late) VALUES (?, ?, ?, ?, ?, ?)')
-            .run(userId, today, timeString, lat, lng, isLate);
+        db.prepare('INSERT INTO attendance (user_id, date, punch_in_time, location_lat, location_lng, is_late, role, distance, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)')
+            .run(userId, today, timeString, lat, lng, isLate, roleVal, distance, statusVal);
 
         res.json({
             message: `Punched In successfully ${isLate ? '(Late)' : '(On Time)'}`,

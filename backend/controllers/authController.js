@@ -16,9 +16,7 @@ exports.login = async (req, res) => {
     if (result.success) {
         const responseData = { message: 'Verification code sent successfully' };
         if (result.mock) {
-            responseData.debug = result.trialFallback
-                ? "Running in MOCK mode (Twilio Service Unavailable/Restricted). Use '123456' to verify."
-                : "Running in MOCK mode. Set TWILIO_API_KEY/SECRET in .env for real SMS. Use '123456' to verify.";
+            responseData.debug = "Running in MOCK mode. Set SMS_API_KEY in .env for real SMS. Use '123456' to verify.";
         }
         res.json(responseData);
     } else {

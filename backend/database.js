@@ -148,6 +148,10 @@ const initDb = () => {
             location_lng_out REAL,
             type TEXT DEFAULT 'regular', -- regular, od
             is_late INTEGER DEFAULT 0,  -- 0 for on-time, 1 for late
+            role TEXT DEFAULT 'STAFF',
+            distance REAL,
+            distance_out REAL,
+            status TEXT,
             FOREIGN KEY (user_id) REFERENCES users (id)
         )
     `).run();
@@ -156,7 +160,10 @@ const initDb = () => {
     try { db.prepare('ALTER TABLE attendance ADD COLUMN location_lat_out REAL').run(); } catch (err) { }
     try { db.prepare('ALTER TABLE attendance ADD COLUMN location_lng_out REAL').run(); } catch (err) { }
     try { db.prepare('ALTER TABLE attendance ADD COLUMN is_late INTEGER DEFAULT 0').run(); } catch (err) { }
-
+    try { db.prepare("ALTER TABLE attendance ADD COLUMN role TEXT DEFAULT 'STAFF'").run(); } catch (err) { }
+    try { db.prepare('ALTER TABLE attendance ADD COLUMN distance REAL').run(); } catch (err) { }
+    try { db.prepare('ALTER TABLE attendance ADD COLUMN distance_out REAL').run(); } catch (err) { }
+    try { db.prepare("ALTER TABLE attendance ADD COLUMN status TEXT").run(); } catch (err) { }
 
 
     // 3. Leaves table
@@ -169,9 +176,12 @@ const initDb = () => {
             end_date TEXT,
             reason TEXT,
             status TEXT DEFAULT 'pending', -- pending, approved, rejected
+            role TEXT DEFAULT 'STAFF',
             FOREIGN KEY (user_id) REFERENCES users (id)
         )
     `).run();
+
+    try { db.prepare("ALTER TABLE leaves ADD COLUMN role TEXT DEFAULT 'STAFF'").run(); } catch (err) { }
 
     // 4. OD Requests table
     db.prepare(`
@@ -182,9 +192,15 @@ const initDb = () => {
             place TEXT,
             date TEXT,
             status TEXT DEFAULT 'pending', -- pending, approved, rejected
+            role TEXT DEFAULT 'STAFF',
             FOREIGN KEY (user_id) REFERENCES users (id)
         )
     `).run();
+
+    try { db.prepare("ALTER TABLE od_requests ADD COLUMN role TEXT DEFAULT 'STAFF'").run(); } catch (err) { }
+    try { db.prepare("ALTER TABLE od_requests ADD COLUMN document_name TEXT").run(); } catch (err) { }
+    try { db.prepare("ALTER TABLE od_requests ADD COLUMN document_path TEXT").run(); } catch (err) { }
+    try { db.prepare("ALTER TABLE od_requests ADD COLUMN uploaded_at TEXT").run(); } catch (err) { }
 
     // 5. OTPs table
     db.prepare(`

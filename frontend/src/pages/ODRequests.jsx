@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import Layout from '../components/Layout';
 import api from '../utils/api';
 import { useAuth } from '../context/AuthContext';
+import { FileText, Eye, Download } from 'lucide-react';
 
 const ODRequests = () => {
     const { user } = useAuth();
@@ -129,6 +130,39 @@ const ODRequests = () => {
                                     <div className="text-sm text-gray-700 italic bg-white p-3 rounded-lg border border-gray-100">
                                         "{o.purpose}"
                                     </div>
+                                    {o.document_path && (
+                                        <div className="mt-3 p-3 bg-white border border-gray-200 rounded-xl flex items-center justify-between gap-4 max-w-md shadow-sm">
+                                            <div className="flex items-center gap-3 overflow-hidden">
+                                                <FileText className="w-8 h-8 text-blue-500 flex-shrink-0" />
+                                                <div className="overflow-hidden">
+                                                    <p className="text-xs font-bold text-gray-700 truncate" title={o.document_name}>
+                                                        {o.document_name}
+                                                    </p>
+                                                    <p className="text-[10px] text-gray-400">
+                                                        Uploaded: {o.uploaded_at ? new Date(o.uploaded_at).toLocaleDateString() : 'N/A'}
+                                                    </p>
+                                                </div>
+                                            </div>
+                                            <div className="flex gap-1">
+                                                <a
+                                                    href={`/api/requests/od/view/${o.id}`}
+                                                    target="_blank"
+                                                    rel="noopener noreferrer"
+                                                    className="p-2 text-blue-500 hover:bg-blue-50 rounded-lg transition"
+                                                    title="View Document"
+                                                >
+                                                    <Eye className="w-4 h-4" />
+                                                </a>
+                                                <a
+                                                    href={`/api/requests/od/download/${o.id}`}
+                                                    className="p-2 text-gray-600 hover:bg-gray-100 rounded-lg transition"
+                                                    title="Download Document"
+                                                >
+                                                    <Download className="w-4 h-4" />
+                                                </a>
+                                            </div>
+                                        </div>
+                                    )}
                                     <div className="mt-3 flex items-center gap-2">
                                         <span className="text-xs text-gray-500">Status:</span>
                                         <span className={`text-xs font-bold uppercase px-2.5 py-0.5 rounded-full ${getStatusBadgeClass(o.status)}`}>
