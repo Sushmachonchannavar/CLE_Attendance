@@ -5,39 +5,38 @@ import { useNavigate, Link } from 'react-router-dom';
 const Login = () => {
     const [phone, setPhone] = useState('');
     const [otp, setOtp] = useState('');
+    const [role, setRole] = useState('staff'); // 'staff', 'hoi', 'admin'
     const [step, setStep] = useState(1);
-    const [role, setRole] = useState('Staff');
     const [otpError, setOtpError] = useState('');
     const [resendCooldown, setResendCooldown] = useState(0);
-
-    const ADMIN_PHONE = '9999999999';
-    const PRINCIPAL_PHONE = '8888888888';
 
     const { login, verifyOtp } = useAuth();
     const navigate = useNavigate();
 
-    const handleRoleChange = (e) => {
-        const selectedRole = e.target.value;
-        setRole(selectedRole);
-
-        if (selectedRole === 'Admin') setPhone(ADMIN_PHONE);
-        else if (selectedRole === 'Principal') setPhone(PRINCIPAL_PHONE);
-        else setPhone('');
-    };
-
     const handleLogin = async (e) => {
         e.preventDefault();
-        const success = await login(phone);
-        if (success) {
+        // Remove non-numeric characters before submitting
+        const cleanPhone = phone.replace(/\D/g, '');
+        const response = await login(cleanPhone, role);
+        if (response && response.data && response.data.success) {
+            if (response.data.debug) {
+                alert(`[DEMO MODE] ${response.data.debug}`);
+            } else {
+                alert(`Success: Verification code has been sent to your registered mobile number.`);
+            }
             setStep(2);
             setOtpError('');
             setOtp('');
+        } else {
+            const errorMsg = response?.data?.message || 'Failed to send OTP. Please try again.';
+            alert(`Error: ${errorMsg}`);
         }
     };
 
     const handleVerify = async (e) => {
         e.preventDefault();
-        const result = await verifyOtp(phone, otp);
+        const cleanPhone = phone.replace(/\D/g, '');
+        const result = await verifyOtp(cleanPhone, otp, role);
         if (result.success) {
             navigate('/dashboard');
         } else {
@@ -57,79 +56,85 @@ const Login = () => {
             });
         }, 1000);
 
-        const success = await login(phone);
-        if (success) {
+        const cleanPhone = phone.replace(/\D/g, '');
+        const response = await login(cleanPhone, role);
+        if (response && response.data && response.data.success) {
+            if (response.data.debug) {
+                alert(`[DEMO MODE] ${response.data.debug}`);
+            } else {
+                alert(`Success: Verification code has been sent to your registered mobile number.`);
+            }
             setOtpError('');
             setOtp('');
+        } else {
+            const errorMsg = response?.data?.message || 'Failed to send OTP. Please try again.';
+            alert(`Error: ${errorMsg}`);
         }
     };
 
     return (
-        <div className="flex items-center justify-center min-h-screen bg-gradient-to-br from-blue-900 via-blue-800 to-indigo-900">
+        <div className="flex items-center justify-center min-h-screen bg-gradient-to-br from-[#0a1128] via-[#101f42] to-[#0a1128]">
             {/* Background decorative elements */}
             <div className="absolute top-0 left-0 w-full h-full overflow-hidden pointer-events-none">
-                <div className="absolute top-[-10%] left-[-5%] w-72 h-72 bg-blue-500 rounded-full mix-blend-multiply filter blur-3xl opacity-20 animate-blob"></div>
-                <div className="absolute bottom-[-10%] right-[-5%] w-80 h-80 bg-indigo-500 rounded-full mix-blend-multiply filter blur-3xl opacity-20 animate-blob animation-delay-2000"></div>
+                <div className="absolute top-[-10%] left-[-5%] w-72 h-72 bg-blue-500 rounded-full mix-blend-screen filter blur-3xl opacity-10"></div>
+                <div className="absolute bottom-[-10%] right-[-5%] w-80 h-80 bg-indigo-500 rounded-full mix-blend-screen filter blur-3xl opacity-10"></div>
             </div>
 
-            <div className="relative p-8 bg-white/95 backdrop-blur-sm rounded-2xl shadow-2xl w-96 border border-white/20">
+            <div className="relative p-10 bg-white rounded-3xl shadow-[0_15px_40px_rgba(0,0,0,0.04)] w-full max-w-[420px] border border-gray-100">
                 <div className="text-center mb-8">
-                    <h2 className="text-3xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-blue-900 to-indigo-700">
-                        {role} Login
-                    </h2>
-                    <p className="text-gray-500 text-sm mt-2 font-medium">Welcome back to Staff Portal</p>
+                    <p className="text-gray-500 text-sm font-semibold tracking-wide">
+                        Welcome back to {role === 'admin' ? 'Admin' : role === 'hoi' ? 'Principal' : 'Staff'} Portal
+                    </p>
                 </div>
 
-                <div className="mb-6">
-                    <label className="block mb-2 text-sm font-bold text-gray-600 ml-1">Login As</label>
-                    <div className="relative">
-                        <select
-                            className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl appearance-none focus:outline-none focus:ring-2 focus:ring-blue-500/50 transition-all font-medium text-gray-700 cursor-pointer"
-                            value={role}
-                            onChange={handleRoleChange}
-                        >
-                            <option>Admin</option>
-                            <option>Principal</option>
-                            <option>Staff</option>
-                        </select>
-                        <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none">
-                            <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" />
-                            </svg>
+                <form onSubmit={handleLogin} className="space-y-6">
+                    {/* Login As Dropdown */}
+                    <div>
+                        <label className="block mb-2 text-sm font-bold text-slate-700 ml-1">Login As</label>
+                        <div className="relative">
+                            <select
+                                value={role}
+                                onChange={(e) => setRole(e.target.value)}
+                                className="w-full px-4 py-4 bg-[#f6f8fd] border border-gray-150 rounded-2xl appearance-none focus:outline-none focus:ring-2 focus:ring-blue-500/10 focus:border-blue-400/50 transition-all font-semibold text-gray-700 cursor-pointer pr-10"
+                            >
+                                <option value="staff">Staff</option>
+                                <option value="hoi">Principal</option>
+                                <option value="admin">Admin</option>
+                            </select>
+                            <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-4 text-gray-400">
+                                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" />
+                                </svg>
+                            </div>
                         </div>
                     </div>
-                </div>
 
-                <form onSubmit={handleLogin}>
-                    <div className="mb-6">
-                        <label className="block mb-2 text-sm font-bold text-gray-600 ml-1">Phone Number</label>
-                        <div className="relative">
-                            <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 font-bold border-r pr-3">+91</span>
+                    {/* Phone Number Field */}
+                    <div>
+                        <label className="block mb-2 text-sm font-bold text-slate-700 ml-1">Phone Number</label>
+                        <div className="flex items-center bg-[#f6f8fd] border border-gray-150 rounded-2xl focus-within:ring-2 focus-within:ring-blue-500/10 focus-within:border-blue-400/50 transition-all">
+                            <span className="pl-4 pr-3 text-gray-400 font-bold text-base border-r border-gray-200 select-none">
+                                +91
+                            </span>
                             <input
-                                type="text"
-                                className="w-full pl-16 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500/50 transition-all font-bold tracking-wider text-gray-700 disabled:bg-gray-100 disabled:text-gray-500"
+                                type="tel"
+                                className="w-full pl-3 pr-4 py-4 bg-transparent focus:outline-none font-bold tracking-wider text-gray-700 placeholder:text-gray-300 placeholder:font-normal"
                                 value={phone}
-                                onChange={(e) => setPhone(e.target.value)}
-                                placeholder="00000 00000"
-                                disabled={role === 'Admin' || role === 'Principal'}
+                                onChange={(e) => setPhone(e.target.value.replace(/\D/g, '').slice(0, 10))}
+                                placeholder="Enter mobile number"
                                 required
                             />
                         </div>
-                        {(role === 'Admin' || role === 'Principal') && (
-                            <p className="mt-2 text-[11px] text-blue-600 font-semibold bg-blue-50 px-2 py-1 rounded inline-block">
-                                Fixed mobile for {role} role
-                            </p>
-                        )}
                     </div>
 
                     <button
                         type="submit"
-                        className="w-full py-4 px-6 bg-gradient-to-br from-orange-500 to-orange-600 text-white rounded-xl font-bold text-lg shadow-lg shadow-orange-500/30 hover:shadow-orange-500/40 hover:-translate-y-0.5 active:translate-y-0 transition-all duration-200 uppercase tracking-wide"
+                        className="w-full py-4.5 bg-[#f15e19] text-white rounded-2xl font-black text-base shadow-xl shadow-orange-600/20 hover:bg-[#e04f0d] active:scale-[0.98] transition-all duration-200 uppercase tracking-widest mt-2"
                     >
-                        Send OTP
+                        SEND OTP
                     </button>
 
-                    <div className="mt-8 text-center border-t pt-6">
+                    <div className="mt-8 text-center border-t border-gray-100 pt-6">
                         <p className="text-sm text-gray-500 font-medium">
                             Don't have an account?{' '}
                             <Link to="/register" className="text-blue-600 font-bold hover:underline transition-all">
@@ -165,7 +170,7 @@ const Login = () => {
                             </div>
                             <h3 className="text-2xl font-bold text-gray-800">Verify OTP</h3>
                             <p className="text-gray-500 text-sm mt-2">
-                                We've sent a code to <span className="font-bold text-gray-700">+91 {phone}</span>
+                                We've sent a code to the registered mobile <span className="font-bold text-gray-700">{phone}</span>
                             </p>
                         </div>
 
@@ -215,7 +220,7 @@ const Login = () => {
                                     onClick={() => setStep(1)}
                                     className="text-sm font-bold text-gray-500 hover:text-gray-700 underline underline-offset-4"
                                 >
-                                    Change Phone Number
+                                    Change Mobile Number
                                 </button>
                             </div>
                         </form>
@@ -225,4 +230,5 @@ const Login = () => {
         </div>
     );
 };
+
 export default Login;

@@ -11,38 +11,47 @@ exports.login = async (req, res) => {
         return res.status(403).json({ error: 'Mobile number not found. Please register first.' });
     }
 
-    const result = await sendVerification(phone);
-
-    if (result.success) {
-        const responseData = { message: 'Verification code sent successfully' };
-        if (result.mock) {
-            responseData.debug = "Running in MOCK mode. Set SMS_API_KEY in .env for real SMS. Use '123456' to verify.";
+    let result;
+    try {
+        result = await sendVerification(phone);
+        if (result.success) {
+            const responseData = { success: true, message: 'Verification code sent successfully' };
+            if (result.mock) {
+                responseData.debug = "Running in MOCK mode. Set SMS_API_KEY in .env for real SMS. Use '123456' to verify.";
+            }
+            res.json(responseData);
+        } else {
+            console.error(`[SMS Delivery Error] Full details:`, result.error);
+            res.status(502).json({ success: false, message: "Failed to deliver SMS" });
         }
-        res.json(responseData);
-    } else {
-        res.status(500).json({ error: 'Failed to send verification code', details: result.error });
+    } catch (smsError) {
+        console.error(`[SMS Gateway Exception] Full details:`, smsError);
+        res.status(502).json({ success: false, message: "Failed to deliver SMS" });
     }
 };
 
 exports.register = (req, res) => {
     try {
-        const { firstName, lastName, mobile, collegeName, departmentName } = req.body;
+        const { firstName, lastName, mobile, collegeName, departmentName, employeeId } = req.body;
         if (!firstName || !mobile) {
             return res.status(400).json({ error: 'First name and mobile are required' });
         }
 
         const name = `${firstName} ${lastName}`.trim();
+        const cleanEmpId = employeeId && employeeId.trim() !== '' ? employeeId.trim() : `EMP-${mobile.replace(/\D/g, '')}`;
 
         // Check if user already exists
-        const existingUser = db.prepare('SELECT * FROM users WHERE phone = ?').get(mobile);
+        const existingUser = db.prepare('SELECT * FROM users WHERE phone = ? OR (employee_id = ? AND employee_id IS NOT NULL)').get(mobile, cleanEmpId);
         if (existingUser) {
-            // Update existing user's name, college and department
-            db.prepare('UPDATE users SET name = ?, college = ?, department = ? WHERE phone = ?').run(name, collegeName, departmentName, mobile);
+            // Update existing user's name, college, department, and employeeId
+            db.prepare('UPDATE users SET name = ?, college = ?, department = ?, employee_id = ? WHERE phone = ? OR employee_id = ?')
+                .run(name, collegeName, departmentName, cleanEmpId, mobile, cleanEmpId);
             return res.json({ message: 'Profile updated successfully' });
         }
 
-        db.prepare('INSERT INTO users (phone, name, college, department, role) VALUES (?, ?, ?, ?, ?)').run(mobile, name, collegeName, departmentName, 'staff');
-        res.json({ message: 'Registration successful' });
+        db.prepare('INSERT INTO users (phone, name, college, department, role, employee_id, status) VALUES (?, ?, ?, ?, ?, ?, ?)')
+            .run(mobile, name, collegeName, departmentName, 'staff', cleanEmpId, 'active');
+        res.json({ message: 'Registration successful!' });
     } catch (err) {
         console.error('Registration error:', err);
         res.status(500).json({ error: err.message });

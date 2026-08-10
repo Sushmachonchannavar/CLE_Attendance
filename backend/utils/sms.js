@@ -15,12 +15,12 @@ const generateOTP = () => {
  */
 const sendVerification = async (phone) => {
     const apiKey = process.env.SMS_API_KEY;
-    const senderId = process.env.SMS_SENDER || 'CLE SOC';
+    const senderId = process.env.SMS_SENDER || 'TGSSVM';
     
-    // Normalize phone for XSMS API (needs 91 prefix but no +)
+    // Normalize phone (use last 10 digits since country code 91 is specified)
     let cleanPhone = phone.replace(/\D/g, ''); // Remove all non-digits
-    if (cleanPhone.length === 10) {
-        cleanPhone = '91' + cleanPhone;
+    if (cleanPhone.length > 10) {
+        cleanPhone = cleanPhone.slice(-10);
     }
     
     // Normalized format for local DB storage (with +91)
@@ -28,7 +28,7 @@ const sendVerification = async (phone) => {
 
     // Mock mode or Demo Numbers
     const demoNumbers = ['+911234567890', '+919876543210', '+919999999999', '+918888888888'];
-    if (demoNumbers.includes(formattedPhone) || !apiKey || apiKey.includes('_HERE')) {
+    if (demoNumbers.includes(formattedPhone) || !apiKey || apiKey.includes('_HERE') || apiKey === 'your_sms_api_key') {
         console.log(`\x1b[33m%s\x1b[0m`, `[MOCK VERIFY] Starting verification for ${formattedPhone} (Demo/Mock Mode activated)`);
         
         // Even in mock mode, we store the OTP so checkVerification works
@@ -40,35 +40,37 @@ const sendVerification = async (phone) => {
     }
 
     const otp = generateOTP();
-    const message = `Your OTP for CLE Attendance is ${otp}. Please do not share it with anyone.`;
+    // Exact DLT registered message template
+    const message = `जरूरी सूचना  Dear Staff your OTP for attendance punch-in is ${otp} This code is valid for 5 minutes Please do not share it C.L.E Society's Sr Sec School`;
     
     try {
-        const url = `http://m.xsms.in/api/otp.php`;
+        const url = `https://m.xsms.in/api/sendhttp.php`;
         const params = {
             authkey: apiKey,
-            mobile: cleanPhone,
-            message: message,
+            mobiles: cleanPhone,
             sender: senderId,
-            otp: otp,
-            otp_length: 6
+            route: '4',
+            country: '91',
+            unicode: '1',
+            campaign: 'test',
+            DLT_TE_ID: process.env.DLT_TE_ID || '1507166573508565333',
+            message: message
         };
 
-        console.log(`[SMS] Sending OTP to ${cleanPhone}...`);
+        console.log(`[SMS] Sending Verification OTP to ${cleanPhone}...`);
         const response = await axios.get(url, { params });
-        
-        // Check response (XSMS returns { message: '...', type: 'success/error' })
         console.log(`[SMS] API Response:`, response.data);
 
-        if (response.data && response.data.type === 'success') {
-            // Store OTP in database
-            const expiresAt = new Date(Date.now() + 10 * 60 * 1000).toISOString(); // 10 mins
-            db.prepare('INSERT OR REPLACE INTO otps (phone, otp, expires_at) VALUES (?, ?, ?)').run(formattedPhone, otp, expiresAt);
-            return { success: true, status: 'pending' };
-        } else {
-            const errorMsg = response.data?.message || 'API rejected the request';
-            console.error(`[ERROR] XSMS API returned error:`, errorMsg);
-            return { success: false, error: errorMsg };
+        const respText = typeof response.data === 'string' ? response.data : JSON.stringify(response.data);
+        if (respText.toLowerCase().includes('error') || respText.toLowerCase().includes('fail') || respText.toLowerCase().includes('invalid')) {
+            console.error(`[ERROR] XSMS API returned error:`, respText);
+            return { success: false, error: respText };
         }
+
+        // Store OTP in database
+        const expiresAt = new Date(Date.now() + 10 * 60 * 1000).toISOString(); // 10 mins
+        db.prepare('INSERT OR REPLACE INTO otps (phone, otp, expires_at) VALUES (?, ?, ?)').run(formattedPhone, otp, expiresAt);
+        return { success: true, status: 'pending' };
     } catch (error) {
         console.error(`[ERROR] XSMS API Failed:`, error.message);
         return { success: false, error: error.message };
@@ -116,4 +118,66 @@ const checkVerification = async (phone, code) => {
     }
 };
 
-module.exports = { sendVerification, checkVerification };
+/**
+ * Sends a secure attendance OTP using m.xsms.in sendhttp.php API
+ * 
+ * @param {string} phone - Mobile number
+ * @param {string} otp - 6-digit OTP
+ */
+const sendAttendanceOTP = async (phone, otp) => {
+    const apiKey = process.env.SMS_API_KEY || '508941AwTrDuc95m6a5f3f66P1';
+    const senderId = process.env.SMS_SENDER || 'TGSSVM';
+    const templateId = process.env.DLT_TE_ID || '1507166573508565333';
+
+    // Normalize phone (use last 10 digits since country code 91 is specified)
+    let cleanPhone = phone.replace(/\D/g, ''); // Remove all non-digits
+    if (cleanPhone.length > 10) {
+        cleanPhone = cleanPhone.slice(-10);
+    }
+
+    // Normalized format for logging (with +91)
+    let formattedPhone = phone.startsWith('+') ? phone : '+91' + phone;
+
+    // Mock mode or Demo Numbers
+    const demoNumbers = ['+911234567890', '+919876543210', '+919999999999', '+918888888888'];
+    if (demoNumbers.includes(formattedPhone) || !apiKey || apiKey.includes('_HERE') || apiKey === 'your_sms_api_key') {
+        console.log(`\x1b[33m%s\x1b[0m`, `[MOCK SMS] Sent OTP ${otp} to ${formattedPhone} (Demo/Mock Mode)`);
+        return { success: true, mock: true };
+    }
+
+    // Exact DLT registered message template
+    const message = `जरूरी सूचना  Dear Staff your OTP for attendance punch-in is ${otp} This code is valid for 5 minutes Please do not share it C.L.E Society's Sr Sec School`;
+
+    try {
+        const url = `https://m.xsms.in/api/sendhttp.php`;
+        const params = {
+            authkey: apiKey,
+            mobiles: cleanPhone,
+            sender: senderId,
+            route: '4',
+            country: '91',
+            unicode: '1',
+            campaign: 'test',
+            DLT_TE_ID: templateId,
+            message: message
+        };
+
+        console.log(`[SMS] Sending OTP to ${cleanPhone} via m.xsms.in...`);
+        const response = await axios.get(url, { params });
+        console.log(`[SMS] XSMS API Response:`, response.data);
+
+        const respText = typeof response.data === 'string' ? response.data : JSON.stringify(response.data);
+        if (respText.toLowerCase().includes('error') || respText.toLowerCase().includes('fail') || respText.toLowerCase().includes('invalid')) {
+            console.error(`[ERROR] XSMS API returned error response:`, respText);
+            return { success: false, error: respText };
+        }
+
+        return { success: true, response: respText };
+    } catch (error) {
+        console.error(`[ERROR] XSMS API Call Failed:`, error.message);
+        return { success: false, error: error.message };
+    }
+};
+
+module.exports = { sendVerification, checkVerification, sendAttendanceOTP };
+

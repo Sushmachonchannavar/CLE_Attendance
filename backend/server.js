@@ -30,6 +30,7 @@ app.use('/api/auth', require('./routes/authRoutes'));
 app.use('/api/attendance', require('./routes/attendanceRoutes'));
 app.use('/api/requests', require('./routes/requestRoutes'));
 app.use('/api/reports', require('./routes/reportRoutes'));
+app.use('/api/sms', require('./routes/smsRoutes'));
 
 app.get('/', (req, res) => {
     res.send('Staff Attendance System API is running');

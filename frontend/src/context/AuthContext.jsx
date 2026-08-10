@@ -48,20 +48,19 @@ export const AuthProvider = ({ children }) => {
         initializeAuth();
     }, []);
 
-    const login = async (phone) => {
+    const login = async (phone, role) => {
         try {
-            const res = await api.post('/auth/login', { phone });
-            if (res.data.debug) {
-                alert(`[DEMO MODE] ${res.data.debug}`);
-            } else {
-                alert(`Success: Verification code has been sent to your mobile number.`);
-            }
-            return true;
+            const res = await api.post('/attendance/send-otp', { phone, role });
+            return res;
         } catch (error) {
-            const errorMsg = error.response?.data?.details || error.response?.data?.error || "Failed to connect to authentication service.";
-            alert(`Error: ${errorMsg}`);
             console.error("Auth Login Error:", error);
-            return false;
+            const errorMsg = error.response?.data?.message || error.response?.data?.error || error.response?.data?.details || "Failed to connect to authentication service.";
+            return {
+                data: {
+                    success: false,
+                    message: errorMsg
+                }
+            };
         }
     };
 
@@ -82,9 +81,9 @@ export const AuthProvider = ({ children }) => {
         }
     };
 
-    const verifyOtp = async (phone, otp) => {
+    const verifyOtp = async (phone, otp, targetRole) => {
         try {
-            const res = await api.post('/auth/verify', { phone, otp });
+            const res = await api.post('/attendance/verify-otp', { phone, otp, role: targetRole });
             localStorage.setItem('token', res.data.token);
             localStorage.setItem('user', JSON.stringify(res.data.user));
             setUser(res.data.user);
@@ -95,34 +94,54 @@ export const AuthProvider = ({ children }) => {
             if (otp === '123456') {
                 let role = 'staff';
                 let userId = 100; // Default staff ID
-                let name = 'Demo Staff';
+                let name = 'Demo Staff 1';
                 let college = '';
-                let department = '';
+                let department = 'Engineering';
+                let activePhone = phone || '1234567890';
+                let employeeId = 'EMP100';
 
                 // Default specialized demo roles
-                if (phone === '9999999999') {
+                if (activePhone === '9999999999' || activePhone === 'EMP000') {
                     role = 'admin';
                     userId = 1;
                     name = 'Admin User';
-                } else if (phone === '8888888888') {
+                    activePhone = '9999999999';
+                    employeeId = 'EMP000';
+                    department = 'Administration';
+                } else if (activePhone === '8888888888' || activePhone === 'EMP001') {
                     role = 'hoi';
                     userId = 2;
                     name = 'Principal User';
-                } else if (phone === '9876543210') {
+                    activePhone = '8888888888';
+                    employeeId = 'EMP001';
+                    department = 'Principal Office';
+                } else if (activePhone === '9876543210' || activePhone === 'EMP101') {
                     userId = 101;
                     name = 'Demo Staff 2';
+                    activePhone = '9876543210';
+                    employeeId = 'EMP101';
+                    department = 'HR';
+                } else if (activePhone === '1234567890' || activePhone === 'EMP100') {
+                    userId = 100;
+                    name = 'Demo Staff 1';
+                    activePhone = '1234567890';
+                    employeeId = 'EMP100';
+                    department = 'Engineering';
                 }
 
-                // Override with registered demo data if exists
-                const registeredUser = localStorage.getItem(`demo_user_${phone}`);
-                if (registeredUser) {
-                    const data = JSON.parse(registeredUser);
-                    name = data.name;
-                    college = data.college || '';
-                    department = data.department || '';
+                if (targetRole) {
+                    const dbRole = role.toLowerCase();
+                    const reqRole = targetRole.toLowerCase();
+                    const rolesMatch = dbRole === reqRole || 
+                                       ((dbRole === 'hoi' || dbRole === 'principal') && 
+                                        (reqRole === 'hoi' || reqRole === 'principal'));
+                    if (!rolesMatch) {
+                        const displayRole = reqRole === 'hoi' || reqRole === 'principal' ? 'Principal' : reqRole.charAt(0).toUpperCase() + reqRole.slice(1);
+                        return { success: false, error: `Unauthorized: User is not registered as ${displayRole}.` };
+                    }
                 }
 
-                const mockUser = { id: userId, phone, role, name, college, department };
+                const mockUser = { id: userId, employee_id: employeeId, phone: activePhone, role, name, college, department };
                 localStorage.setItem('token', 'mock-jwt-token');
                 localStorage.setItem('user', JSON.stringify(mockUser));
                 setUser(mockUser);

@@ -4,6 +4,7 @@ import { MapContainer, TileLayer, Marker, Popup, Circle, Polyline, useMap } from
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import api from '../utils/api';
+import { useAuth } from '../context/AuthContext';
 
 // Fix for default marker icons in Leaflet with Vite
 import markerIcon from 'leaflet/dist/images/marker-icon.png';
@@ -67,6 +68,7 @@ const LATE_THRESHOLD_MINUTE = 20; // After 9:20 AM is late
 
 
 const AttendancePanel = () => {
+    const { user } = useAuth();
     const [status, setStatus] = useState(null);
     const [location, setLocation] = useState(null);
     const [distance, setDistance] = useState(null);
@@ -74,6 +76,12 @@ const AttendancePanel = () => {
     const [loading, setLoading] = useState(false);
     const [msg, setMsg] = useState('');
     const [isWithinDutyHours, setIsWithinDutyHours] = useState(false);
+
+    // Secure OTP states
+    const [showOtpModal, setShowOtpModal] = useState(false);
+    const [otpInput, setOtpInput] = useState('');
+    const [otpErrorText, setOtpErrorText] = useState('');
+    const [sendingOtp, setSendingOtp] = useState(false);
 
     useEffect(() => {
         fetchStatus();
@@ -207,6 +215,68 @@ const AttendancePanel = () => {
         } catch (err) {
             console.error("Punch failed", err);
             setError(err.response?.data?.error || 'Punch failed. Check your geofence status.');
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const handleRequestOTP = async () => {
+        if (!location) {
+            setError('Location not available. Please wait for GPS.');
+            return;
+        }
+        
+        const phone = user?.phone || '1234567890';
+        setSendingOtp(true);
+        setError('');
+        setMsg('');
+        setOtpErrorText('');
+        setOtpInput('');
+
+        try {
+            const res = await api.post('/attendance/send-otp', { phone });
+            if (res.data.debug) {
+                console.log(`[DEMO MODE] ${res.data.debug}`);
+            }
+            setShowOtpModal(true);
+        } catch (err) {
+            console.error("Failed to request OTP:", err);
+            setError(err.response?.data?.error || 'Failed to request OTP code. Please check server logs.');
+        } finally {
+            setSendingOtp(false);
+        }
+    };
+
+    const handleVerifyAndPunchIn = async (e) => {
+        e.preventDefault();
+        if (!otpInput || otpInput.length !== 6) {
+            setOtpErrorText('Please enter a valid 6-digit OTP.');
+            return;
+        }
+
+        setLoading(true);
+        setOtpErrorText('');
+
+        const phone = user?.phone || '1234567890';
+
+        try {
+            const res = await api.post('/attendance/verify-otp', {
+                phone,
+                otp: otpInput,
+                lat: location.lat,
+                lng: location.lng
+            });
+
+            if (res.data.success) {
+                setMsg(res.data.message || 'Punched In successfully!');
+                setShowOtpModal(false);
+                fetchStatus();
+            } else {
+                setOtpErrorText(res.data.error || 'Verification failed.');
+            }
+        } catch (err) {
+            console.error("OTP Punch-in failed:", err);
+            setOtpErrorText(err.response?.data?.error || 'Verification failed. Please try again.');
         } finally {
             setLoading(false);
         }
@@ -395,8 +465,8 @@ const AttendancePanel = () => {
 
             {!status.punchedOut && (
                 <button
-                    onClick={handlePunch}
-                    disabled={loading || !location || (!status.punchedIn && !isInside)}
+                    onClick={status.punchedIn ? handlePunch : handleRequestOTP}
+                    disabled={loading || sendingOtp || !location || (!status.punchedIn && !isInside)}
                     className={`group relative w-full py-4 px-6 rounded-xl font-black text-lg shadow-lg transition-all active:scale-95 disabled:grayscale disabled:opacity-50
                         ${status.punchedIn
                             ? 'bg-gradient-to-r from-red-500 to-red-700 text-white hover:shadow-red-200'
@@ -404,8 +474,10 @@ const AttendancePanel = () => {
                         }`}
                 >
                     <div className="flex items-center justify-center gap-2">
-                        {loading && <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>}
-                        <span>{loading ? 'Transmitting...' : status.punchedIn ? '🔴 Punch Out' : '🔵 Punch In'}</span>
+                        {(loading || sendingOtp) && <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>}
+                        <span>
+                            {sendingOtp ? 'Sending Code...' : (loading ? 'Transmitting...' : (status.punchedIn ? '🔴 Punch Out' : '🔵 Punch In'))}
+                        </span>
                     </div>
                     {!status.punchedIn && !isInside && location && (
                         <div className="absolute -bottom-2 translate-y-full left-0 w-full text-center text-[10px] text-red-500 font-bold uppercase tracking-tight">
@@ -475,6 +547,83 @@ const AttendancePanel = () => {
                     Enterprise Grade Data Security • End-to-End Encrypted
                 </p>
             </div>
+
+            {/* Secure OTP Verification Modal */}
+            {showOtpModal && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+                    {/* Backdrop */}
+                    <div 
+                        className="absolute inset-0 bg-gray-900/60 backdrop-blur-sm animate-in fade-in duration-200"
+                        onClick={() => setShowOtpModal(false)}
+                    ></div>
+
+                    {/* Modal Content */}
+                    <div className="relative bg-white rounded-3xl shadow-2xl w-full max-w-sm p-6 animate-in zoom-in-95 duration-200 border border-gray-100 z-10">
+                        <button
+                            onClick={() => setShowOtpModal(false)}
+                            className="absolute right-4 top-4 text-gray-400 hover:text-gray-600 p-2 hover:bg-gray-100 rounded-full transition-all"
+                        >
+                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
+                            </svg>
+                        </button>
+
+                        <div className="text-center mb-6">
+                            <div className="w-12 h-12 bg-blue-50 text-blue-600 rounded-2xl flex items-center justify-center mx-auto mb-3">
+                                <MapPin className="w-6 h-6 animate-bounce" />
+                            </div>
+                            <h3 className="text-xl font-bold text-gray-800">Secure Punch-In Authorization</h3>
+                            <p className="text-gray-500 text-xs mt-1">
+                                An OTP has been dispatched to the registered phone number <span className="font-bold text-gray-700">{user?.phone || 'N/A'}</span>.
+                            </p>
+                        </div>
+
+                        <form onSubmit={handleVerifyAndPunchIn}>
+                            <div className="mb-4 text-center">
+                                <input
+                                    type="text"
+                                    className={`w-full px-4 py-3 bg-gray-50 border ${otpErrorText ? 'border-red-500 ring-2 ring-red-500/20' : 'border-gray-200 focus:ring-4 focus:ring-blue-500/10'} rounded-2xl text-center text-2xl font-black tracking-[0.4rem] focus:outline-none transition-all`}
+                                    value={otpInput}
+                                    onChange={(e) => {
+                                        setOtpInput(e.target.value.replace(/\D/g, '').slice(0, 6));
+                                        setOtpErrorText('');
+                                    }}
+                                    placeholder="------"
+                                    required
+                                    autoFocus
+                                />
+                                {otpErrorText && (
+                                    <p className="mt-2 text-xs text-red-500 font-bold flex items-center justify-center gap-1.5 animate-pulse">
+                                        <XCircle className="w-3.5 h-3.5" />
+                                        {otpErrorText}
+                                    </p>
+                                )}
+                            </div>
+
+                            <button
+                                type="submit"
+                                disabled={loading}
+                                className="w-full py-3 bg-gradient-to-r from-blue-600 to-indigo-650 hover:from-blue-700 hover:to-indigo-700 text-white rounded-2xl font-black text-md shadow-lg shadow-blue-500/20 transition-all active:scale-98 disabled:opacity-50"
+                            >
+                                <div className="flex items-center justify-center gap-2">
+                                    {loading && <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>}
+                                    <span>{loading ? 'Authorizing...' : 'Verify & Punch In'}</span>
+                                </div>
+                            </button>
+
+                            <div className="mt-4 text-center">
+                                <button
+                                    type="button"
+                                    onClick={handleRequestOTP}
+                                    className="text-xs text-blue-600 hover:text-blue-700 font-bold hover:underline"
+                                >
+                                    Resend Verification Code
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            )}
         </div>
     );
 };

@@ -85,6 +85,7 @@ const Register = () => {
                             required
                         />
                     </div>
+
                     <div className="mb-4">
                         <label className="block mb-2 text-sm font-bold text-gray-700">Mobile Number</label>
                         <input

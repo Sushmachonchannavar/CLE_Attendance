@@ -134,6 +134,27 @@ const initDb = () => {
         // Column might already exist
     }
 
+    // Adding employee_id column if it doesn't exist
+    try {
+        db.prepare('ALTER TABLE users ADD COLUMN employee_id TEXT').run();
+    } catch (err) {
+        // Column might already exist
+    }
+
+    // Create unique index for employee_id if not exists
+    try {
+        db.prepare('CREATE UNIQUE INDEX IF NOT EXISTS idx_users_employee_id ON users(employee_id)').run();
+    } catch (err) {
+        // Index/constraint might already exist
+    }
+
+    // Adding status column if it doesn't exist
+    try {
+        db.prepare("ALTER TABLE users ADD COLUMN status TEXT DEFAULT 'active'").run();
+    } catch (err) {
+        // Column might already exist
+    }
+
     // 2. Attendance table
     db.prepare(`
         CREATE TABLE IF NOT EXISTS attendance (
@@ -211,28 +232,50 @@ const initDb = () => {
         )
     `).run();
 
+    // 6. Attendance OTPs table (secure hashed OTP storage)
+    db.prepare(`
+        CREATE TABLE IF NOT EXISTS attendance_otps (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            employee_id TEXT NOT NULL,
+            otp TEXT NOT NULL,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            expires_at DATETIME NOT NULL,
+            is_used INTEGER DEFAULT 0
+        )
+    `).run();
+
     // --- SEED DATA (Demo Users) ---
     // We use INSERT OR IGNORE so these only get added once.
 
     db.prepare(`
-        INSERT OR IGNORE INTO users (id, name, phone, role, department)
-        VALUES (1, 'Admin User', '9999999999', 'admin', 'Administration')
+        INSERT OR IGNORE INTO users (id, name, phone, role, department, employee_id, status)
+        VALUES (1, 'Admin User', '9999999999', 'admin', 'Administration', 'EMP000', 'active')
     `).run();
 
     db.prepare(`
-        INSERT OR IGNORE INTO users (id, name, phone, role, department)
-        VALUES (2, 'Principal User', '8888888888', 'hoi', 'Principal Office')
+        INSERT OR IGNORE INTO users (id, name, phone, role, department, employee_id, status)
+        VALUES (2, 'Principal User', '8888888888', 'hoi', 'Principal Office', 'EMP001', 'active')
     `).run();
 
     db.prepare(`
-        INSERT OR IGNORE INTO users (id, name, phone, role, department)
-        VALUES (100, 'Demo Staff 1', '1234567890', 'staff', 'Engineering')
+        INSERT OR IGNORE INTO users (id, name, phone, role, department, employee_id, status)
+        VALUES (100, 'Demo Staff 1', '1234567890', 'staff', 'Engineering', 'EMP100', 'active')
     `).run();
 
     db.prepare(`
-        INSERT OR IGNORE INTO users (id, name, phone, role, department)
-        VALUES (101, 'Demo Staff 2', '9876543210', 'staff', 'HR')
+        INSERT OR IGNORE INTO users (id, name, phone, role, department, employee_id, status)
+        VALUES (101, 'Demo Staff 2', '9876543210', 'staff', 'HR', 'EMP101', 'active')
     `).run();
+
+    // Ensure existing seed users have employee_id and status updated
+    try {
+        db.prepare("UPDATE users SET employee_id = 'EMP000', status = 'active' WHERE id = 1 AND employee_id IS NULL").run();
+        db.prepare("UPDATE users SET employee_id = 'EMP001', status = 'active' WHERE id = 2 AND employee_id IS NULL").run();
+        db.prepare("UPDATE users SET employee_id = 'EMP100', status = 'active' WHERE id = 100 AND employee_id IS NULL").run();
+        db.prepare("UPDATE users SET employee_id = 'EMP101', status = 'active' WHERE id = 101 AND employee_id IS NULL").run();
+    } catch (updateErr) {
+        console.warn("Failed to update pre-existing users with employee IDs:", updateErr.message);
+    }
 
     // --- SEED DATA (Demo Leaves) ---
     // This uses the correct ID (100) from the user we just created.
