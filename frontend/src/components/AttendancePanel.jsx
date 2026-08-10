@@ -56,9 +56,9 @@ const RecenterMap = ({ coords }) => {
 };
 
 
-const CAMPUS_LAT = 16.42578;
-const CAMPUS_LNG = 74.58970;
-const GEOFENCE_RADIUS_METERS = 100;
+const CAMPUS_LAT = 16.426145;
+const CAMPUS_LNG = 74.589783;
+const GEOFENCE_RADIUS_METERS = 170;
 const PRIVACY_RADIUS_METERS = 500; // Hide map if further than this
 const DUTY_START_HOUR = 9;   // 9:00 AM
 
@@ -225,7 +225,7 @@ const AttendancePanel = () => {
             setError('Location not available. Please wait for GPS.');
             return;
         }
-        
+
         const phone = user?.phone || '1234567890';
         setSendingOtp(true);
         setError('');
@@ -552,7 +552,7 @@ const AttendancePanel = () => {
             {showOtpModal && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
                     {/* Backdrop */}
-                    <div 
+                    <div
                         className="absolute inset-0 bg-gray-900/60 backdrop-blur-sm animate-in fade-in duration-200"
                         onClick={() => setShowOtpModal(false)}
                     ></div>
