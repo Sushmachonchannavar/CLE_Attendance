@@ -20,15 +20,20 @@ const isAllowedOrigin = (origin) => {
     // Non-browser clients (curl, mobile apps, Postman) do not send an Origin header
     if (!origin) return true;
 
-    // Explicit configured frontend URL
+    // Explicit configured frontend URL(s) - support comma-separated list
     if (process.env.FRONTEND_URL) {
-        const configuredUrl = process.env.FRONTEND_URL.replace(/\/$/, '');
-        if (origin === configuredUrl || origin === process.env.FRONTEND_URL) {
+        const configuredUrls = process.env.FRONTEND_URL.split(',').map(u => u.trim().replace(/\/$/, ''));
+        if (configuredUrls.includes(origin)) {
             return true;
         }
     }
 
-    // In production, strictly enforce FRONTEND_URL
+    // Allow Cloudflare Pages deployments
+    if (/^https:\/\/[a-zA-Z0-9-]+\.pages\.dev$/.test(origin)) {
+        return true;
+    }
+
+    // In production, strictly enforce allowed origins
     if (process.env.NODE_ENV === 'production') {
         return false;
     }
