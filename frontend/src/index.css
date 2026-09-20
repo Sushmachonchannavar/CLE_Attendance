@@ -3,14 +3,50 @@
 @tailwind utilities;
 
 :root {
-    --theme-primary-admin: rgb(249, 115, 22);
-    --theme-primary-staff: rgb(30, 58, 138);
-    --theme-bg-light: rgb(248, 250, 252);
+    --brand-primary: #1e40af;
+    --brand-primary-dark: #1e3a8a;
+    --brand-navy: #0f172a;
+    --brand-gold: #d97706;
+    --brand-bg: #f8fafc;
+}
+
+@layer base {
+    html {
+        scroll-behavior: smooth;
+        -webkit-tap-highlight-color: transparent;
+    }
+    
+    body {
+        background-color: var(--brand-bg);
+        color: #1e293b;
+        font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    }
+
+    /* Custom focus outline for keyboard accessibility */
+    button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible {
+        outline: 2px solid #2563eb;
+        outline-offset: 2px;
+    }
 }
 
 @layer utilities {
     .animation-delay-2000 {
         animation-delay: 2s;
+    }
+    .custom-scrollbar::-webkit-scrollbar {
+        width: 6px;
+        height: 6px;
+    }
+    .custom-scrollbar::-webkit-scrollbar-track {
+        background: #f1f5f9;
+        border-radius: 9999px;
+    }
+    .custom-scrollbar::-webkit-scrollbar-thumb {
+        background: #cbd5e1;
+        border-radius: 9999px;
+    }
+    .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+        background: #94a3b8;
     }
 }
 
@@ -18,15 +54,12 @@
     0% {
         transform: translate(0px, 0px) scale(1);
     }
-
     33% {
-        transform: translate(30px, -50px) scale(1.1);
+        transform: translate(30px, -50px) scale(1.08);
     }
-
     66% {
-        transform: translate(-20px, 20px) scale(0.9);
+        transform: translate(-20px, 20px) scale(0.92);
     }
-
     100% {
         transform: translate(0px, 0px) scale(1);
     }
@@ -40,22 +73,20 @@
     from {
         opacity: 0;
     }
-
     to {
         opacity: 1;
     }
 }
 
 .animate-in.fade-in {
-    animation: fadeIn 0.3s ease-out;
+    animation: fadeIn 0.25s ease-out;
 }
 
 @keyframes zoomIn {
     from {
-        transform: scale(0.95);
+        transform: scale(0.96);
         opacity: 0;
     }
-
     to {
         transform: scale(1);
         opacity: 1;
@@ -63,5 +94,16 @@
 }
 
 .animate-in.zoom-in-95 {
-    animation: zoomIn 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+    animation: zoomIn 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* Ensure Leaflet controls and popups have proper z-index and fonts */
+.leaflet-popup-content-wrapper {
+    border-radius: 1rem !important;
+    box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.05) !important;
+    border: 1px solid #e2e8f0;
+}
+.leaflet-popup-content {
+    font-family: 'Inter', system-ui, sans-serif !important;
+    margin: 12px 14px !important;
 }

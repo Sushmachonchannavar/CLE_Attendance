@@ -1,15 +1,18 @@
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import Layout from '../components/Layout';
 import api from '../utils/api';
 import { useAuth } from '../context/AuthContext';
+import { Calendar, CheckCircle, XCircle, Trash2, Clock, User, Filter, AlertCircle } from 'lucide-react';
 
 const LeaveRequests = () => {
     const { user } = useAuth();
+    const userRole = user?.role?.toLowerCase();
+    const isPrincipal = userRole === 'hoi' || userRole === 'principal';
     const [leaves, setLeaves] = useState([]);
     const [loading, setLoading] = useState(false);
     const [activeRoleFilter, setActiveRoleFilter] = useState('STAFF');
 
-    const fetchLeaves = async () => {
+    const fetchLeaves = useCallback(async () => {
         setLoading(true);
         try {
             const res = await api.get(`/requests/leaves/all?role=${activeRoleFilter}`);
@@ -20,11 +23,11 @@ const LeaveRequests = () => {
         } finally {
             setLoading(false);
         }
-    };
+    }, [activeRoleFilter]);
 
     useEffect(() => {
         fetchLeaves();
-    }, [activeRoleFilter]);
+    }, [fetchLeaves]);
 
     const updateLeaveStatus = async (id, status) => {
         try {
@@ -59,109 +62,145 @@ const LeaveRequests = () => {
         }
     };
 
+
     const getStatusBadgeClass = (status) => {
         switch (status?.toLowerCase()) {
-            case 'approved': return 'bg-green-100 text-green-800 border border-green-200';
-            case 'rejected': return 'bg-red-100 text-red-800 border border-red-200';
-            default: return 'bg-yellow-100 text-yellow-800 border border-yellow-200';
+            case 'approved': return 'bg-emerald-50 text-emerald-700 border-emerald-200';
+            case 'rejected': return 'bg-rose-50 text-rose-700 border-rose-200';
+            default: return 'bg-amber-50 text-amber-700 border-amber-200';
         }
     };
 
     return (
         <Layout>
-            <div className="mb-6 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-                <div>
-                    <h3 className="text-3xl font-bold text-gray-800">📅 Leave Requests</h3>
-                    <p className="text-sm text-gray-500 mt-1">Review, approve, reject, or clear leave applications.</p>
+            {/* Header Banner */}
+            <div className="mb-6 p-6 sm:p-8 rounded-3xl bg-gradient-to-r from-blue-900 via-blue-800 to-slate-900 text-white shadow-xl shadow-blue-950/20 border border-blue-700/30 relative overflow-hidden">
+                <div className="relative z-10">
+                    <div className="flex items-center gap-2 mb-2">
+                        <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-blue-500/20 text-blue-200 border border-blue-400/30">
+                            <Calendar className="w-3.5 h-3.5" />
+                            {isPrincipal ? 'Staff Leave Authorization' : 'Administrative Authorization'}
+                        </span>
+                    </div>
+                    <h2 className="text-2xl sm:text-3xl font-extrabold tracking-tight">
+                        {isPrincipal ? 'Staff Leave Requests' : 'Leave Approval Management'}
+                    </h2>
+                    <p className="text-blue-200/90 text-xs sm:text-sm mt-1">
+                        {isPrincipal ? 'Review and authorize faculty and staff leave applications' : 'Review, authorize, reject, or archive institutional leave requests'}
+                    </p>
                 </div>
             </div>
 
-            {/* Role Filter Tabs */}
-            <div className="mb-6 flex border-b border-gray-250">
-                <button
-                    onClick={() => setActiveRoleFilter('STAFF')}
-                    className={`py-3 px-6 font-bold text-sm transition-all duration-200 border-b-2 ${
-                        activeRoleFilter === 'STAFF'
-                            ? 'border-[#0a93ad] text-[#0a93ad]'
-                            : 'border-transparent text-gray-500 hover:text-gray-700'
-                    }`}
-                >
-                    Staff Leaves
-                </button>
-                <button
-                    onClick={() => setActiveRoleFilter('PRINCIPAL')}
-                    className={`py-3 px-6 font-bold text-sm transition-all duration-200 border-b-2 ${
-                        activeRoleFilter === 'PRINCIPAL'
-                            ? 'border-[#0a93ad] text-[#0a93ad]'
-                            : 'border-transparent text-gray-500 hover:text-gray-700'
-                    }`}
-                >
-                    Principal Leaves
-                </button>
-            </div>
+            {/* Role Filter Tabs - Admin Only */}
+            {!isPrincipal && (
+                <div className="mb-6 bg-white p-1.5 rounded-2xl border border-slate-200 inline-flex shadow-sm">
+                    <button
+                        onClick={() => setActiveRoleFilter('STAFF')}
+                        className={`py-2.5 px-6 font-bold text-xs rounded-xl transition-all duration-200 ${
+                            activeRoleFilter === 'STAFF'
+                                ? 'bg-blue-600 text-white shadow-md shadow-blue-600/30'
+                                : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+                        }`}
+                    >
+                        Faculty & Staff Leaves
+                    </button>
+                    <button
+                        onClick={() => setActiveRoleFilter('PRINCIPAL')}
+                        className={`py-2.5 px-6 font-bold text-xs rounded-xl transition-all duration-200 ${
+                            activeRoleFilter === 'PRINCIPAL'
+                                ? 'bg-blue-600 text-white shadow-md shadow-blue-600/30'
+                                : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+                        }`}
+                    >
+                        Principal / HOI Leaves
+                    </button>
+                </div>
+            )}
 
-            <div className="bg-white rounded-xl shadow-md border border-gray-150 p-6">
+            {/* Main Leave Request Container */}
+            <div className="bg-white rounded-3xl shadow-sm border border-slate-200/80 p-5 sm:p-7">
                 {loading ? (
-                    <div className="flex justify-center items-center py-12">
-                        <span className="text-gray-500">Loading leave requests...</span>
+                    <div className="flex justify-center items-center py-16">
+                        <div className="animate-spin rounded-full h-8 w-8 border-3 border-blue-600 border-t-transparent mr-3" />
+                        <span className="text-slate-600 font-semibold text-sm">Retrieving leave submissions...</span>
                     </div>
                 ) : leaves.length === 0 ? (
-                    <div className="text-center py-12 text-gray-500 italic">
-                        No leave requests found.
+                    <div className="text-center py-16 text-slate-400">
+                        <Calendar className="w-12 h-12 mx-auto mb-3 opacity-30 text-slate-500" />
+                        <p className="font-semibold text-slate-600">No leave requests found for this category.</p>
                     </div>
                 ) : (
                     <div className="space-y-4">
-                        {leaves.map((l) => (
-                            <div
-                                key={l.id}
-                                className="p-5 border border-gray-200 bg-gray-50 rounded-xl hover:bg-gray-100 transition-all flex flex-col md:flex-row justify-between items-start md:items-center gap-4"
-                            >
-                                <div className="flex-1">
-                                    <div className="flex flex-wrap items-center gap-2 mb-1">
-                                        <span className="font-bold text-lg text-gray-800">{l.name}</span>
-                                        <span className="text-xs font-semibold px-2 py-0.5 bg-blue-50 text-blue-600 rounded">
-                                            {l.department}
-                                        </span>
+                        {leaves.map((l) => {
+                            return (
+                                <div
+                                    key={l.id}
+                                    data-testid={`leave-row-${l.id}`}
+                                    className="p-5 sm:p-6 border border-slate-200/80 bg-slate-50/60 rounded-2xl hover:bg-white hover:border-slate-300 transition-all duration-150 flex flex-col md:flex-row justify-between items-start md:items-center gap-5 shadow-sm"
+                                >
+                                    <div className="flex-1 space-y-2">
+                                        <div className="flex flex-wrap items-center gap-2.5">
+                                            <span className="font-bold text-base text-slate-900">{l.name}</span>
+                                            <span className="text-xs font-semibold px-2.5 py-0.5 bg-blue-50 text-blue-700 border border-blue-100 rounded-full">
+                                                {l.department || 'Academic'}
+                                            </span>
+                                            <span className="text-xs font-semibold px-2.5 py-0.5 bg-slate-100 text-slate-700 rounded-full capitalize">
+                                                {l.type} Leave
+                                            </span>
+                                        </div>
+
+                                        <div className="flex items-center gap-2 text-xs text-slate-600">
+                                            <Clock className="w-3.5 h-3.5 text-slate-400" />
+                                            <span>Duration: <strong>{l.start_date}</strong> to <strong>{l.end_date}</strong></span>
+                                        </div>
+
+                                        <div className="text-xs text-slate-700 italic bg-white p-3.5 rounded-xl border border-slate-200/70 max-w-2xl leading-relaxed">
+                                            "{l.reason}"
+                                        </div>
+
+                                        <div className="flex items-center gap-2 pt-1">
+                                            <span className="text-xs text-slate-400 font-bold uppercase tracking-wider">Status:</span>
+                                            <span className={`text-[11px] font-extrabold uppercase px-3 py-0.5 rounded-full border ${getStatusBadgeClass(l.status)}`}>
+                                                {l.status || 'PENDING'}
+                                            </span>
+                                        </div>
                                     </div>
-                                    <div className="text-sm text-gray-600 mb-2">
-                                        <span className="font-semibold text-gray-700">Type:</span> {l.type?.toUpperCase()} | <span className="font-semibold text-gray-700">Duration:</span> {l.start_date} → {l.end_date}
-                                    </div>
-                                    <div className="text-sm text-gray-700 italic bg-white p-3 rounded-lg border border-gray-100">
-                                        "{l.reason}"
-                                    </div>
-                                    <div className="mt-3 flex items-center gap-2">
-                                        <span className="text-xs text-gray-500">Status:</span>
-                                        <span className={`text-xs font-bold uppercase px-2.5 py-0.5 rounded-full ${getStatusBadgeClass(l.status)}`}>
-                                            {l.status || 'PENDING'}
-                                        </span>
+
+                                    {/* Action Buttons */}
+                                    <div className="flex flex-wrap gap-2 w-full md:w-auto justify-end border-t md:border-t-0 pt-3 md:pt-0 border-slate-200">
+                                        {l.status !== 'approved' && (
+                                            <button
+                                                data-testid={`approve-leave-${l.id}`}
+                                                onClick={() => updateLeaveStatus(l.id, 'approved')}
+                                                className="px-4 py-2 text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700 rounded-xl shadow-sm hover:shadow active:scale-95 transition whitespace-nowrap flex items-center gap-1.5"
+                                            >
+                                                <CheckCircle className="w-3.5 h-3.5" />
+                                                Approve
+                                            </button>
+                                        )}
+                                        {l.status !== 'rejected' && (
+                                            <button
+                                                data-testid={`reject-leave-${l.id}`}
+                                                onClick={() => updateLeaveStatus(l.id, 'rejected')}
+                                                className="px-4 py-2 text-xs font-bold text-white bg-rose-600 hover:bg-rose-700 rounded-xl shadow-sm hover:shadow active:scale-95 transition whitespace-nowrap flex items-center gap-1.5"
+                                            >
+                                                <XCircle className="w-3.5 h-3.5" />
+                                                Reject
+                                            </button>
+                                        )}
+                                        <button
+                                            data-testid={`clear-leave-${l.id}`}
+                                            onClick={() => handleDeleteRequest(l.id, l.start_date)}
+                                            className="px-3.5 py-2 text-xs font-bold text-slate-600 hover:text-slate-900 bg-white hover:bg-slate-100 border border-slate-200 rounded-xl active:scale-95 transition whitespace-nowrap flex items-center gap-1.5"
+                                            title="Clear Application"
+                                        >
+                                            <Trash2 className="w-3.5 h-3.5 text-slate-400" />
+                                            Clear
+                                        </button>
                                     </div>
                                 </div>
-                                <div className="flex flex-wrap gap-2 w-full md:w-auto justify-end">
-                                    {l.status !== 'approved' && (
-                                        <button
-                                            onClick={() => updateLeaveStatus(l.id, 'approved')}
-                                            className="px-4 py-2 text-sm font-semibold text-white bg-green-600 rounded-lg hover:bg-green-700 active:scale-95 transition whitespace-nowrap"
-                                        >
-                                            ✓ Approve
-                                        </button>
-                                    )}
-                                    {l.status !== 'rejected' && (
-                                        <button
-                                            onClick={() => updateLeaveStatus(l.id, 'rejected')}
-                                            className="px-4 py-2 text-sm font-semibold text-white bg-red-600 rounded-lg hover:bg-red-700 active:scale-95 transition whitespace-nowrap"
-                                        >
-                                            ✕ Reject
-                                        </button>
-                                    )}
-                                    <button
-                                        onClick={() => handleDeleteRequest(l.id, l.start_date)}
-                                        className="px-4 py-2 text-sm font-semibold text-white bg-gray-600 rounded-lg hover:bg-gray-700 active:scale-95 transition whitespace-nowrap"
-                                    >
-                                        🗑 Clear
-                                    </button>
-                                </div>
-                            </div>
-                        ))}
+                            );
+                        })}
                     </div>
                 )}
             </div>

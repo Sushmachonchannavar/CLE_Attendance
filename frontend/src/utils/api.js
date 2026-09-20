@@ -1,42 +1,29 @@
 import axios from 'axios';
 
+export const getBaseURL = () => {
+    const rawUrl = import.meta.env.VITE_API_URL;
+    if (rawUrl && typeof rawUrl === 'string' && rawUrl.trim() !== '') {
+        const trimmed = rawUrl.trim().replace(/\/+$/, '');
+        return trimmed.endsWith('/api') ? trimmed : `${trimmed}/api`;
+    }
+    return 'http://localhost:5001/api';
+};
+
 const api = axios.create({
-    baseURL: '/api',
+    baseURL: getBaseURL(),
 });
 
 api.interceptors.request.use((config) => {
     const token = localStorage.getItem('token');
-    const user = localStorage.getItem('user');
-
     if (token) {
         config.headers.Authorization = `Bearer ${token}`;
     }
-
-    // Send user role and ID for proper authorization
-    if (user) {
-        try {
-            const userData = JSON.parse(user);
-            config.headers['X-User-Role'] = userData.role;
-            config.headers['X-User-Id'] = userData.id;
-        } catch {
-            console.error('Error parsing user data from localStorage');
-        }
-    }
-
     return config;
 });
 
 api.interceptors.response.use(
     (response) => response,
     (error) => {
-        // Log detailed error information for debugging
-        console.error('API Error:', {
-            url: error.config?.url,
-            method: error.config?.method,
-            status: error.response?.status,
-            data: error.response?.data,
-            message: error.message
-        });
         return Promise.reject(error);
     }
 );
