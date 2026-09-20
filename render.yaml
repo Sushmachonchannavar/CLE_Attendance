@@ -1,0 +1,41 @@
+services:
+  - type: web
+    name: staff-attendance-api
+    runtime: node
+    rootDir: backend
+    buildCommand: npm ci
+    startCommand: npm start
+    healthCheckPath: /health
+    disk:
+      name: attendance-data
+      mountPath: /var/data
+      sizeGB: 1
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: DATABASE_PATH
+        value: /var/data/database.sqlite
+      - key: DB_FILE
+        value: /var/data/database.sqlite
+      - key: UPLOAD_DIR
+        value: /var/data/uploads/od-documents
+      - key: FRONTEND_URL
+        sync: false
+      - key: JWT_SECRET
+        sync: false
+      - key: SMS_API_KEY
+        sync: false
+      - key: SMS_AUTH_KEY
+        sync: false
+      - key: SMS_SENDER
+        sync: false
+      - key: SMS_BASE_URL
+        sync: false
+      - key: SMS_CAMPAIGN
+        sync: false
+      - key: DLT_TE_ID
+        sync: false
+      - key: CAMPUS_LAT
+        sync: false
+      - key: CAMPUS_LNG
+        sync: false

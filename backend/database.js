@@ -1,293 +1,47 @@
-/* const Database = require('better-sqlite3');
-const path = require('path');
-
-const dbPath = path.resolve(__dirname, 'database.sqlite');
-const db = new Database(dbPath);
-
-// Enable foreign key constraints
-db.pragma('foreign_keys = ON');
-
-// Initialize tables
-const initDb = () => {
-    // Users table
-    db.prepare(`
-        CREATE TABLE IF NOT EXISTS users (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            name TEXT,
-            phone TEXT UNIQUE NOT NULL,
-            role TEXT DEFAULT 'staff', -- staff, hoi, admin
-            department TEXT,
-            created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-        )
-    `).run();
-
-    // Attendance table
-    db.prepare(`
-        CREATE TABLE IF NOT EXISTS attendance (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            user_id INTEGER,
-            date TEXT, -- YYYY-MM-DD
-            punch_in_time TEXT,
-            punch_out_time TEXT,
-            location_lat REAL,
-            location_lng REAL,
-            type TEXT DEFAULT 'regular', -- regular, od
-            FOREIGN KEY (user_id) REFERENCES users (id)
-        )
-    `).run();
-
-    // Leaves table
-    db.prepare(`
-        CREATE TABLE IF NOT EXISTS leaves (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            user_id INTEGER,
-            type TEXT, -- sick, casual, etc.
-            start_date TEXT,
-            end_date TEXT,
-            reason TEXT,
-            status TEXT DEFAULT 'pending', -- pending, approved, rejected
-            FOREIGN KEY (user_id) REFERENCES users (id)
-        )
-    `).run();
-
-    // OD Requests table
-    db.prepare(`
-        CREATE TABLE IF NOT EXISTS od_requests (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            user_id INTEGER,
-            purpose TEXT,
-            place TEXT,
-            date TEXT,
-            status TEXT DEFAULT 'pending', -- pending, approved, rejected
-            FOREIGN KEY (user_id) REFERENCES users (id)
-        )
-    `).run();
-
-    // OTPs table
-    db.prepare(`
-        CREATE TABLE IF NOT EXISTS otps (
-            phone TEXT PRIMARY KEY,
-            otp TEXT,
-            expires_at DATETIME
-        )
-    `).run();
-
-    // Insert demo users if they don't exist
-    db.prepare(`
-        INSERT OR IGNORE INTO users (id, name, phone, role, department)
-        VALUES (1, 'Admin User', '9999999999', 'admin', 'Administration')
-    `).run();
-
-    db.prepare(`
-        INSERT OR IGNORE INTO users (id, name, phone, role, department)
-        VALUES (2, 'Principal User', '8888888888', 'hoi', 'Principal Office')
-    `).run();
-
-    db.prepare(`
-        INSERT OR IGNORE INTO users (id, name, phone, role, department)
-        VALUES (100, 'Demo Staff 1', '1234567890', 'staff', 'Engineering')
-    `).run();
-
-    db.prepare(`
-        INSERT OR IGNORE INTO users (id, name, phone, role, department)
-        VALUES (101, 'Demo Staff 2', '9876543210', 'staff', 'HR')
-    `).run();
-
-   
-
-    console.log("Database initialized.");
-};
-
-initDb();
-
-module.exports = db;*/
-
-
 const Database = require('better-sqlite3');
 const path = require('path');
+const fs = require('fs');
+const { runMigrations } = require('./migrations/runner');
 
-const dbPath = path.resolve(__dirname, 'database.sqlite');
+function getDatabasePath() {
+    // Check for explicit environment variables (DATABASE_PATH or legacy DB_FILE)
+    const configuredPath = process.env.DATABASE_PATH || process.env.DB_FILE;
+    if (configuredPath && typeof configuredPath === 'string' && configuredPath.trim() !== '') {
+        const trimmed = configuredPath.trim();
+        return path.isAbsolute(trimmed) ? path.normalize(trimmed) : path.resolve(__dirname, trimmed);
+    }
+    if (process.env.NODE_ENV === 'test') {
+        return path.resolve(__dirname, 'database.test.sqlite');
+    }
+    if (process.env.NODE_ENV === 'staging') {
+        return path.resolve(__dirname, 'database.staging.sqlite');
+    }
+    // Default local development database
+    return path.resolve(__dirname, 'database.sqlite');
+}
+
+const dbPath = getDatabasePath();
+
+// Ensure the directory exists before better-sqlite3 attempts to open or create the file
+const dbDir = path.dirname(dbPath);
+if (!fs.existsSync(dbDir)) {
+    console.log(`[DATABASE] Creating directory for database storage: ${dbDir}`);
+    fs.mkdirSync(dbDir, { recursive: true });
+}
+
+console.log(`[DATABASE] Opening SQLite database: ${dbPath} (exists: ${fs.existsSync(dbPath)}) (mode: ${process.env.NODE_ENV || 'development'})`);
+
 const db = new Database(dbPath);
 
-// Enable foreign key constraints
+// Enable foreign key constraints and write-ahead logging
 db.pragma('foreign_keys = ON');
+try {
+    db.pragma('journal_mode = WAL');
+} catch (e) {
+    // WAL might be restricted in some test memory modes
+}
 
-// Initialize tables
-const initDb = () => {
-    // 1. Users table
-    db.prepare(`
-        CREATE TABLE IF NOT EXISTS users (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            name TEXT,
-            phone TEXT UNIQUE NOT NULL,
-            role TEXT DEFAULT 'staff', -- staff, hoi, admin
-            college TEXT,
-            department TEXT,
-            created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-        )
-    `).run();
-
-    // Adding college column if it doesn't exist
-    try {
-        db.prepare('ALTER TABLE users ADD COLUMN college TEXT').run();
-    } catch (err) {
-        // Column might already exist
-    }
-
-    // Adding employee_id column if it doesn't exist
-    try {
-        db.prepare('ALTER TABLE users ADD COLUMN employee_id TEXT').run();
-    } catch (err) {
-        // Column might already exist
-    }
-
-    // Create unique index for employee_id if not exists
-    try {
-        db.prepare('CREATE UNIQUE INDEX IF NOT EXISTS idx_users_employee_id ON users(employee_id)').run();
-    } catch (err) {
-        // Index/constraint might already exist
-    }
-
-    // Adding status column if it doesn't exist
-    try {
-        db.prepare("ALTER TABLE users ADD COLUMN status TEXT DEFAULT 'active'").run();
-    } catch (err) {
-        // Column might already exist
-    }
-
-    // 2. Attendance table
-    db.prepare(`
-        CREATE TABLE IF NOT EXISTS attendance (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            user_id INTEGER,
-            date TEXT, -- YYYY-MM-DD
-            punch_in_time TEXT,
-            punch_out_time TEXT,
-            location_lat REAL,
-            location_lng REAL,
-            location_lat_out REAL,
-            location_lng_out REAL,
-            type TEXT DEFAULT 'regular', -- regular, od
-            is_late INTEGER DEFAULT 0,  -- 0 for on-time, 1 for late
-            role TEXT DEFAULT 'STAFF',
-            distance REAL,
-            distance_out REAL,
-            status TEXT,
-            FOREIGN KEY (user_id) REFERENCES users (id)
-        )
-    `).run();
-
-    // Adding punch out location columns if they don't exist
-    try { db.prepare('ALTER TABLE attendance ADD COLUMN location_lat_out REAL').run(); } catch (err) { }
-    try { db.prepare('ALTER TABLE attendance ADD COLUMN location_lng_out REAL').run(); } catch (err) { }
-    try { db.prepare('ALTER TABLE attendance ADD COLUMN is_late INTEGER DEFAULT 0').run(); } catch (err) { }
-    try { db.prepare("ALTER TABLE attendance ADD COLUMN role TEXT DEFAULT 'STAFF'").run(); } catch (err) { }
-    try { db.prepare('ALTER TABLE attendance ADD COLUMN distance REAL').run(); } catch (err) { }
-    try { db.prepare('ALTER TABLE attendance ADD COLUMN distance_out REAL').run(); } catch (err) { }
-    try { db.prepare("ALTER TABLE attendance ADD COLUMN status TEXT").run(); } catch (err) { }
-
-
-    // 3. Leaves table
-    db.prepare(`
-        CREATE TABLE IF NOT EXISTS leaves (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            user_id INTEGER,
-            type TEXT, -- sick, casual, etc.
-            start_date TEXT,
-            end_date TEXT,
-            reason TEXT,
-            status TEXT DEFAULT 'pending', -- pending, approved, rejected
-            role TEXT DEFAULT 'STAFF',
-            FOREIGN KEY (user_id) REFERENCES users (id)
-        )
-    `).run();
-
-    try { db.prepare("ALTER TABLE leaves ADD COLUMN role TEXT DEFAULT 'STAFF'").run(); } catch (err) { }
-
-    // 4. OD Requests table
-    db.prepare(`
-        CREATE TABLE IF NOT EXISTS od_requests (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            user_id INTEGER,
-            purpose TEXT,
-            place TEXT,
-            date TEXT,
-            status TEXT DEFAULT 'pending', -- pending, approved, rejected
-            role TEXT DEFAULT 'STAFF',
-            FOREIGN KEY (user_id) REFERENCES users (id)
-        )
-    `).run();
-
-    try { db.prepare("ALTER TABLE od_requests ADD COLUMN role TEXT DEFAULT 'STAFF'").run(); } catch (err) { }
-    try { db.prepare("ALTER TABLE od_requests ADD COLUMN document_name TEXT").run(); } catch (err) { }
-    try { db.prepare("ALTER TABLE od_requests ADD COLUMN document_path TEXT").run(); } catch (err) { }
-    try { db.prepare("ALTER TABLE od_requests ADD COLUMN uploaded_at TEXT").run(); } catch (err) { }
-
-    // 5. OTPs table
-    db.prepare(`
-        CREATE TABLE IF NOT EXISTS otps (
-            phone TEXT PRIMARY KEY,
-            otp TEXT,
-            expires_at DATETIME
-        )
-    `).run();
-
-    // 6. Attendance OTPs table (secure hashed OTP storage)
-    db.prepare(`
-        CREATE TABLE IF NOT EXISTS attendance_otps (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            employee_id TEXT NOT NULL,
-            otp TEXT NOT NULL,
-            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-            expires_at DATETIME NOT NULL,
-            is_used INTEGER DEFAULT 0
-        )
-    `).run();
-
-    // --- SEED DATA (Demo Users) ---
-    // We use INSERT OR IGNORE so these only get added once.
-
-    db.prepare(`
-        INSERT OR IGNORE INTO users (id, name, phone, role, department, employee_id, status)
-        VALUES (1, 'Admin User', '9999999999', 'admin', 'Administration', 'EMP000', 'active')
-    `).run();
-
-    db.prepare(`
-        INSERT OR IGNORE INTO users (id, name, phone, role, department, employee_id, status)
-        VALUES (2, 'Principal User', '8888888888', 'hoi', 'Principal Office', 'EMP001', 'active')
-    `).run();
-
-    db.prepare(`
-        INSERT OR IGNORE INTO users (id, name, phone, role, department, employee_id, status)
-        VALUES (100, 'Demo Staff 1', '1234567890', 'staff', 'Engineering', 'EMP100', 'active')
-    `).run();
-
-    db.prepare(`
-        INSERT OR IGNORE INTO users (id, name, phone, role, department, employee_id, status)
-        VALUES (101, 'Demo Staff 2', '9876543210', 'staff', 'HR', 'EMP101', 'active')
-    `).run();
-
-    // Ensure existing seed users have employee_id and status updated
-    try {
-        db.prepare("UPDATE users SET employee_id = 'EMP000', status = 'active' WHERE id = 1 AND employee_id IS NULL").run();
-        db.prepare("UPDATE users SET employee_id = 'EMP001', status = 'active' WHERE id = 2 AND employee_id IS NULL").run();
-        db.prepare("UPDATE users SET employee_id = 'EMP100', status = 'active' WHERE id = 100 AND employee_id IS NULL").run();
-        db.prepare("UPDATE users SET employee_id = 'EMP101', status = 'active' WHERE id = 101 AND employee_id IS NULL").run();
-    } catch (updateErr) {
-        console.warn("Failed to update pre-existing users with employee IDs:", updateErr.message);
-    }
-
-    // --- SEED DATA (Demo Leaves) ---
-    // This uses the correct ID (100) from the user we just created.
-    db.prepare(`
-        INSERT OR IGNORE INTO leaves (id, user_id, type, start_date, end_date, reason, status)
-        VALUES (1, 100, 'Sick Leave', '2024-05-20', '2024-05-22', 'Fever and cold', 'pending')
-    `).run();
-
-    console.log("Database initialized and demo data seeded successfully.");
-};
-
-// Run initialization
-initDb();
+// Run deterministic versioned migrations
+runMigrations(db);
 
 module.exports = db;

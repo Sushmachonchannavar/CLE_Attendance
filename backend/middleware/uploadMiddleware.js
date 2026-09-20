@@ -5,7 +5,9 @@ const fs = require('fs');
 // Configure storage destination and filename
 const storage = multer.diskStorage({
     destination: (req, file, cb) => {
-        const uploadPath = path.resolve(__dirname, '../uploads/od-documents/');
+        const uploadPath = process.env.UPLOAD_DIR
+            ? path.resolve(process.env.UPLOAD_DIR)
+            : path.resolve(__dirname, '../uploads/od-documents/');
         // Ensure destination folder exists
         fs.mkdirSync(uploadPath, { recursive: true });
         cb(null, uploadPath);

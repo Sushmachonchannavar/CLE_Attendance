@@ -25,21 +25,21 @@ async function runTests() {
             
             // TEST 1: Unregistered User Login
             console.log("\nTEST 1: Login with UNREGISTERED user");
-            let res = await request(app).post('/auth/login').send({ phone: '+911112223334' });
+            let res = await request(app).post('/api/auth/login').send({ phone: '+911112223334' });
             console.log(`Status: ${res.status}`);
             console.log(`Response: ${JSON.stringify(res.body)}`);
             if (res.status === 403) console.log("✅ Passed"); else console.log("❌ Failed");
 
             // TEST 2: Registered User Login
             console.log("\nTEST 2: Login with REGISTERED user");
-            res = await request(app).post('/auth/login').send({ phone: '+919998887776' });
+            res = await request(app).post('/api/auth/login').send({ phone: '+919998887776' });
             console.log(`Status: ${res.status}`);
             console.log(`Response: ${JSON.stringify(res.body)}`);
             if (res.status === 200 && res.body.debug) console.log("✅ Passed"); else console.log("❌ Failed");
 
             // TEST 3: Verify OTP for Registered User
             console.log("\nTEST 3: Verify OTP for REGISTERED user");
-            res = await request(app).post('/auth/verify').send({ phone: '+919998887776', otp: '123456' });
+            res = await request(app).post('/api/auth/verify').send({ phone: '+919998887776', otp: '123456' });
             console.log(`Status: ${res.status}`);
             console.log(`Response: ${JSON.stringify(res.body)}`);
             if (res.status === 200 && res.body.token) console.log("✅ Passed"); else console.log("❌ Failed");
@@ -48,7 +48,7 @@ async function runTests() {
             console.log("\nTEST 4: Attendance Punch In (Outside Geofence)");
             const token = res.body.token; // from test 3
             res = await request(app)
-                .post('/attendance/punch')
+                .post('/api/attendance/punch')
                 .set('Authorization', `Bearer ${token}`)
                 .send({ lat: 10.0, lng: 10.0 }); // Coordinates completely outside
             

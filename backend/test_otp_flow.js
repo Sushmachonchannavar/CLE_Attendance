@@ -2,10 +2,12 @@ const axios = require('axios');
 const db = require('./database');
 const crypto = require('crypto');
 
-// Require server to boot up on its configured port
-require('./server');
-
+// Require server and app to boot up manually
+const app = require('./server');
 const PORT = process.env.PORT || 5001;
+const server = app.listen(PORT, () => {
+    console.log(`Test server listening on port ${PORT}`);
+});
 
 async function runTests() {
     console.log("--- Starting Secure OTP & Attendance Integration Tests ---");
@@ -187,7 +189,7 @@ async function runTests() {
         await client.post('/api/attendance/send-otp', { employeeId: 'EMP_TEST_1' });
         db.prepare("UPDATE attendance_otps SET otp = ? WHERE employee_id = ? AND is_used = 0").run(testOtpHash, 'EMP_TEST_1');
 
-        res = await client.post('/api/attendance/verify-otp', { employeeId: 'EMP_TEST_1', otp: testOtpRaw, lat: 16.42578, lng: 74.58970 });
+        res = await client.post('/api/attendance/verify-otp', { employeeId: 'EMP_TEST_1', otp: testOtpRaw, lat: 16.426000, lng: 74.589200 });
         
         console.log(`Status: ${res.status}`);
         console.log(`Response: ${JSON.stringify(res.data)}`);
@@ -200,6 +202,10 @@ async function runTests() {
     } catch (err) {
         console.error("Test process encountered error:", err);
     } finally {
+        if (server) {
+            server.close();
+            console.log("Test server closed.");
+        }
         // Cleanup database
         const testUser = db.prepare("SELECT id FROM users WHERE employee_id = ?").get('EMP_TEST_1');
         if (testUser) {

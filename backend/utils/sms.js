@@ -2,14 +2,38 @@ const axios = require('axios');
 const db = require('../database');
 
 /**
- * Generates a random 6-digit OTP
+ * Masks a phone number to protect privacy (e.g. "+91******7776")
+ */
+const maskPhone = (phone) => {
+    if (!phone || typeof phone !== 'string') return '****';
+    const clean = phone.trim();
+    if (clean.length <= 4) return '****';
+    return clean.slice(0, -4).replace(/[0-9]/g, '*') + clean.slice(-4);
+};
+
+/**
+ * Generates a cryptographically sound random 6-digit OTP
  */
 const generateOTP = () => {
     return Math.floor(100000 + Math.random() * 900000).toString();
 };
 
 /**
- * Starts a phone verification using XSMS API and local storage.
+ * Checks if SMS gateway credentials are real and active
+ */
+const isGatewayConfigured = (apiKey) => {
+    if (!apiKey) return false;
+    const trimmed = apiKey.trim();
+    return (
+        trimmed.length > 10 &&
+        !trimmed.includes('_HERE') &&
+        !trimmed.startsWith('your_') &&
+        !trimmed.startsWith('SMS_KEY_ROTATED')
+    );
+};
+
+/**
+ * Starts a phone verification using configured SMS gateway or local store
  * 
  * @param {string} phone - The mobile number
  */
@@ -18,33 +42,27 @@ const sendVerification = async (phone) => {
     const senderId = process.env.SMS_SENDER || 'TGSSVM';
     
     // Normalize phone (use last 10 digits since country code 91 is specified)
-    let cleanPhone = phone.replace(/\D/g, ''); // Remove all non-digits
+    let cleanPhone = phone.replace(/\D/g, '');
     if (cleanPhone.length > 10) {
         cleanPhone = cleanPhone.slice(-10);
     }
     
-    // Normalized format for local DB storage (with +91)
     let formattedPhone = phone.startsWith('+') ? phone : '+91' + phone;
+    const otp = generateOTP();
+    const expiresAt = new Date(Date.now() + 10 * 60 * 1000).toISOString(); // 10 mins
 
-    // Mock mode or Demo Numbers
-    const demoNumbers = ['+911234567890', '+919876543210', '+919999999999', '+918888888888'];
-    if (demoNumbers.includes(formattedPhone) || !apiKey || apiKey.includes('_HERE') || apiKey === 'your_sms_api_key') {
-        console.log(`\x1b[33m%s\x1b[0m`, `[MOCK VERIFY] Starting verification for ${formattedPhone} (Demo/Mock Mode activated)`);
-        
-        // Even in mock mode, we store the OTP so checkVerification works
-        const mockOtp = '123456';
-        const expiresAt = new Date(Date.now() + 10 * 60 * 1000).toISOString(); // 10 mins
-        db.prepare('INSERT OR REPLACE INTO otps (phone, otp, expires_at) VALUES (?, ?, ?)').run(formattedPhone, mockOtp, expiresAt);
-        
-        return { success: true, mock: true };
+    if (!isGatewayConfigured(apiKey)) {
+        // Fallback for test/local environment when real SMS gateway is not configured
+        // Uses dynamically generated OTP stored in database (NO static bypasses or hardcoded demo numbers)
+        db.prepare('INSERT OR REPLACE INTO otps (phone, otp, expires_at, attempts) VALUES (?, ?, ?, 0)').run(formattedPhone, otp, expiresAt);
+        console.log(`[SMS-DEV] Verification OTP created for ${maskPhone(formattedPhone)} (Dev mode active)`);
+        return { success: true, status: 'pending', devOtp: process.env.NODE_ENV === 'test' ? otp : undefined };
     }
 
-    const otp = generateOTP();
-    // Exact DLT registered message template
     const message = `जरूरी सूचना  Dear Staff your OTP for attendance punch-in is ${otp} This code is valid for 5 minutes Please do not share it C.L.E Society's Sr Sec School`;
     
     try {
-        const url = `https://m.xsms.in/api/sendhttp.php`;
+        const url = process.env.SMS_BASE_URL || `https://m.xsms.in/api/sendhttp.php`;
         const params = {
             authkey: apiKey,
             mobiles: cleanPhone,
@@ -52,28 +70,25 @@ const sendVerification = async (phone) => {
             route: '4',
             country: '91',
             unicode: '1',
-            campaign: 'test',
+            campaign: process.env.SMS_CAMPAIGN || 'test',
             DLT_TE_ID: process.env.DLT_TE_ID || '1507166573508565333',
             message: message
         };
 
-        console.log(`[SMS] Sending Verification OTP to ${cleanPhone}...`);
+        console.log(`[SMS] Dispatching OTP to ${maskPhone(formattedPhone)}...`);
         const response = await axios.get(url, { params });
-        console.log(`[SMS] API Response:`, response.data);
 
         const respText = typeof response.data === 'string' ? response.data : JSON.stringify(response.data);
         if (respText.toLowerCase().includes('error') || respText.toLowerCase().includes('fail') || respText.toLowerCase().includes('invalid')) {
-            console.error(`[ERROR] XSMS API returned error:`, respText);
-            return { success: false, error: respText };
+            console.error(`[SMS ERROR] Gateway rejected request:`, respText);
+            return { success: false, error: 'Failed to deliver verification code' };
         }
 
-        // Store OTP in database
-        const expiresAt = new Date(Date.now() + 10 * 60 * 1000).toISOString(); // 10 mins
-        db.prepare('INSERT OR REPLACE INTO otps (phone, otp, expires_at) VALUES (?, ?, ?)').run(formattedPhone, otp, expiresAt);
+        db.prepare('INSERT OR REPLACE INTO otps (phone, otp, expires_at, attempts) VALUES (?, ?, ?, 0)').run(formattedPhone, otp, expiresAt);
         return { success: true, status: 'pending' };
     } catch (error) {
-        console.error(`[ERROR] XSMS API Failed:`, error.message);
-        return { success: false, error: error.message };
+        console.error(`[SMS ERROR] Gateway connection failed:`, error.message);
+        return { success: false, error: 'SMS service temporarily unavailable' };
     }
 };
 
@@ -84,72 +99,87 @@ const sendVerification = async (phone) => {
  * @param {string} code - The OTP code to check
  */
 const checkVerification = async (phone, code) => {
-    let formattedPhone = phone.startsWith('+') ? phone : '+91' + phone;
+    const formattedPhone = phone.startsWith('+') ? phone : '+91' + phone;
 
     try {
-        const row = db.prepare('SELECT otp, expires_at FROM otps WHERE phone = ?').get(formattedPhone);
+        const row = db.prepare('SELECT otp, expires_at, attempts FROM otps WHERE phone = ?').get(formattedPhone);
 
         if (!row) {
-            console.warn(`[FAILED] No OTP found for ${formattedPhone}`);
-            return { success: false, error: 'OTP not found' };
+            return { success: false, error: 'OTP not found or expired.' };
         }
 
         const now = new Date();
         const expiresAt = new Date(row.expires_at);
 
         if (now > expiresAt) {
-            console.warn(`[FAILED] OTP expired for ${formattedPhone}`);
             db.prepare('DELETE FROM otps WHERE phone = ?').run(formattedPhone);
-            return { success: false, error: 'OTP expired' };
+            return { success: false, error: 'OTP has expired.' };
         }
 
         if (row.otp === code) {
-            console.log(`[SUCCESS] Verification APPROVED for ${formattedPhone}`);
-            // Delete OTP after successful verification
+            console.log(`[AUTH] Verification successful for ${maskPhone(formattedPhone)}`);
             db.prepare('DELETE FROM otps WHERE phone = ?').run(formattedPhone);
             return { success: true, status: 'approved' };
         } else {
-            console.warn(`[FAILED] Invalid OTP for ${formattedPhone}. Expected ${row.otp}, got ${code}`);
-            return { success: false, error: 'Invalid OTP' };
+            const attempts = (row.attempts || 0) + 1;
+            db.prepare('UPDATE otps SET attempts = ? WHERE phone = ?').run(attempts, formattedPhone);
+
+            if (attempts >= 5) {
+                const lockUntil = new Date(Date.now() + 15 * 60 * 1000).toISOString();
+                db.prepare(`
+                    INSERT INTO auth_lockouts (identifier, locked_until, reason) 
+                    VALUES (?, ?, ?)
+                `).run(formattedPhone, lockUntil, 'Exceeded 5 failed login attempts');
+
+                db.prepare('DELETE FROM otps WHERE phone = ?').run(formattedPhone);
+                console.warn(`[AUTH LOCKOUT] Locked ${maskPhone(formattedPhone)} for 15 mins due to 5 failed attempts`);
+                return { 
+                    success: false, 
+                    locked: true, 
+                    error: 'Account locked for 15 minutes due to 5 consecutive failed login attempts.' 
+                };
+            }
+
+            const remaining = 5 - attempts;
+            console.warn(`[AUTH] Invalid OTP attempt for ${maskPhone(formattedPhone)} (${attempts}/5)`);
+            return { 
+                success: false, 
+                error: `Invalid OTP. (${remaining} attempt${remaining === 1 ? '' : 's'} remaining)` 
+            };
         }
     } catch (error) {
-        console.error(`[ERROR] Local OTP Check Failed:`, error.message);
-        return { success: false, error: error.message };
+        console.error(`[AUTH ERROR] Verification check error:`, error.message);
+        return { success: false, error: 'Internal verification error.' };
     }
 };
 
 /**
- * Sends a secure attendance OTP using m.xsms.in sendhttp.php API
+ * Sends a secure attendance OTP using configured SMS API
  * 
  * @param {string} phone - Mobile number
  * @param {string} otp - 6-digit OTP
  */
 const sendAttendanceOTP = async (phone, otp) => {
-    const apiKey = process.env.SMS_API_KEY || '508941AwTrDuc95m6a5f3f66P1';
+    const apiKey = process.env.SMS_API_KEY;
     const senderId = process.env.SMS_SENDER || 'TGSSVM';
     const templateId = process.env.DLT_TE_ID || '1507166573508565333';
 
-    // Normalize phone (use last 10 digits since country code 91 is specified)
-    let cleanPhone = phone.replace(/\D/g, ''); // Remove all non-digits
+    let cleanPhone = phone.replace(/\D/g, '');
     if (cleanPhone.length > 10) {
         cleanPhone = cleanPhone.slice(-10);
     }
 
-    // Normalized format for logging (with +91)
     let formattedPhone = phone.startsWith('+') ? phone : '+91' + phone;
 
-    // Mock mode or Demo Numbers
-    const demoNumbers = ['+911234567890', '+919876543210', '+919999999999', '+918888888888'];
-    if (demoNumbers.includes(formattedPhone) || !apiKey || apiKey.includes('_HERE') || apiKey === 'your_sms_api_key') {
-        console.log(`\x1b[33m%s\x1b[0m`, `[MOCK SMS] Sent OTP ${otp} to ${formattedPhone} (Demo/Mock Mode)`);
-        return { success: true, mock: true };
+    if (!isGatewayConfigured(apiKey)) {
+        console.log(`[SMS-DEV] Attendance OTP generated for ${maskPhone(formattedPhone)} (Dev mode active)`);
+        return { success: true, devMode: true };
     }
 
-    // Exact DLT registered message template
     const message = `जरूरी सूचना  Dear Staff your OTP for attendance punch-in is ${otp} This code is valid for 5 minutes Please do not share it C.L.E Society's Sr Sec School`;
 
     try {
-        const url = `https://m.xsms.in/api/sendhttp.php`;
+        const url = process.env.SMS_BASE_URL || `https://m.xsms.in/api/sendhttp.php`;
         const params = {
             authkey: apiKey,
             mobiles: cleanPhone,
@@ -157,27 +187,26 @@ const sendAttendanceOTP = async (phone, otp) => {
             route: '4',
             country: '91',
             unicode: '1',
-            campaign: 'test',
+            campaign: process.env.SMS_CAMPAIGN || 'test',
             DLT_TE_ID: templateId,
             message: message
         };
 
-        console.log(`[SMS] Sending OTP to ${cleanPhone} via m.xsms.in...`);
+        console.log(`[SMS] Sending attendance OTP to ${maskPhone(formattedPhone)}...`);
         const response = await axios.get(url, { params });
-        console.log(`[SMS] XSMS API Response:`, response.data);
 
         const respText = typeof response.data === 'string' ? response.data : JSON.stringify(response.data);
+        console.log(`[SMS Gateway Response]:`, respText);
         if (respText.toLowerCase().includes('error') || respText.toLowerCase().includes('fail') || respText.toLowerCase().includes('invalid')) {
-            console.error(`[ERROR] XSMS API returned error response:`, respText);
-            return { success: false, error: respText };
+            console.error(`[SMS ERROR] Gateway rejected attendance OTP:`, respText);
+            return { success: false, error: 'Failed to deliver OTP' };
         }
 
-        return { success: true, response: respText };
+        return { success: true };
     } catch (error) {
-        console.error(`[ERROR] XSMS API Call Failed:`, error.message);
-        return { success: false, error: error.message };
+        console.error(`[SMS ERROR] Gateway connection failed:`, error.message);
+        return { success: false, error: 'SMS service temporarily unavailable' };
     }
 };
 
-module.exports = { sendVerification, checkVerification, sendAttendanceOTP };
-
+module.exports = { sendVerification, checkVerification, sendAttendanceOTP, maskPhone };

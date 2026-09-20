@@ -21,4 +21,7 @@ router.delete('/od/:id', auth, requestController.deleteOD);
 router.get('/od/view/:id', auth, requestController.viewODDocument);
 router.get('/od/download/:id', auth, requestController.downloadODDocument);
 
+// Audit History
+router.get('/audit-history/:type/:id', auth, requestController.getAuditHistory);
+
 module.exports = router;

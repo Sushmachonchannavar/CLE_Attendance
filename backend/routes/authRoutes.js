@@ -7,5 +7,6 @@ router.post('/login', authController.login);
 router.post('/register', authController.register);
 router.post('/verify', authController.verify);
 router.get('/verify-token', authMiddleware, authController.verifyToken);
+router.put('/profile', authMiddleware, authController.updateProfile);
 
 module.exports = router;
