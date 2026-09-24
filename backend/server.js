@@ -28,8 +28,8 @@ const isAllowedOrigin = (origin) => {
         }
     }
 
-    // Allow Cloudflare Pages deployments
-    if (/^https:\/\/[a-zA-Z0-9-]+\.pages\.dev$/.test(origin)) {
+    // Allow Cloudflare Pages and Cloudflare Tunnels
+    if (/^https:\/\/[a-zA-Z0-9-]+\.pages\.dev$/.test(origin) || /^https:\/\/[a-zA-Z0-9-]+\.trycloudflare\.com$/.test(origin)) {
         return true;
     }
 

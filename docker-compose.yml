@@ -1,0 +1,24 @@
+services:
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: cle-attendance-backend
+    restart: always
+    ports:
+      - "5001:5001"
+    environment:
+      - NODE_ENV=production
+      - PORT=5001
+      - DATABASE_PATH=/var/data/database.sqlite
+      - UPLOAD_DIR=/var/data/uploads/od-documents
+      - JWT_SECRET=${JWT_SECRET:-e7b4cf5910c284a1d4f2981096a605f8841dfcb487f54c96a32d18bc36829ae4}
+      - FRONTEND_URL=${FRONTEND_URL:-http://localhost:5173,https://cle-attendance.pages.dev}
+      - CAMPUS_LAT=${CAMPUS_LAT:-16.426026}
+      - CAMPUS_LNG=${CAMPUS_LNG:-74.589353}
+    volumes:
+      - attendance_data:/var/data
+
+volumes:
+  attendance_data:
+    driver: local
