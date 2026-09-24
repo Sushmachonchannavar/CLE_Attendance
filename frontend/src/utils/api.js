@@ -7,13 +7,13 @@ export const getBaseURL = () => {
         const finalUrl = trimmed.endsWith('/api') ? trimmed : `${trimmed}/api`;
         // Guard against accidental localhost / 127.0.0.1 / development URLs in production
         if (import.meta.env.PROD && (finalUrl.includes('localhost') || finalUrl.includes('127.0.0.1') || finalUrl.includes(':5001'))) {
-            return '/api';
+            return 'https://cle-attendance.onrender.com/api';
         }
         return finalUrl;
     }
-    // In production, never return localhost or 127.0.0.1
+    // In production, default directly to the deployed Render backend
     if (import.meta.env.PROD) {
-        return '/api';
+        return 'https://cle-attendance.onrender.com/api';
     }
     return 'http://localhost:5001/api';
 };
