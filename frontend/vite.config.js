@@ -8,10 +8,11 @@ export default defineConfig(({ mode }) => {
   return {
     plugins: [react()],
     server: {
+      allowedHosts: true,
       proxy: {
         '/api': {
-          // Use VITE_API_URL environment variable when set, otherwise default to localhost:5001
-          target: env.VITE_API_URL || 'http://localhost:5001',
+          // Strip trailing /api so proxy doesn't duplicate to /api/api
+          target: (env.VITE_API_URL || 'http://localhost:5001').replace(/\/api\/?$/, ''),
           changeOrigin: true,
           secure: false
         }

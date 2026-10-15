@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Home, MapPin, Calendar, FileText, BarChart, LogOut, X, User } from 'lucide-react';
+import { Home, MapPin, Calendar, FileText, BarChart, LogOut, X, User, Smartphone } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import CleLogo from './CleLogo';
 
@@ -36,6 +36,9 @@ const Sidebar = ({ isOpen, toggleSidebar }) => {
         links.push({ name: 'Leave Requests', path: '/leaves', icon: Calendar });
         links.push({ name: 'OD Requests', path: '/od', icon: FileText });
     }
+
+    // Always offer Mobile App download link
+    links.push({ name: 'Mobile App', path: '/download', icon: Smartphone });
 
     const roleBadgeText = isPrincipal ? 'Principal / HOI' : isAdmin ? 'Administrator' : 'Faculty / Staff';
 

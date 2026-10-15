@@ -1,0 +1,36 @@
+[Unit]
+Description=CLE Society Staff Attendance Backend Service
+After=network.target
+
+[Service]
+Type=simple
+User=cleadmin
+Group=cleadmin
+WorkingDirectory=/var/www/cle-attendance/backend
+EnvironmentFile=/etc/cle-attendance/backend.env
+
+# Execute Node.js directly with production flags
+ExecStart=/usr/bin/node server.js
+
+# Auto-restart on failure with backoff
+Restart=always
+RestartSec=10
+
+# Clean shutdown to allow SQLite WAL checkpoint and flush
+KillSignal=SIGTERM
+TimeoutStopSec=20
+
+# Process security hardening
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=full
+ProtectHome=true
+ReadWritePaths=/var/lib/cle-attendance /var/www/cle-attendance/backend/backups
+
+# Logging to systemd journal
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=cle-backend
+
+[Install]
+WantedBy=multi-user.target

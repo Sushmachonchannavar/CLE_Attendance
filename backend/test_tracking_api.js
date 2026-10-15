@@ -38,10 +38,26 @@ async function runTests() {
             res = await request(app)
                 .post('/api/employee/location')
                 .set('Authorization', `Bearer ${staffToken}`)
-                .send({ lat: 10.0, lng: 10.0, accuracy: 25 });
+                .send({ lat: 10.0, lng: 10.0, accuracy: 25, timestamp: new Date().toISOString() });
             console.log(`Status: ${res.status}`);
             console.log(`Response: ${JSON.stringify(res.body)}`);
             if (res.status === 200 && res.body.success && res.body.isInsideCampus === false) console.log("✅ Passed"); else console.log("❌ Failed");
+
+            // TEST 2B: POST /api/employee/location - Batched offline queued locations
+            console.log("\nTEST 2B: POST /api/employee/location - Batched offline queued locations");
+            res = await request(app)
+                .post('/api/employee/location')
+                .set('Authorization', `Bearer ${staffToken}`)
+                .send({
+                    locations: [
+                        { lat: 16.426026, lng: 74.589353, accuracy: 12, timestamp: new Date(Date.now() - 60000).toISOString() },
+                        { lat: 16.426028, lng: 74.589355, accuracy: 8, timestamp: new Date().toISOString() }
+                    ]
+                });
+            console.log(`Status: ${res.status}`);
+            console.log(`Response: ${JSON.stringify(res.body)}`);
+            if (res.status === 200 && res.body.success && res.body.processedCount === 2 && res.body.isInsideCampus === true) console.log("✅ Passed"); else console.log("❌ Failed");
+
 
             // TEST 3: POST /api/employee/location - No token (Unauthorized)
             console.log("\nTEST 3: POST /api/employee/location - No token");

@@ -2,12 +2,20 @@ const db = require('../database');
 const jwt = require('jsonwebtoken');
 const { sendVerification, checkVerification, maskPhone } = require('../utils/sms');
 
-const DEMO_PHONE_MAP = {
-    '9999999999': { role: 'admin', otp: '123456', name: 'Admin Demo' },
-    '8888888888': { role: 'hoi', otp: '123456', name: 'Principal Demo' },
-    '9876543210': { role: 'staff', otp: '123456', name: 'Faculty Staff Demo' },
-    '1234567890': { role: 'staff', otp: '123456', name: 'Staff Demo' }
-};
+// In-memory rate limiting for login OTP requests (Max 5 requests per 10 minutes)
+const loginAttemptsMap = new Map();
+function checkLoginRateLimit(identifier) {
+    const now = Date.now();
+    const windowMs = 10 * 60 * 1000;
+    const history = loginAttemptsMap.get(identifier) || [];
+    const validHistory = history.filter(ts => now - ts < windowMs);
+    if (validHistory.length >= 5) {
+        return false;
+    }
+    validHistory.push(now);
+    loginAttemptsMap.set(identifier, validHistory);
+    return true;
+}
 
 /**
  * Checks if an identifier is locked out in auth_lockouts
@@ -45,19 +53,14 @@ exports.login = async (req, res) => {
         });
     }
 
+    // Rate limiting check
+    if (!checkLoginRateLimit(tenDigits)) {
+        return res.status(429).json({ error: 'Too many OTP requests. Please try again after 10 minutes.' });
+    }
+
     const existingUser = db.prepare("SELECT * FROM users WHERE (phone = ? OR phone = ? OR phone = ?) AND status = 'active'").get(rawPhone, tenDigits, withPlus91);
     if (!existingUser) {
         return res.status(403).json({ error: 'Mobile number not found. Please register first.' });
-    }
-
-    if (DEMO_PHONE_MAP[tenDigits]) {
-        const demoOtp = DEMO_PHONE_MAP[tenDigits].otp;
-        return res.json({ 
-            success: true, 
-            message: `Demo verification code ready. Enter OTP: ${demoOtp}`,
-            isDemo: true,
-            devOtp: demoOtp
-        });
     }
 
     try {
@@ -65,15 +68,14 @@ exports.login = async (req, res) => {
         if (result.success) {
             res.json({ 
                 success: true, 
-                message: 'Verification code sent successfully',
-                devOtp: result.devOtp
+                message: 'OTP sent successfully to your registered mobile number.'
             });
         } else {
-            res.status(502).json({ success: false, message: result.error || 'Failed to deliver SMS' });
+            res.status(502).json({ success: false, message: result.error || 'SMS service unavailable' });
         }
     } catch (smsError) {
-        console.error('[SMS ERROR] Exception occurred during verification dispatch');
-        res.status(502).json({ success: false, message: 'Failed to deliver SMS' });
+        console.error('[SMS ERROR] Exception occurred during verification dispatch:', smsError.message);
+        res.status(502).json({ success: false, message: 'SMS service unavailable' });
     }
 };
 
@@ -123,15 +125,11 @@ exports.verify = async (req, res) => {
         });
     }
 
-    const isDemoMatch = DEMO_PHONE_MAP[tenDigits] && otp.trim() === DEMO_PHONE_MAP[tenDigits].otp;
+    const verifyResult = await checkVerification(phone, otp);
 
-    if (!isDemoMatch) {
-        const verifyResult = await checkVerification(phone, otp);
-
-        if (!verifyResult.success) {
-            const statusCode = verifyResult.locked ? 423 : 400;
-            return res.status(statusCode).json({ error: verifyResult.error || 'Invalid OTP' });
-        }
+    if (!verifyResult.success) {
+        const statusCode = verifyResult.locked ? 423 : 400;
+        return res.status(statusCode).json({ error: verifyResult.error || 'Invalid OTP' });
     }
 
     let user = db.prepare("SELECT * FROM users WHERE (phone = ? OR phone = ? OR phone = ?) AND status = 'active'").get(rawPhone, tenDigits, withPlus91);

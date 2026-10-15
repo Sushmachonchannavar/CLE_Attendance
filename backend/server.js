@@ -1,6 +1,8 @@
 require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
+const path = require('path');
+const fs = require('fs');
 // eslint-disable-next-line no-unused-vars
 const db = require('./database');
 
@@ -14,6 +16,10 @@ if (!JWT_SECRET || JWT_SECRET.trim().length < 32 || INSECURE_SECRETS.includes(JW
 
 const app = express();
 const PORT = process.env.PORT || 5001;
+const HOST = process.env.HOST || '0.0.0.0';
+
+// Enable trust proxy for production reverse proxy (Nginx)
+app.set('trust proxy', 1);
 
 // CORS configuration
 const isAllowedOrigin = (origin) => {
@@ -28,8 +34,10 @@ const isAllowedOrigin = (origin) => {
         }
     }
 
-    // Allow Cloudflare Pages and Cloudflare Tunnels
-    if (/^https:\/\/[a-zA-Z0-9-]+\.pages\.dev$/.test(origin) || /^https:\/\/[a-zA-Z0-9-]+\.trycloudflare\.com$/.test(origin)) {
+    // Allow Cloudflare Pages, Cloudflare Tunnels, and Vercel domains
+    if (/^https:\/\/[a-zA-Z0-9-]+\.pages\.dev$/.test(origin) || 
+        /^https:\/\/[a-zA-Z0-9-]+\.trycloudflare\.com$/.test(origin) || 
+        /^https:\/\/[a-zA-Z0-9-]+\.vercel\.app$/.test(origin)) {
         return true;
     }
 
@@ -83,12 +91,35 @@ const attendanceController = require('./controllers/attendanceController');
 app.post('/api/employee/location', auth, attendanceController.updateLocation);
 app.get('/api/admin/employee-locations', auth, roleMiddleware(['admin']), attendanceController.getEmployeeLocations);
 
+// Serve static APK download directory for institutional distribution
+const downloadsDir = path.resolve(__dirname, 'downloads');
+if (!fs.existsSync(downloadsDir)) {
+    fs.mkdirSync(downloadsDir, { recursive: true });
+}
+
+app.get('/downloads/cle-attendance.apk', (req, res) => {
+    const apkPath = path.join(downloadsDir, 'cle-attendance.apk');
+    if (fs.existsSync(apkPath)) {
+        res.setHeader('Content-Type', 'application/vnd.android.package-archive');
+        res.setHeader('Content-Disposition', 'attachment; filename="cle-attendance.apk"');
+        return res.sendFile(apkPath);
+    }
+    res.status(404).json({
+        error: 'APK package is currently being built. Please check back shortly or scan the QR code to use the web application.',
+        status: 'pending_build'
+    });
+});
+
 app.get('/', (req, res) => {
     res.send('Staff Attendance System API is running');
 });
 
 app.get('/health', (req, res) => {
-    res.status(200).json({ status: 'ok' });
+    res.status(200).json({ status: 'ok', timestamp: new Date().toISOString() });
+});
+
+app.get('/api/health', (req, res) => {
+    res.status(200).json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 
 // Error handling middleware
@@ -100,9 +131,26 @@ app.use((err, req, res, next) => {
     res.status(500).json({ error: err.message || 'Internal server error' });
 });
 
+// Graceful shutdown handling for systemd and PM2
+const gracefulShutdown = (signal) => {
+    console.log(`[SERVER] Received ${signal}. Starting graceful shutdown...`);
+    try {
+        if (db && typeof db.close === 'function') {
+            console.log('[DATABASE] Closing SQLite database cleanly...');
+            db.close();
+        }
+    } catch (e) {
+        console.error('[DATABASE] Error closing SQLite connection:', e.message);
+    }
+    process.exit(0);
+};
+
+process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
+process.on('SIGINT', () => gracefulShutdown('SIGINT'));
+
 if (require.main === module) {
-    app.listen(PORT, () => {
-        console.log(`Server running on port ${PORT}`);
+    app.listen(PORT, HOST, () => {
+        console.log(`Server running on http://${HOST}:${PORT}`);
     });
 }
 

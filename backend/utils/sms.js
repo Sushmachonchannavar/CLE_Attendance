@@ -33,12 +33,12 @@ const isGatewayConfigured = (apiKey) => {
 };
 
 /**
- * Starts a phone verification using configured SMS gateway or local store
+ * Starts a phone verification using configured SMS gateway
  * 
  * @param {string} phone - The mobile number
  */
 const sendVerification = async (phone) => {
-    const apiKey = process.env.SMS_API_KEY;
+    const apiKey = process.env.SMS_AUTH_KEY || process.env.SMS_API_KEY;
     const senderId = process.env.SMS_SENDER || 'TGSSVM';
     
     // Normalize phone (use last 10 digits since country code 91 is specified)
@@ -47,16 +47,13 @@ const sendVerification = async (phone) => {
         cleanPhone = cleanPhone.slice(-10);
     }
     
-    let formattedPhone = phone.startsWith('+') ? phone : '+91' + phone;
+    const formattedPhone = '+91' + cleanPhone;
     const otp = generateOTP();
-    const expiresAt = new Date(Date.now() + 10 * 60 * 1000).toISOString(); // 10 mins
+    const expiresAt = new Date(Date.now() + 5 * 60 * 1000).toISOString(); // 5 mins
 
     if (!isGatewayConfigured(apiKey)) {
-        // Fallback for test/local environment when real SMS gateway is not configured
-        // Uses dynamically generated OTP stored in database (NO static bypasses or hardcoded demo numbers)
-        db.prepare('INSERT OR REPLACE INTO otps (phone, otp, expires_at, attempts) VALUES (?, ?, ?, 0)').run(formattedPhone, otp, expiresAt);
-        console.log(`[SMS-DEV] Verification OTP created for ${maskPhone(formattedPhone)} (Dev mode active)`);
-        return { success: true, status: 'pending', devOtp: process.env.NODE_ENV === 'test' ? otp : undefined };
+        console.warn(`[SMS WARNING] SMS gateway credentials are not configured or invalid.`);
+        return { success: false, error: 'SMS service unavailable: Gateway credentials missing' };
     }
 
     const message = `जरूरी सूचना  Dear Staff your OTP for attendance punch-in is ${otp} This code is valid for 5 minutes Please do not share it C.L.E Society's Sr Sec School`;
@@ -75,7 +72,7 @@ const sendVerification = async (phone) => {
             message: message
         };
 
-        console.log(`[SMS] Dispatching OTP to ${maskPhone(formattedPhone)}...`);
+        console.log(`[SMS] Dispatching real-time OTP to ${maskPhone(formattedPhone)}...`);
         const response = await axios.get(url, { params });
 
         const respText = typeof response.data === 'string' ? response.data : JSON.stringify(response.data);
@@ -99,30 +96,33 @@ const sendVerification = async (phone) => {
  * @param {string} code - The OTP code to check
  */
 const checkVerification = async (phone, code) => {
-    const formattedPhone = phone.startsWith('+') ? phone : '+91' + phone;
+    let cleanDigits = phone.replace(/\D/g, '');
+    if (cleanDigits.length > 10) cleanDigits = cleanDigits.slice(-10);
+    const formattedPhone = '+91' + cleanDigits;
 
     try {
-        const row = db.prepare('SELECT otp, expires_at, attempts FROM otps WHERE phone = ?').get(formattedPhone);
+        const row = db.prepare('SELECT otp, expires_at, attempts FROM otps WHERE phone = ? OR phone = ?').get(formattedPhone, cleanDigits);
 
         if (!row) {
-            return { success: false, error: 'OTP not found or expired.' };
+            return { success: false, error: 'OTP not found. Please request a new one.' };
         }
 
         const now = new Date();
         const expiresAt = new Date(row.expires_at);
 
         if (now > expiresAt) {
-            db.prepare('DELETE FROM otps WHERE phone = ?').run(formattedPhone);
-            return { success: false, error: 'OTP has expired.' };
+            db.prepare('DELETE FROM otps WHERE phone = ? OR phone = ?').run(formattedPhone, cleanDigits);
+            return { success: false, error: 'OTP expired. Please request a new one.' };
         }
 
-        if (row.otp === code) {
+        if (row.otp === (code ? code.trim() : '')) {
             console.log(`[AUTH] Verification successful for ${maskPhone(formattedPhone)}`);
-            db.prepare('DELETE FROM otps WHERE phone = ?').run(formattedPhone);
+            // Single-use guarantee: remove immediately
+            db.prepare('DELETE FROM otps WHERE phone = ? OR phone = ?').run(formattedPhone, cleanDigits);
             return { success: true, status: 'approved' };
         } else {
             const attempts = (row.attempts || 0) + 1;
-            db.prepare('UPDATE otps SET attempts = ? WHERE phone = ?').run(attempts, formattedPhone);
+            db.prepare('UPDATE otps SET attempts = ? WHERE phone = ? OR phone = ?').run(attempts, formattedPhone, cleanDigits);
 
             if (attempts >= 5) {
                 const lockUntil = new Date(Date.now() + 15 * 60 * 1000).toISOString();
@@ -131,7 +131,7 @@ const checkVerification = async (phone, code) => {
                     VALUES (?, ?, ?)
                 `).run(formattedPhone, lockUntil, 'Exceeded 5 failed login attempts');
 
-                db.prepare('DELETE FROM otps WHERE phone = ?').run(formattedPhone);
+                db.prepare('DELETE FROM otps WHERE phone = ? OR phone = ?').run(formattedPhone, cleanDigits);
                 console.warn(`[AUTH LOCKOUT] Locked ${maskPhone(formattedPhone)} for 15 mins due to 5 failed attempts`);
                 return { 
                     success: false, 
@@ -160,7 +160,7 @@ const checkVerification = async (phone, code) => {
  * @param {string} otp - 6-digit OTP
  */
 const sendAttendanceOTP = async (phone, otp) => {
-    const apiKey = process.env.SMS_API_KEY;
+    const apiKey = process.env.SMS_AUTH_KEY || process.env.SMS_API_KEY;
     const senderId = process.env.SMS_SENDER || 'TGSSVM';
     const templateId = process.env.DLT_TE_ID || '1507166573508565333';
 
@@ -169,11 +169,11 @@ const sendAttendanceOTP = async (phone, otp) => {
         cleanPhone = cleanPhone.slice(-10);
     }
 
-    let formattedPhone = phone.startsWith('+') ? phone : '+91' + phone;
+    const formattedPhone = '+91' + cleanPhone;
 
     if (!isGatewayConfigured(apiKey)) {
-        console.log(`[SMS-DEV] Attendance OTP generated for ${maskPhone(formattedPhone)} (Dev mode active)`);
-        return { success: true, devMode: true };
+        console.warn(`[SMS WARNING] SMS gateway credentials are not configured or invalid.`);
+        return { success: false, error: 'SMS service unavailable: Gateway credentials missing' };
     }
 
     const message = `जरूरी सूचना  Dear Staff your OTP for attendance punch-in is ${otp} This code is valid for 5 minutes Please do not share it C.L.E Society's Sr Sec School`;
@@ -196,7 +196,6 @@ const sendAttendanceOTP = async (phone, otp) => {
         const response = await axios.get(url, { params });
 
         const respText = typeof response.data === 'string' ? response.data : JSON.stringify(response.data);
-        console.log(`[SMS Gateway Response]:`, respText);
         if (respText.toLowerCase().includes('error') || respText.toLowerCase().includes('fail') || respText.toLowerCase().includes('invalid')) {
             console.error(`[SMS ERROR] Gateway rejected attendance OTP:`, respText);
             return { success: false, error: 'Failed to deliver OTP' };

@@ -67,12 +67,15 @@ const Register = () => {
             <div className="absolute -bottom-32 -right-32 w-96 h-96 bg-amber-500/10 rounded-full blur-3xl pointer-events-none" />
 
             {/* Header Branding */}
-            <div className="mb-6 text-center z-10 animate-in fade-in duration-300">
-                <CleLogo size="lg" variant="light" className="justify-center mb-2" />
+            <div className="mb-6 text-center z-10 animate-in fade-in duration-300 flex flex-col items-center">
+                <CleLogo size="lg" iconOnly variant="light" className="mb-2" />
                 <h1 className="text-white text-lg font-bold sm:text-xl drop-shadow-sm">
                     Staff Member Registration
                 </h1>
-                <p className="text-blue-200/80 text-xs mt-1 font-medium">
+                <p className="text-amber-400 font-semibold text-xs tracking-wider uppercase mt-0.5">
+                    CLE Society • Chikkodi
+                </p>
+                <p className="text-blue-200/80 text-xs mt-0.5 font-medium">
                     Register faculty or staff credentials for campus attendance
                 </p>
             </div>

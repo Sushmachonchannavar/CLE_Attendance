@@ -123,11 +123,15 @@ if (campusLat && campusLng) {
 
 // 7. SMS Gateway
 if (process.env.SMS_API_KEY && process.env.SMS_API_KEY !== 'your_sms_api_key') {
-    success('Production external SMS gateway credentials configured.');
+    success('Production external SMS gateway (XSMS) credentials configured.');
 } else if (process.env.TWILIO_ACCOUNT_SID && process.env.TWILIO_ACCOUNT_SID !== 'your_twilio_account_sid') {
     success('Production Twilio SMS credentials configured.');
 } else {
-    warn('No production SMS gateway configured. Authentication will operate in Demo OTP mode (123456).');
+    if (nodeEnv === 'production') {
+        error('No production SMS gateway configured. Real SMS credentials (SMS_API_KEY or TWILIO_ACCOUNT_SID) are required.');
+    } else {
+        warn('No SMS gateway configured in development environment. Real SMS OTP dispatch requires valid provider credentials.');
+    }
 }
 
 console.log('='.repeat(60));

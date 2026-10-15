@@ -35,8 +35,10 @@ const db = new Database(dbPath);
 
 // Enable foreign key constraints and write-ahead logging
 db.pragma('foreign_keys = ON');
+db.pragma('busy_timeout = 5000');
 try {
     db.pragma('journal_mode = WAL');
+    db.pragma('synchronous = NORMAL');
 } catch (e) {
     // WAL might be restricted in some test memory modes
 }

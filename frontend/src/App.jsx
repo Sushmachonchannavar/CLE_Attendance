@@ -11,6 +11,7 @@ import Profile from './pages/Profile';
 import Attendance from './pages/Attendance';
 import LocationTracking from './pages/LocationTracking';
 import LocationTracker from './components/LocationTracker';
+import DownloadApp from './pages/DownloadApp';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { ToastProvider } from './context/ToastContext';
 
@@ -33,6 +34,8 @@ function App() {
         <LocationTracker />
         <BrowserRouter>
         <Routes>
+          <Route path="/download" element={<DownloadApp />} />
+          <Route path="/install" element={<DownloadApp />} />
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
           <Route

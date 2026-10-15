@@ -20,12 +20,7 @@ const CAMPUS_GEOFENCE = [
 ];
 const GEOFENCE_RADIUS_METERS = 300;
 
-const DEMO_PHONE_MAP = {
-    '9999999999': { role: 'admin', otp: '123456', name: 'Admin Demo' },
-    '8888888888': { role: 'hoi', otp: '123456', name: 'Principal Demo' },
-    '9876543210': { role: 'staff', otp: '123456', name: 'Faculty Staff Demo' },
-    '1234567890': { role: 'staff', otp: '123456', name: 'Staff Demo' }
-};
+
 
 function isPointInPolygon(lat, lng, polygon) {
     let x = lat, y = lng;
@@ -243,28 +238,6 @@ exports.sendOTP = async (req, res) => {
             });
         }
 
-        // Check for Demo / Temporary login numbers (Admin: 9999999999, Principal: 8888888888, Staff: 9876543210)
-        const cleanDigits = (activePhone || phone || '').replace(/\D/g, '').slice(-10);
-        if (DEMO_PHONE_MAP[cleanDigits]) {
-            const demoOtp = DEMO_PHONE_MAP[cleanDigits].otp;
-            const hashedOtp = crypto.createHash('sha256').update(demoOtp).digest('hex');
-            const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
-
-            db.prepare('UPDATE attendance_otps SET is_used = 1 WHERE employee_id = ? AND is_used = 0').run(activeEmpId);
-            db.prepare(`
-                INSERT INTO attendance_otps (employee_id, otp, expires_at, is_used, attempts) 
-                VALUES (?, ?, ?, 0, 0)
-            `).run(activeEmpId, hashedOtp, expiresAt);
-
-            console.log(`[DEMO OTP] Generated demo OTP for ${cleanDigits}: ${demoOtp}`);
-            return res.json({
-                success: true,
-                message: `Demo verification code ready. Enter OTP: ${demoOtp}`,
-                isDemo: true,
-                demoOtp
-            });
-        }
-
         // 3. Security check: Rate Limiting (Max 5 OTP requests in 10 minutes)
         const tenMinutesAgo = new Date(Date.now() - 10 * 60 * 1000).toISOString();
         const otpCountRow = db.prepare(`
@@ -297,27 +270,23 @@ exports.sendOTP = async (req, res) => {
         `).run(activeEmpId, hashedOtp, expiresAt);
 
         console.log(`[OTP GENERATED] OTP created for employee ID: ${activeEmpId} (Expires: ${expiresAt})`);
-        if (process.env.NODE_ENV !== 'production') {
-            console.log(`[DEV OTP] Generated OTP for ${maskPhone(activePhone)}: ${otp}`);
-        }
 
-        // 9. Send OTP to registered mobile number
+        // 9. Send real-time OTP to registered mobile number
         let smsResult;
         try {
             smsResult = await sendAttendanceOTP(activePhone, otp);
             if (!smsResult.success) {
-                console.error(`[SMS Delivery Error] Failed to deliver OTP`);
-                return res.status(502).json({ success: false, message: "Failed to deliver SMS" });
+                console.error(`[SMS Delivery Error] Failed to deliver OTP:`, smsResult.error);
+                return res.status(502).json({ success: false, message: smsResult.error || "SMS service unavailable" });
             }
         } catch (smsError) {
-            console.error(`[SMS Gateway Exception] Failed to deliver SMS`);
-            return res.status(502).json({ success: false, message: "Failed to deliver SMS" });
+            console.error(`[SMS Gateway Exception] Failed to deliver SMS:`, smsError.message);
+            return res.status(502).json({ success: false, message: "SMS service unavailable" });
         }
 
         res.json({ 
             success: true, 
-            message: 'Verification code has been sent successfully to your registered mobile number.',
-            devOtp: process.env.NODE_ENV === 'test' ? otp : undefined
+            message: 'OTP sent successfully to your registered mobile number.'
         });
 
     } catch (err) {
@@ -385,76 +354,65 @@ exports.verifyOTP = async (req, res) => {
             });
         }
 
-        console.log(`[OTP VERIFY] Verifying OTP for employee ID: ${activeEmpId}`);
+        // 3. Find the latest unused OTP for the employee
+        const latestOtpRow = db.prepare(`
+            SELECT * FROM attendance_otps 
+            WHERE employee_id = ? 
+            ORDER BY id DESC 
+            LIMIT 1
+        `).get(activeEmpId);
 
-        // Check if demo OTP matches for demo accounts (Admin: 9999999999, Principal: 8888888888, Staff: 9876543210)
-        const cleanDigits = (activePhone || phone || '').replace(/\D/g, '').slice(-10);
-        const isDemoMatch = DEMO_PHONE_MAP[cleanDigits] && cleanOtp === DEMO_PHONE_MAP[cleanDigits].otp;
+        if (!latestOtpRow) {
+            console.warn(`[OTP VERIFY FAILED] No OTP record found for employee ${activeEmpId}`);
+            return res.status(400).json({ error: 'OTP not found. Please request a new one.' });
+        }
 
-        if (!isDemoMatch) {
-            // 3. Find the latest unused OTP for the employee
-            const latestOtpRow = db.prepare(`
-                SELECT * FROM attendance_otps 
-                WHERE employee_id = ? 
-                ORDER BY id DESC 
-                LIMIT 1
-            `).get(activeEmpId);
+        // 4. Check if it has already been used
+        if (latestOtpRow.is_used === 1) {
+            console.warn(`[OTP VERIFY FAILED] OTP already used for employee ${activeEmpId}`);
+            return res.status(400).json({ error: 'OTP has already been used. Please request a new one.' });
+        }
 
-            if (!latestOtpRow) {
-                console.warn(`[OTP VERIFY FAILED] No OTP record found for employee ${activeEmpId}`);
-                return res.status(400).json({ error: 'OTP not found. Please request a new one.' });
-            }
+        // 5. Check whether it has expired
+        const now = new Date();
+        const expiresAt = new Date(latestOtpRow.expires_at);
+        if (now > expiresAt) {
+            console.warn(`[OTP VERIFY FAILED] OTP expired for employee ${activeEmpId}`);
+            db.prepare('UPDATE attendance_otps SET is_used = 1 WHERE id = ?').run(latestOtpRow.id);
+            return res.status(400).json({ error: 'OTP has expired. Please request a new one.' });
+        }
 
-            // 4. Check if it has already been used
-            if (latestOtpRow.is_used === 1) {
-                console.warn(`[OTP VERIFY FAILED] OTP already used for employee ${activeEmpId}`);
-                return res.status(400).json({ error: 'OTP has already been used. Please request a new one.' });
-            }
+        // 6. Verify correct OTP (hash and compare)
+        const hashedInput = crypto.createHash('sha256').update(cleanOtp).digest('hex');
+        if (latestOtpRow.otp !== hashedInput) {
+            const attempts = (latestOtpRow.attempts || 0) + 1;
+            db.prepare('UPDATE attendance_otps SET attempts = ? WHERE id = ?').run(attempts, latestOtpRow.id);
 
-            // 5. Check whether it has expired
-            const now = new Date();
-            const expiresAt = new Date(latestOtpRow.expires_at);
-            if (now > expiresAt) {
-                console.warn(`[OTP VERIFY FAILED] OTP expired for employee ${activeEmpId}`);
+            if (attempts >= 5) {
+                const lockUntil = new Date(Date.now() + 15 * 60 * 1000).toISOString();
+                db.prepare(`
+                    INSERT INTO auth_lockouts (identifier, locked_until, reason) 
+                    VALUES (?, ?, ?)
+                `).run(activeEmpId, lockUntil, 'Exceeded 5 failed OTP verification attempts');
+
                 db.prepare('UPDATE attendance_otps SET is_used = 1 WHERE id = ?').run(latestOtpRow.id);
-                return res.status(400).json({ error: 'OTP has expired. Please request a new one.' });
-            }
 
-            // 6. Verify correct OTP (hash and compare)
-            const hashedInput = crypto.createHash('sha256').update(cleanOtp).digest('hex');
-            if (latestOtpRow.otp !== hashedInput) {
-                const attempts = (latestOtpRow.attempts || 0) + 1;
-                db.prepare('UPDATE attendance_otps SET attempts = ? WHERE id = ?').run(attempts, latestOtpRow.id);
-
-                if (attempts >= 5) {
-                    const lockUntil = new Date(Date.now() + 15 * 60 * 1000).toISOString();
-                    db.prepare(`
-                        INSERT INTO auth_lockouts (identifier, locked_until, reason) 
-                        VALUES (?, ?, ?)
-                    `).run(activeEmpId, lockUntil, 'Exceeded 5 failed OTP verification attempts');
-
-                    db.prepare('UPDATE attendance_otps SET is_used = 1 WHERE id = ?').run(latestOtpRow.id);
-
-                    console.warn(`[AUTH LOCKOUT] Account locked for 15 mins: ${activeEmpId}`);
-                    return res.status(423).json({
-                        error: 'Account locked for 15 minutes due to 5 consecutive failed OTP verification attempts.'
-                    });
-                }
-
-                const remaining = 5 - attempts;
-                console.warn(`[OTP VERIFY FAILED] Invalid OTP code submitted for employee ${activeEmpId} (${attempts}/5)`);
-                return res.status(400).json({ 
-                    error: `Invalid OTP code. Please try again. (${remaining} attempt${remaining === 1 ? '' : 's'} remaining)` 
+                console.warn(`[AUTH LOCKOUT] Account locked for 15 mins: ${activeEmpId}`);
+                return res.status(423).json({
+                    error: 'Account locked for 15 minutes due to 5 consecutive failed OTP verification attempts.'
                 });
             }
 
-            // 7. Successful validation: Mark OTP as used
-            db.prepare('UPDATE attendance_otps SET is_used = 1 WHERE id = ?').run(latestOtpRow.id);
-            console.log(`[OTP VERIFY SUCCESS] OTP verified for employee ID: ${activeEmpId}`);
-        } else {
-            console.log(`[DEMO OTP VERIFY SUCCESS] Verified demo account ${cleanDigits} with demo OTP`);
-            db.prepare('UPDATE attendance_otps SET is_used = 1 WHERE employee_id = ?').run(activeEmpId);
+            const remaining = 5 - attempts;
+            console.warn(`[OTP VERIFY FAILED] Invalid OTP code submitted for employee ${activeEmpId} (${attempts}/5)`);
+            return res.status(400).json({
+                error: `Invalid OTP code. Please try again. (${remaining} attempt${remaining === 1 ? '' : 's'} remaining)`
+            });
         }
+
+        // 7. Successful validation: Mark OTP as used immediately (single-use guarantee)
+        db.prepare('UPDATE attendance_otps SET is_used = 1 WHERE id = ?').run(latestOtpRow.id);
+        console.log(`[OTP VERIFY SUCCESS] OTP verified for employee ID: ${activeEmpId}`);
 
         // 8. Generate JWT token
         const token = jwt.sign(
@@ -583,8 +541,62 @@ exports.verifyOTP = async (req, res) => {
 };
 
 exports.updateLocation = (req, res) => {
-    const { lat, lng, accuracy } = req.body;
+    const { lat, lng, accuracy, timestamp: clientTimestamp, locations } = req.body;
     const userId = req.user.id;
+
+    // Verify user is currently punched in (date = today, punch_out_time IS NULL)
+    const today = new Date().toISOString().split('T')[0];
+    const record = db.prepare('SELECT * FROM attendance WHERE user_id = ? AND date = ?').get(userId, today);
+
+    if (!record || record.punch_out_time) {
+        // If not punched in, we shouldn't keep tracking
+        db.prepare('UPDATE employee_locations SET is_tracking = 0 WHERE user_id = ?').run(userId);
+        return res.status(400).json({ error: 'User is not currently punched in.' });
+    }
+
+    // Support batch / offline queued location submissions
+    if (Array.isArray(locations) && locations.length > 0) {
+        const validPoints = locations.filter(loc => {
+            const latitude = parseFloat(loc.lat);
+            const longitude = parseFloat(loc.lng);
+            return !isNaN(latitude) && !isNaN(longitude);
+        });
+
+        if (validPoints.length === 0) {
+            return res.status(400).json({ error: 'No valid coordinates in location batch.' });
+        }
+
+        // Get the most recent location point from the batch
+        const latestPoint = validPoints[validPoints.length - 1];
+        const latitude = parseFloat(latestPoint.lat);
+        const longitude = parseFloat(latestPoint.lng);
+        const accuracyVal = latestPoint.accuracy !== undefined ? parseFloat(latestPoint.accuracy) : null;
+
+        let recordTimestamp = new Date().toISOString();
+        if (latestPoint.timestamp) {
+            const parsed = new Date(latestPoint.timestamp);
+            if (!isNaN(parsed.getTime()) && parsed.getTime() <= Date.now() + 5 * 60 * 1000) {
+                recordTimestamp = parsed.toISOString();
+            }
+        }
+
+        const distance = getDistanceFromLatLonInMeters(latitude, longitude, CAMPUS_LAT, CAMPUS_LNG);
+        const isInside = isPointInPolygon(latitude, longitude, CAMPUS_GEOFENCE) || distance <= GEOFENCE_RADIUS_METERS;
+
+        db.prepare(`
+            INSERT INTO employee_locations (user_id, latitude, longitude, accuracy, timestamp, is_inside_campus, is_tracking)
+            VALUES (?, ?, ?, ?, ?, ?, 1)
+            ON CONFLICT(user_id) DO UPDATE SET
+                latitude = excluded.latitude,
+                longitude = excluded.longitude,
+                accuracy = excluded.accuracy,
+                timestamp = excluded.timestamp,
+                is_inside_campus = excluded.is_inside_campus,
+                is_tracking = 1
+        `).run(userId, latitude, longitude, accuracyVal, recordTimestamp, isInside ? 1 : 0);
+
+        return res.json({ success: true, processedCount: validPoints.length, isInsideCampus: isInside });
+    }
 
     if (lat === undefined || lng === undefined) {
         return res.status(400).json({ error: 'Latitude and Longitude are required.' });
@@ -597,19 +609,16 @@ exports.updateLocation = (req, res) => {
         return res.status(400).json({ error: 'Invalid coordinates.' });
     }
 
-    // Verify user is currently punched in (date = today, punch_out_time IS NULL)
-    const today = new Date().toISOString().split('T')[0];
-    const record = db.prepare('SELECT * FROM attendance WHERE user_id = ? AND date = ?').get(userId, today);
-
-    if (!record || record.punch_out_time) {
-        // If not punched in, we shouldn't keep tracking
-        db.prepare('UPDATE employee_locations SET is_tracking = 0 WHERE user_id = ?').run(userId);
-        return res.status(400).json({ error: 'User is not currently punched in.' });
-    }
-
     const distance = getDistanceFromLatLonInMeters(latitude, longitude, CAMPUS_LAT, CAMPUS_LNG);
     const isInside = isPointInPolygon(latitude, longitude, CAMPUS_GEOFENCE) || distance <= GEOFENCE_RADIUS_METERS;
-    const timestamp = new Date().toISOString();
+    
+    let timestamp = new Date().toISOString();
+    if (clientTimestamp) {
+        const parsed = new Date(clientTimestamp);
+        if (!isNaN(parsed.getTime()) && parsed.getTime() <= Date.now() + 5 * 60 * 1000) {
+            timestamp = parsed.toISOString();
+        }
+    }
 
     db.prepare(`
         INSERT INTO employee_locations (user_id, latitude, longitude, accuracy, timestamp, is_inside_campus, is_tracking)

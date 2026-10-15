@@ -9,6 +9,7 @@
     "dev": "nodemon server.js",
     "migrate": "node migrations/runner.js",
     "db:backup": "node utils/backup.js",
+    "db:restore": "node utils/restore.js",
     "preflight": "node scripts/preflight_check.js"
   },
   "engines": {
@@ -27,6 +28,7 @@
     "express": "^5.2.1",
     "jsonwebtoken": "^9.0.3",
     "multer": "^2.2.0",
+    "qrcode": "^1.5.4",
     "twilio": "^5.12.2"
   },
   "devDependencies": {

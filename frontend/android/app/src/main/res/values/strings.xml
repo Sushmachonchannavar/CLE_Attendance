@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">CLE Society Attendance</string>
+    <string name="title_activity_main">CLE Society Attendance</string>
+    <string name="package_name">org.clesociety.attendance</string>
+    <string name="custom_url_scheme">org.clesociety.attendance</string>
+</resources>

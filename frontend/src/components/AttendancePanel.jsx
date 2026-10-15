@@ -309,7 +309,11 @@ const AttendancePanel = () => {
             return;
         }
 
-        const phone = user?.phone || '1234567890';
+        const phone = user?.phone;
+        if (!phone) {
+            setError('No registered mobile number found for this account.');
+            return;
+        }
         setSendingOtp(true);
         setError('');
         setMsg('');
@@ -337,7 +341,7 @@ const AttendancePanel = () => {
         setLoading(true);
         setOtpErrorText('');
 
-        const phone = user?.phone || '1234567890';
+        const phone = user?.phone;
 
         try {
             const res = await api.post('/attendance/verify-otp', {
@@ -736,23 +740,7 @@ const AttendancePanel = () => {
                             </p>
                         </div>
 
-                        {['9999999999', '8888888888', '9876543210', '1234567890'].includes((user?.phone || '').replace(/\D/g, '').slice(-10)) && (
-                            <div className="mb-3 p-2.5 bg-blue-50 border border-blue-200 rounded-2xl text-center">
-                                <span className="text-xs font-bold text-blue-800">
-                                    Demo Account • Punch-in OTP: <span className="font-mono font-extrabold underline">123456</span>
-                                </span>
-                                <button
-                                    type="button"
-                                    onClick={() => {
-                                        setOtpInput('123456');
-                                        setOtpErrorText('');
-                                    }}
-                                    className="mt-1.5 block w-full py-1.5 text-[11px] font-bold text-white bg-blue-600 hover:bg-blue-700 rounded-xl transition-colors shadow-sm"
-                                >
-                                    Auto-fill Demo Punch OTP (123456)
-                                </button>
-                            </div>
-                        )}
+
 
                         <form onSubmit={handleVerifyAndPunchIn} className="space-y-4">
                             <div>
