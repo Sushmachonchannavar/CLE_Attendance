@@ -45,9 +45,11 @@ jobs:
           VITE_CAMPUS_LNG: ${{ secrets.VITE_CAMPUS_LNG || '74.589353' }}
         run: npm run build
 
-      - name: Sync Capacitor Android
-        working-directory: frontend
-        run: npx cap sync android
+      - name: Copy Web Assets to Android
+        run: |
+          mkdir -p frontend/android/app/src/main/assets/public
+          cp -r frontend/dist/* frontend/android/app/src/main/assets/public/
+          cp frontend/capacitor.config.json frontend/android/app/src/main/assets/capacitor.config.json
 
       - name: Build Debug APK
         working-directory: frontend/android
