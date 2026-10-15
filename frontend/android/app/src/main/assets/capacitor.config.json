@@ -1,0 +1,17 @@
+{
+	"appId": "org.clesociety.attendance",
+	"appName": "CLE Society Attendance",
+	"webDir": "dist",
+	"server": {
+		"androidScheme": "https",
+		"cleartext": true
+	},
+	"android": {
+		"useLegacyBridge": true
+	},
+	"plugins": {
+		"CapacitorHttp": {
+			"enabled": true
+		}
+	}
+}
