@@ -30,8 +30,10 @@ jobs:
           cache: 'npm'
           cache-dependency-path: 'frontend/package-lock.json'
 
-      - name: Make Gradle Wrapper Executable
-        run: chmod +x frontend/android/gradlew
+      - name: Configure Android SDK Location
+        run: |
+          chmod +x frontend/android/gradlew
+          echo "sdk.dir=/usr/local/lib/android/sdk" > frontend/android/local.properties
 
       - name: Install Frontend Dependencies
         working-directory: frontend
@@ -53,7 +55,18 @@ jobs:
 
       - name: Build Debug APK
         working-directory: frontend/android
-        run: ./gradlew assembleDebug --stacktrace
+        env:
+          ANDROID_HOME: /usr/local/lib/android/sdk
+          ANDROID_SDK_ROOT: /usr/local/lib/android/sdk
+        run: |
+          ./gradlew assembleDebug --stacktrace 2>&1 | tee gradle-build.log
+
+      - name: Upload Build Log on Failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: gradle-build-log
+          path: frontend/android/gradle-build.log
 
       - name: Copy & Rename APK
         run: |
