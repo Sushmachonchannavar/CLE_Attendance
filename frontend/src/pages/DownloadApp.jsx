@@ -42,10 +42,11 @@ export default function DownloadApp() {
             setActiveTab('qr');
         }
 
-        // Determine current page URL for QR code
+        // Determine current page URL for QR code and APK download
         const currentOrigin = typeof window !== 'undefined' ? window.location.origin : 'https://attendance.clesociety.edu.in';
         setDownloadUrl(`${currentOrigin}/download`);
-        setApkUrl(`${currentOrigin}/downloads/cle-attendance.apk`);
+        // Direct GitHub Release link ensures download works immediately on any deployed host
+        setApkUrl('https://github.com/Sushmachonchannavar/CLE_Attendance/releases/download/v1.0.0-mobile/cle-attendance.apk');
     }, []);
 
     const selectedTab = activeTab === 'auto' ? (deviceType === 'android' ? 'android' : deviceType === 'ios' ? 'ios' : 'qr') : activeTab;

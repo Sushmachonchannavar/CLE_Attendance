@@ -5,6 +5,9 @@ on:
     branches: [ main, master ]
   workflow_dispatch:
 
+permissions:
+  contents: write
+
 jobs:
   build-apk:
     name: Build Android APK
@@ -13,6 +16,15 @@ jobs:
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
+
+      - name: Set up Java JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
 
       - name: Set up Node.js
         uses: actions/setup-node@v4
@@ -37,15 +49,6 @@ jobs:
         working-directory: frontend
         run: npx cap sync android
 
-      - name: Set up Java JDK 17
-        uses: actions/setup-java@v4
-        with:
-          distribution: 'temurin'
-          java-version: '17'
-
-      - name: Setup Android SDK
-        uses: android-actions/setup-android@v3
-
       - name: Make Gradle Wrapper Executable
         working-directory: frontend/android
         run: chmod +x gradlew
@@ -58,6 +61,8 @@ jobs:
         run: |
           mkdir -p dist-apk
           cp frontend/android/app/build/outputs/apk/debug/app-debug.apk dist-apk/cle-attendance.apk
+          mkdir -p frontend/public/downloads
+          cp frontend/android/app/build/outputs/apk/debug/app-debug.apk frontend/public/downloads/cle-attendance.apk
 
       - name: Upload APK Artifact
         uses: actions/upload-artifact@v4
