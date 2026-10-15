@@ -23,9 +23,6 @@ jobs:
           distribution: 'temurin'
           java-version: '17'
 
-      - name: Setup Android SDK
-        uses: android-actions/setup-android@v3
-
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
@@ -55,14 +52,14 @@ jobs:
 
       - name: Build Debug APK
         working-directory: frontend/android
+        env:
+          ANDROID_HOME: /usr/local/lib/android/sdk
         run: ./gradlew assembleDebug --stacktrace
 
       - name: Copy & Rename APK
         run: |
           mkdir -p dist-apk
           cp frontend/android/app/build/outputs/apk/debug/app-debug.apk dist-apk/cle-attendance.apk
-          mkdir -p frontend/public/downloads
-          cp frontend/android/app/build/outputs/apk/debug/app-debug.apk frontend/public/downloads/cle-attendance.apk
 
       - name: Upload APK Artifact
         uses: actions/upload-artifact@v4
