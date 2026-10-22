@@ -4,11 +4,11 @@
   "rewrites": [
     {
       "source": "/api/(.*)",
-      "destination": "https://cle-attendance.onrender.com/api/$1"
+      "destination": "https://cle-attendance-1.onrender.com/api/$1"
     },
     {
       "source": "/downloads/(.*)",
-      "destination": "https://cle-attendance.onrender.com/downloads/$1"
+      "destination": "https://cle-attendance-1.onrender.com/downloads/$1"
     },
     {
       "source": "/(.*)",
