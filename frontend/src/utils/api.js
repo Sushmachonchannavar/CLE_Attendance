@@ -13,8 +13,8 @@ export const getBaseURL = () => {
                 return finalUrl;
             }
         }
-        // Native fallback: use configured own server URL
-        return 'https://attendance.clesociety.edu.in/api';
+        // Native fallback: use live Render backend URL
+        return 'https://cle-attendance-1.onrender.com/api';
     }
 
     // In web browser (Desktop, Android Chrome, iPhone Safari):
@@ -32,7 +32,7 @@ export const getBaseURL = () => {
         return '/api';
     }
 
-    return 'http://localhost:5001/api';
+    return 'https://cle-attendance-1.onrender.com/api';
 };
 
 const api = axios.create({
