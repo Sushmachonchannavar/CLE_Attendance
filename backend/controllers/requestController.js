@@ -116,6 +116,12 @@ exports.updateLeaveStatus = (req, res) => {
             return res.status(403).json({ error: 'Forbidden. Insufficient permissions to update leave status.' });
         }
 
+        // Rule: Cannot approve a leave application whose end date has already passed
+        const todayStr = new Date().toISOString().split('T')[0];
+        if (status === 'approved' && leave.end_date < todayStr) {
+            return res.status(400).json({ error: 'Cannot approve an expired leave request. End date has already passed.' });
+        }
+
         const decisionTime = new Date().toISOString();
         const decisionReason = reason && typeof reason === 'string' ? reason.trim() : null;
         const reviewerId = req.user.id;
@@ -257,6 +263,12 @@ exports.updateODStatus = (req, res) => {
             }
         } else {
             return res.status(403).json({ error: 'Forbidden. Insufficient permissions to update OD status.' });
+        }
+
+        // Rule: Cannot approve an OD application whose date has already passed
+        const todayStrOD = new Date().toISOString().split('T')[0];
+        if (status === 'approved' && od.date < todayStrOD) {
+            return res.status(400).json({ error: 'Cannot approve an expired OD request. Event date has already passed.' });
         }
 
         const decisionTime = new Date().toISOString();
