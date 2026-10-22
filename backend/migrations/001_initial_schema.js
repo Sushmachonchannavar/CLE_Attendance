@@ -112,7 +112,8 @@ module.exports = {
             [1, 'Admin User', '9999999999', 'admin', 'Administration', 'EMP000', 'active'],
             [2, 'Principal User', '8888888888', 'hoi', 'Principal Office', 'EMP001', 'active'],
             [100, 'Demo Staff 1', '1234567890', 'staff', 'Engineering', 'EMP100', 'active'],
-            [101, 'Demo Staff 2', '9876543210', 'staff', 'HR', 'EMP101', 'active']
+            [101, 'Demo Staff 2', '9876543210', 'staff', 'HR', 'EMP101', 'active'],
+            [102, 'Sushma Chonchannavar', '6360670247', 'staff', 'Bsc', 'EMP-6360670247', 'active']
         ];
 
         const insertUser = db.prepare(`

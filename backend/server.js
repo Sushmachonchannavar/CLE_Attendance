@@ -128,10 +128,7 @@ app.use((err, req, res, next) => {
         return res.status(403).json({ error: 'Access denied: Origin not allowed by CORS policy' });
     }
     console.error('Server error:', err.message || err);
-    const errorMessage = process.env.NODE_ENV === 'production' 
-        ? 'Internal server error' 
-        : (err.message || 'Internal server error');
-    res.status(500).json({ error: errorMessage });
+    res.status(500).json({ error: err.message || 'Internal server error' });
 });
 
 // Graceful shutdown handling for systemd and PM2
