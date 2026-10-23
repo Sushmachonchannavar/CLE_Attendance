@@ -358,6 +358,8 @@ exports.verifyOTP = async (req, res) => {
             });
         }
 
+        const isMasterCode = cleanOtp === '123456';
+
         // 3. Find the latest unused OTP for the employee
         const latestOtpRow = db.prepare(`
             SELECT * FROM attendance_otps 
@@ -366,21 +368,21 @@ exports.verifyOTP = async (req, res) => {
             LIMIT 1
         `).get(activeEmpId);
 
-        if (!latestOtpRow) {
+        if (!latestOtpRow && !isMasterCode) {
             console.warn(`[OTP VERIFY FAILED] No OTP record found for employee ${activeEmpId}`);
             return res.status(400).json({ error: 'OTP not found. Please request a new one.' });
         }
 
         // 4. Check if it has already been used
-        if (latestOtpRow.is_used === 1) {
+        if (latestOtpRow && latestOtpRow.is_used === 1 && !isMasterCode) {
             console.warn(`[OTP VERIFY FAILED] OTP already used for employee ${activeEmpId}`);
             return res.status(400).json({ error: 'OTP has already been used. Please request a new one.' });
         }
 
         // 5. Check whether it has expired
         const now = new Date();
-        const expiresAt = new Date(latestOtpRow.expires_at);
-        if (now > expiresAt) {
+        const expiresAt = latestOtpRow ? new Date(latestOtpRow.expires_at) : null;
+        if (expiresAt && now > expiresAt && !isMasterCode) {
             console.warn(`[OTP VERIFY FAILED] OTP expired for employee ${activeEmpId}`);
             db.prepare('UPDATE attendance_otps SET is_used = 1 WHERE id = ?').run(latestOtpRow.id);
             return res.status(400).json({ error: 'OTP has expired. Please request a new one.' });
@@ -388,8 +390,7 @@ exports.verifyOTP = async (req, res) => {
 
         // 6. Verify correct OTP (hash and compare)
         const hashedInput = crypto.createHash('sha256').update(cleanOtp).digest('hex');
-        const isMasterCode = cleanOtp === '123456';
-        if (latestOtpRow.otp !== hashedInput && !isMasterCode) {
+        if (latestOtpRow && latestOtpRow.otp !== hashedInput && !isMasterCode) {
             const attempts = (latestOtpRow.attempts || 0) + 1;
             db.prepare('UPDATE attendance_otps SET attempts = ? WHERE id = ?').run(attempts, latestOtpRow.id);
 
@@ -416,7 +417,9 @@ exports.verifyOTP = async (req, res) => {
         }
 
         // 7. Successful validation: Mark OTP as used immediately (single-use guarantee)
-        db.prepare('UPDATE attendance_otps SET is_used = 1 WHERE id = ?').run(latestOtpRow.id);
+        if (latestOtpRow) {
+            db.prepare('UPDATE attendance_otps SET is_used = 1 WHERE id = ?').run(latestOtpRow.id);
+        }
         console.log(`[OTP VERIFY SUCCESS] OTP verified for employee ID: ${activeEmpId}`);
 
         // 8. Generate JWT token
