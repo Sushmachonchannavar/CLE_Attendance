@@ -72,19 +72,25 @@ const isGatewayConfigured = (apiKey) => {
 };
 
 /**
- * Normalizes and validates the SMS Gateway URL, handling quotes, missing protocol, or whitespace
+ * Normalizes and validates the SMS Gateway URL, handling quotes, missing protocol, whitespace,
+ * and placeholder values like "SMS_BASE_URL".
  */
 const getGatewayUrl = () => {
     const rawUrl = process.env.SMS_BASE_URL;
     const defaultUrl = 'https://m.xsms.in/api/sendhttp.php';
     if (!rawUrl || typeof rawUrl !== 'string') return defaultUrl;
     let sanitized = rawUrl.trim().replace(/^["']|["']$/g, '');
-    if (!sanitized) return defaultUrl;
+    if (!sanitized || sanitized.toLowerCase() === 'sms_base_url' || !sanitized.includes('.')) {
+        return defaultUrl;
+    }
     if (!sanitized.startsWith('http://') && !sanitized.startsWith('https://')) {
         sanitized = 'https://' + sanitized;
     }
     try {
-        new URL(sanitized);
+        const parsed = new URL(sanitized);
+        if (!parsed.hostname.includes('.')) {
+            return defaultUrl;
+        }
         return sanitized;
     } catch {
         return defaultUrl;
@@ -126,10 +132,14 @@ const sendVerification = async (phone) => {
     // 2. Fall back to / use configured XSMS gateway
     const rawApiKey = process.env.SMS_AUTH_KEY || process.env.SMS_API_KEY;
     const apiKey = rawApiKey ? rawApiKey.trim().replace(/^["']|["']$/g, '') : '';
-    const rawSender = process.env.SMS_SENDER || 'TGSSVM';
-    const senderId = rawSender ? rawSender.trim().replace(/^["']|["']$/g, '') : 'TGSSVM';
-    const rawDlt = process.env.DLT_TE_ID || '1507166573508565333';
-    const dltTeId = rawDlt ? rawDlt.trim().replace(/^["']|["']$/g, '') : '1507166573508565333';
+    const rawSender = process.env.SMS_SENDER;
+    const senderId = (rawSender && rawSender.trim().toLowerCase() !== 'sms_sender' && !rawSender.includes('_HERE'))
+        ? rawSender.trim().replace(/^["']|["']$/g, '')
+        : 'TGSSVM';
+    const rawDlt = process.env.DLT_TE_ID;
+    const dltTeId = (rawDlt && rawDlt.trim().toLowerCase() !== 'dlt_te_id' && /^\d+$/.test(rawDlt.trim()))
+        ? rawDlt.trim().replace(/^["']|["']$/g, '')
+        : '1507166573508565333';
 
     if (!isGatewayConfigured(apiKey)) {
         console.error(`[SMS ERROR] No valid SMS provider credentials configured (neither Twilio nor XSMS).`);
@@ -330,10 +340,14 @@ const sendAttendanceOTP = async (phone, otp) => {
     // 2. Check XSMS gateway
     const rawApiKey = process.env.SMS_AUTH_KEY || process.env.SMS_API_KEY;
     const apiKey = rawApiKey ? rawApiKey.trim().replace(/^["']|["']$/g, '') : '';
-    const rawSender = process.env.SMS_SENDER || 'TGSSVM';
-    const senderId = rawSender ? rawSender.trim().replace(/^["']|["']$/g, '') : 'TGSSVM';
-    const rawDlt = process.env.DLT_TE_ID || '1507166573508565333';
-    const templateId = rawDlt ? rawDlt.trim().replace(/^["']|["']$/g, '') : '1507166573508565333';
+    const rawSender = process.env.SMS_SENDER;
+    const senderId = (rawSender && rawSender.trim().toLowerCase() !== 'sms_sender' && !rawSender.includes('_HERE'))
+        ? rawSender.trim().replace(/^["']|["']$/g, '')
+        : 'TGSSVM';
+    const rawDlt = process.env.DLT_TE_ID;
+    const templateId = (rawDlt && rawDlt.trim().toLowerCase() !== 'dlt_te_id' && /^\d+$/.test(rawDlt.trim()))
+        ? rawDlt.trim().replace(/^["']|["']$/g, '')
+        : '1507166573508565333';
 
     if (!isGatewayConfigured(apiKey)) {
         console.error(`[SMS ERROR] SMS gateway credentials are not configured or invalid.`);
