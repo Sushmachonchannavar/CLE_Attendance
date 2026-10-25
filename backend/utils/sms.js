@@ -180,9 +180,11 @@ const sendVerification = async (phone) => {
         return { success: true, provider: 'xsms' };
     } catch (error) {
         console.error(`[SMS ERROR] Gateway connection failed:`, error.message);
+        let host = 'gateway';
+        try { host = new URL(url).hostname; } catch {}
         return { 
             success: false, 
-            error: `SMS service temporarily unavailable (${error.code || error.message}). Please verify mobile reception or try again shortly.` 
+            error: `SMS service temporarily unavailable (${error.code || error.message} connecting to ${host}). Please verify mobile reception or try again shortly.` 
         };
     }
 };
