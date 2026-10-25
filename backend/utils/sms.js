@@ -72,6 +72,26 @@ const isGatewayConfigured = (apiKey) => {
 };
 
 /**
+ * Normalizes and validates the SMS Gateway URL, handling quotes, missing protocol, or whitespace
+ */
+const getGatewayUrl = () => {
+    const rawUrl = process.env.SMS_BASE_URL;
+    const defaultUrl = 'https://m.xsms.in/api/sendhttp.php';
+    if (!rawUrl || typeof rawUrl !== 'string') return defaultUrl;
+    let sanitized = rawUrl.trim().replace(/^["']|["']$/g, '');
+    if (!sanitized) return defaultUrl;
+    if (!sanitized.startsWith('http://') && !sanitized.startsWith('https://')) {
+        sanitized = 'https://' + sanitized;
+    }
+    try {
+        new URL(sanitized);
+        return sanitized;
+    } catch {
+        return defaultUrl;
+    }
+};
+
+/**
  * Starts a phone verification using configured SMS provider (Twilio Verify or XSMS gateway)
  * 
  * @param {string} phone - The mobile number
@@ -88,7 +108,7 @@ const sendVerification = async (phone) => {
     if (isTwilioConfigured()) {
         try {
             const client = getTwilioClient();
-            const serviceSid = process.env.TWILIO_VERIFY_SERVICE_SID.trim();
+            const serviceSid = process.env.TWILIO_VERIFY_SERVICE_SID.trim().replace(/^["']|["']$/g, '');
             console.log(`[SMS] Attempting Twilio Verify dispatch for ${maskPhone(formattedPhone)}...`);
             const verification = await client.verify.v2.services(serviceSid)
                 .verifications
@@ -104,8 +124,12 @@ const sendVerification = async (phone) => {
     }
 
     // 2. Fall back to / use configured XSMS gateway
-    const apiKey = process.env.SMS_AUTH_KEY || process.env.SMS_API_KEY;
-    const senderId = process.env.SMS_SENDER || 'TGSSVM';
+    const rawApiKey = process.env.SMS_AUTH_KEY || process.env.SMS_API_KEY;
+    const apiKey = rawApiKey ? rawApiKey.trim().replace(/^["']|["']$/g, '') : '';
+    const rawSender = process.env.SMS_SENDER || 'TGSSVM';
+    const senderId = rawSender ? rawSender.trim().replace(/^["']|["']$/g, '') : 'TGSSVM';
+    const rawDlt = process.env.DLT_TE_ID || '1507166573508565333';
+    const dltTeId = rawDlt ? rawDlt.trim().replace(/^["']|["']$/g, '') : '1507166573508565333';
 
     if (!isGatewayConfigured(apiKey)) {
         console.error(`[SMS ERROR] No valid SMS provider credentials configured (neither Twilio nor XSMS).`);
@@ -117,20 +141,20 @@ const sendVerification = async (phone) => {
     const message = `जरूरी सूचना  Dear Staff your OTP for attendance punch-in is ${otp} This code is valid for 5 minutes Please do not share it C.L.E Society's Sr Sec School`;
 
     try {
-        const url = process.env.SMS_BASE_URL || `https://m.xsms.in/api/sendhttp.php`;
+        const url = getGatewayUrl();
         const params = {
-            authkey: apiKey.trim(),
+            authkey: apiKey,
             mobiles: cleanPhone,
-            sender: senderId.trim(),
+            sender: senderId,
             route: '4',
             country: '91',
             unicode: '1',
             campaign: process.env.SMS_CAMPAIGN || 'test',
-            DLT_TE_ID: process.env.DLT_TE_ID || '1507166573508565333',
+            DLT_TE_ID: dltTeId,
             message: message
         };
 
-        console.log(`[SMS] Dispatching real-time OTP to ${maskPhone(formattedPhone)} via SMS Gateway...`);
+        console.log(`[SMS] Dispatching real-time OTP to ${maskPhone(formattedPhone)} via SMS Gateway (${url})...`);
         const response = await axios.get(url, { params, timeout: 8000 });
 
         const respText = typeof response.data === 'string' ? response.data : JSON.stringify(response.data);
@@ -303,9 +327,12 @@ const sendAttendanceOTP = async (phone, otp) => {
     }
 
     // 2. Check XSMS gateway
-    const apiKey = process.env.SMS_AUTH_KEY || process.env.SMS_API_KEY;
-    const senderId = process.env.SMS_SENDER || 'TGSSVM';
-    const templateId = process.env.DLT_TE_ID || '1507166573508565333';
+    const rawApiKey = process.env.SMS_AUTH_KEY || process.env.SMS_API_KEY;
+    const apiKey = rawApiKey ? rawApiKey.trim().replace(/^["']|["']$/g, '') : '';
+    const rawSender = process.env.SMS_SENDER || 'TGSSVM';
+    const senderId = rawSender ? rawSender.trim().replace(/^["']|["']$/g, '') : 'TGSSVM';
+    const rawDlt = process.env.DLT_TE_ID || '1507166573508565333';
+    const templateId = rawDlt ? rawDlt.trim().replace(/^["']|["']$/g, '') : '1507166573508565333';
 
     if (!isGatewayConfigured(apiKey)) {
         console.error(`[SMS ERROR] SMS gateway credentials are not configured or invalid.`);
@@ -315,20 +342,20 @@ const sendAttendanceOTP = async (phone, otp) => {
     const message = `जरूरी सूचना  Dear Staff your OTP for attendance punch-in is ${otp} This code is valid for 5 minutes Please do not share it C.L.E Society's Sr Sec School`;
 
     try {
-        const url = process.env.SMS_BASE_URL || `https://m.xsms.in/api/sendhttp.php`;
+        const url = getGatewayUrl();
         const params = {
-            authkey: apiKey.trim(),
+            authkey: apiKey,
             mobiles: cleanPhone,
-            sender: senderId.trim(),
+            sender: senderId,
             route: '4',
             country: '91',
             unicode: '1',
             campaign: process.env.SMS_CAMPAIGN || 'test',
-            DLT_TE_ID: templateId.trim(),
+            DLT_TE_ID: templateId,
             message: message
         };
 
-        console.log(`[SMS] Sending attendance OTP to ${maskPhone(formattedPhone)} via gateway...`);
+        console.log(`[SMS] Sending attendance OTP to ${maskPhone(formattedPhone)} via gateway (${url})...`);
         const response = await axios.get(url, { params, timeout: 8000 });
 
         const respText = typeof response.data === 'string' ? response.data : JSON.stringify(response.data);
