@@ -156,7 +156,10 @@ const sendVerification = async (phone) => {
         return { success: true, provider: 'xsms' };
     } catch (error) {
         console.error(`[SMS ERROR] Gateway connection failed:`, error.message);
-        return { success: false, error: 'SMS service temporarily unavailable. Please verify network connection or try again shortly.' };
+        return { 
+            success: false, 
+            error: `SMS service temporarily unavailable (${error.code || error.message}). Please verify mobile reception or try again shortly.` 
+        };
     }
 };
 
