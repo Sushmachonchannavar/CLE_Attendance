@@ -36,7 +36,7 @@ function checkLockout(identifier) {
 }
 
 exports.login = async (req, res) => {
-    const { phone } = req.body;
+    const { phone, role } = req.body;
     if (!phone) return res.status(400).json({ error: 'Phone number is required' });
 
     const rawPhone = phone.trim();
@@ -63,25 +63,41 @@ exports.login = async (req, res) => {
         return res.status(403).json({ error: 'Mobile number not found. Please register first.' });
     }
 
+    // Validate user role matches the selected role
+    if (role) {
+        const dbRole = existingUser.role?.toLowerCase();
+        const targetRole = role.toLowerCase();
+        const rolesMatch = dbRole === targetRole || 
+                           ((dbRole === 'hoi' || dbRole === 'principal') && 
+                            (targetRole === 'hoi' || targetRole === 'principal'));
+        if (!rolesMatch) {
+            const displayRole = (targetRole === 'hoi' || targetRole === 'principal') ? 'Principal' : targetRole.charAt(0).toUpperCase() + targetRole.slice(1);
+            console.warn('[AUTH FAILED] Role mismatch for user:', { phone: maskPhone(phone), dbRole, targetRole });
+            return res.status(403).json({ error: `User is not registered as ${displayRole}.` });
+        }
+    }
+
     try {
         const result = await sendVerification(phone);
         if (result.success) {
-            res.json({ 
+            return res.json({ 
                 success: true, 
-                message: 'OTP sent successfully to your registered mobile number.'
+                message: 'OTP request submitted. Please check your registered mobile phone.'
             });
         } else {
-            console.warn(`[AUTH SMS Fallback] Gateway unavailable (${result.error}). Providing resilient fallback code.`);
-            res.json({ 
-                success: true, 
-                message: 'OTP initiated. If mobile SMS is delayed by provider, use verification code: 123456'
+            console.error(`[AUTH SMS Gateway Unavailable] Delivery failed for ${maskPhone(phone)}:`, result.error);
+            return res.status(503).json({ 
+                success: false, 
+                error: result.error && !result.error.includes('credentials')
+                    ? result.error
+                    : 'SMS service is temporarily unavailable. Please verify mobile reception or try again shortly.'
             });
         }
     } catch (smsError) {
         console.error('[SMS ERROR] Exception occurred during verification dispatch:', smsError.message);
-        res.json({ 
-            success: true, 
-            message: 'OTP initiated. If mobile SMS is delayed by provider, use verification code: 123456'
+        return res.status(503).json({ 
+            success: false, 
+            error: 'SMS service is temporarily unavailable. Please verify mobile reception or try again shortly.'
         });
     }
 };
@@ -112,7 +128,7 @@ exports.register = (req, res) => {
 };
 
 exports.verify = async (req, res) => {
-    const { phone, otp } = req.body;
+    const { phone, otp, role } = req.body;
     if (!phone || !otp) return res.status(400).json({ error: 'Phone and OTP are required' });
 
     const rawPhone = phone.trim();
@@ -129,16 +145,30 @@ exports.verify = async (req, res) => {
         });
     }
 
+    let user = db.prepare("SELECT * FROM users WHERE (phone = ? OR phone = ? OR phone = ?) AND status = 'active'").get(rawPhone, tenDigits, withPlus91);
+    if (!user) {
+        return res.status(403).json({ error: 'User does not exist. Please register first.' });
+    }
+
+    // Validate user role matches the selected role
+    if (role) {
+        const dbRole = user.role?.toLowerCase();
+        const targetRole = role.toLowerCase();
+        const rolesMatch = dbRole === targetRole || 
+                           ((dbRole === 'hoi' || dbRole === 'principal') && 
+                            (targetRole === 'hoi' || targetRole === 'principal'));
+        if (!rolesMatch) {
+            const displayRole = (targetRole === 'hoi' || targetRole === 'principal') ? 'Principal' : targetRole.charAt(0).toUpperCase() + targetRole.slice(1);
+            console.warn('[AUTH VERIFY FAILED] Role mismatch for user:', { phone: maskPhone(phone), dbRole, targetRole });
+            return res.status(403).json({ error: `User is not registered as ${displayRole}.` });
+        }
+    }
+
     const verifyResult = await checkVerification(phone, otp);
 
     if (!verifyResult.success) {
         const statusCode = verifyResult.locked ? 423 : 400;
         return res.status(statusCode).json({ error: verifyResult.error || 'Invalid OTP' });
-    }
-
-    let user = db.prepare("SELECT * FROM users WHERE (phone = ? OR phone = ? OR phone = ?) AND status = 'active'").get(rawPhone, tenDigits, withPlus91);
-    if (!user) {
-        return res.status(403).json({ error: 'User does not exist. Please register first.' });
     }
 
     console.log(`[AUTH] Login successful for user ID: ${user.id} (${maskPhone(user.phone)})`);
@@ -150,7 +180,7 @@ exports.verify = async (req, res) => {
         { expiresIn: '7d' }
     );
 
-    res.json({ token, user, message: 'Login successful' });
+    res.json({ token, user, success: true, otpVerified: true, message: 'Login successful' });
 };
 
 exports.verifyToken = (req, res) => {

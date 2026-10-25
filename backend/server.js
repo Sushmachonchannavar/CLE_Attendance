@@ -34,10 +34,15 @@ const isAllowedOrigin = (origin) => {
         }
     }
 
-    // Allow Cloudflare Pages, Cloudflare Tunnels, and Vercel domains
-    if (/^https:\/\/[a-zA-Z0-9-]+\.pages\.dev$/.test(origin) || 
-        /^https:\/\/[a-zA-Z0-9-]+\.trycloudflare\.com$/.test(origin) || 
-        /^https:\/\/[a-zA-Z0-9-]+\.vercel\.app$/.test(origin)) {
+    // Allow Cloudflare Pages (including subdomains/previews), Cloudflare Tunnels, and Vercel domains
+    if (/^https:\/\/([a-zA-Z0-9-]+\.)*pages\.dev$/.test(origin) || 
+        /^https:\/\/([a-zA-Z0-9-]+\.)*trycloudflare\.com$/.test(origin) || 
+        /^https:\/\/([a-zA-Z0-9-]+\.)*vercel\.app$/.test(origin)) {
+        return true;
+    }
+
+    // Allow Capacitor mobile app webview origins (Android & iOS)
+    if (/^(capacitor|ionic|http|https):\/\/(localhost|127\.0\.0\.1)(:[0-9]+)?$/.test(origin)) {
         return true;
     }
 
@@ -115,11 +120,23 @@ app.get('/', (req, res) => {
 });
 
 app.get('/health', (req, res) => {
-    res.status(200).json({ status: 'ok', timestamp: new Date().toISOString() });
+    try {
+        db.prepare('SELECT 1').get();
+        res.status(200).json({ status: 'ok', database: 'connected', timestamp: new Date().toISOString() });
+    } catch (dbErr) {
+        console.error('[HEALTH CHECK FAILED] Database error:', dbErr.message);
+        res.status(500).json({ status: 'error', error: 'Database service unreachable', timestamp: new Date().toISOString() });
+    }
 });
 
 app.get('/api/health', (req, res) => {
-    res.status(200).json({ status: 'ok', timestamp: new Date().toISOString() });
+    try {
+        db.prepare('SELECT 1').get();
+        res.status(200).json({ status: 'ok', database: 'connected', timestamp: new Date().toISOString() });
+    } catch (dbErr) {
+        console.error('[HEALTH CHECK FAILED] Database error:', dbErr.message);
+        res.status(500).json({ status: 'error', error: 'Database service unreachable', timestamp: new Date().toISOString() });
+    }
 });
 
 // Error handling middleware

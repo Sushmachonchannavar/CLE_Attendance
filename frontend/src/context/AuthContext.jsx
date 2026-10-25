@@ -52,14 +52,22 @@ export const AuthProvider = ({ children }) => {
 
     const login = async (phone, role) => {
         try {
-            const res = await api.post('/attendance/send-otp', { phone, role });
+            const res = await api.post('/auth/login', { phone, role });
             return res;
         } catch (error) {
             console.error("Auth Login Error:", error.message || error);
-            const errorMsg = error.response?.data?.message || error.response?.data?.error || "Failed to connect to authentication service.";
+            let errorMsg;
+            if (error.response?.data) {
+                errorMsg = error.response.data.error || error.response.data.message || "Failed to process login request.";
+            } else if (error.code === 'ECONNABORTED') {
+                errorMsg = "Authentication service connection timed out. Please try again shortly.";
+            } else {
+                errorMsg = "Unable to connect to authentication service. Please verify server status and network connection.";
+            }
             return {
                 data: {
                     success: false,
+                    error: errorMsg,
                     message: errorMsg
                 }
             };
@@ -78,13 +86,20 @@ export const AuthProvider = ({ children }) => {
 
     const verifyOtp = async (phone, otp, targetRole) => {
         try {
-            const res = await api.post('/attendance/verify-otp', { phone, otp, role: targetRole });
+            const res = await api.post('/auth/verify', { phone, otp, role: targetRole });
             localStorage.setItem('token', res.data.token);
             localStorage.setItem('user', JSON.stringify(res.data.user));
             setUser(res.data.user);
             return { success: true };
         } catch (error) {
-            const errorMsg = error.response?.data?.error || error.response?.data?.message || "Authentication failed. Please verify the code and try again.";
+            let errorMsg;
+            if (error.response?.data) {
+                errorMsg = error.response.data.error || error.response.data.message || "Invalid verification code.";
+            } else if (error.code === 'ECONNABORTED') {
+                errorMsg = "Verification request timed out. Please try again.";
+            } else {
+                errorMsg = "Unable to connect to authentication service to verify code.";
+            }
             return { success: false, error: errorMsg };
         }
     };

@@ -33,7 +33,7 @@ router.post('/send-otp', auth, role(['admin']), async (req, res, next) => {
             route: '4',
             country: '91',
             unicode: '1',
-            campaign: 'attendance',
+            campaign: process.env.SMS_CAMPAIGN || 'test',
             DLT_TE_ID: process.env.DLT_TE_ID,
             message: message
         });

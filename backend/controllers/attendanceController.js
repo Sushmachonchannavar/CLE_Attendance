@@ -269,6 +269,14 @@ exports.sendOTP = async (req, res) => {
             VALUES (?, ?, ?, 0, 0)
         `).run(activeEmpId, hashedOtp, expiresAt);
 
+        // Also sync to otps table for cross-compatibility
+        try {
+            db.prepare('INSERT OR REPLACE INTO otps (phone, otp, expires_at, attempts) VALUES (?, ?, ?, 0)').run('+91' + activePhone.replace(/\D/g, '').slice(-10), hashedOtp, expiresAt);
+            db.prepare('INSERT OR REPLACE INTO otps (phone, otp, expires_at, attempts) VALUES (?, ?, ?, 0)').run(activePhone.replace(/\D/g, '').slice(-10), hashedOtp, expiresAt);
+        } catch (syncErr) {
+            console.warn('[OTP SYNC WARNING] Failed to mirror OTP to otps table:', syncErr.message);
+        }
+
         console.log(`[OTP GENERATED] OTP created for employee ID: ${activeEmpId} (Expires: ${expiresAt})`);
 
         // 9. Send real-time OTP to registered mobile number
@@ -281,16 +289,16 @@ exports.sendOTP = async (req, res) => {
         }
 
         if (!smsResult.success) {
-            console.warn(`[SMS Fallback] Gateway unavailable (${smsResult.error}). Providing resilient verification for ${maskPhone(activePhone)}.`);
-            return res.json({ 
-                success: true, 
-                message: 'OTP initiated. If SMS is delayed by network provider, enter verification code: 123456'
+            console.error(`[SMS FAILED] Gateway delivery failed for ${maskPhone(activePhone)}:`, smsResult.error);
+            return res.status(503).json({ 
+                success: false, 
+                error: 'SMS service is temporarily unavailable. Please verify mobile reception or try again shortly.'
             });
         }
 
         res.json({ 
             success: true, 
-            message: 'OTP sent successfully to your registered mobile number.'
+            message: 'OTP request submitted. Please check your registered mobile phone.'
         });
 
     } catch (err) {
@@ -358,23 +366,39 @@ exports.verifyOTP = async (req, res) => {
             });
         }
 
-        const isMasterCode = cleanOtp === '123456';
-
         // 3. Find the latest unused OTP for the employee
-        const latestOtpRow = db.prepare(`
+        let latestOtpRow = db.prepare(`
             SELECT * FROM attendance_otps 
             WHERE employee_id = ? 
             ORDER BY id DESC 
             LIMIT 1
         `).get(activeEmpId);
 
-        if (!latestOtpRow && !isMasterCode) {
+        // Fallback check against otps table if needed
+        if (!latestOtpRow) {
+            try {
+                const otpRow = db.prepare('SELECT otp, expires_at, attempts FROM otps WHERE phone = ? OR phone = ? ORDER BY rowid DESC LIMIT 1').get(activePhone, activePhone.replace(/\D/g, '').slice(-10));
+                if (otpRow) {
+                    latestOtpRow = {
+                        id: null,
+                        otp: otpRow.otp,
+                        expires_at: otpRow.expires_at,
+                        attempts: otpRow.attempts,
+                        is_used: 0
+                    };
+                }
+            } catch (fallbackErr) {
+                // Ignore fallback error
+            }
+        }
+
+        if (!latestOtpRow) {
             console.warn(`[OTP VERIFY FAILED] No OTP record found for employee ${activeEmpId}`);
             return res.status(400).json({ error: 'OTP not found. Please request a new one.' });
         }
 
         // 4. Check if it has already been used
-        if (latestOtpRow && latestOtpRow.is_used === 1 && !isMasterCode) {
+        if (latestOtpRow.is_used === 1) {
             console.warn(`[OTP VERIFY FAILED] OTP already used for employee ${activeEmpId}`);
             return res.status(400).json({ error: 'OTP has already been used. Please request a new one.' });
         }
@@ -382,15 +406,17 @@ exports.verifyOTP = async (req, res) => {
         // 5. Check whether it has expired
         const now = new Date();
         const expiresAt = latestOtpRow ? new Date(latestOtpRow.expires_at) : null;
-        if (expiresAt && now > expiresAt && !isMasterCode) {
+        if (expiresAt && now > expiresAt) {
             console.warn(`[OTP VERIFY FAILED] OTP expired for employee ${activeEmpId}`);
-            db.prepare('UPDATE attendance_otps SET is_used = 1 WHERE id = ?').run(latestOtpRow.id);
+            if (latestOtpRow.id) {
+                db.prepare('UPDATE attendance_otps SET is_used = 1 WHERE id = ?').run(latestOtpRow.id);
+            }
             return res.status(400).json({ error: 'OTP has expired. Please request a new one.' });
         }
 
         // 6. Verify correct OTP (hash and compare)
         const hashedInput = crypto.createHash('sha256').update(cleanOtp).digest('hex');
-        if (latestOtpRow && latestOtpRow.otp !== hashedInput && !isMasterCode) {
+        if (latestOtpRow.otp !== hashedInput) {
             const attempts = (latestOtpRow.attempts || 0) + 1;
             db.prepare('UPDATE attendance_otps SET attempts = ? WHERE id = ?').run(attempts, latestOtpRow.id);
 

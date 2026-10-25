@@ -34,17 +34,17 @@ async function runRealOtpTestSuite() {
 
     try {
         // Prepare test users
-        // 8296264109 is registered real staff member Sumit Chonchannavar
-        const realStaff = db.prepare("SELECT * FROM users WHERE phone = '8296264109'").get();
+        // 6360670247 is registered real staff member Sumit Chonchannavar
+        const realStaff = db.prepare("SELECT * FROM users WHERE phone = '6360670247'").get();
         if (!realStaff) {
-            console.error("User 8296264109 not found in database.");
+            console.error("User 6360670247 not found in database.");
             process.exit(1);
         }
 
-        // Clean any existing lockouts and OTPs for 8296264109 and demo phone 9876543210
-        db.prepare("DELETE FROM auth_lockouts WHERE identifier LIKE '%8296264109%' OR identifier LIKE '%9876543210%'").run();
+        // Clean any existing lockouts and OTPs for 6360670247 and demo phone 9876543210
+        db.prepare("DELETE FROM auth_lockouts WHERE identifier LIKE '%6360670247%' OR identifier LIKE '%9876543210%'").run();
         db.prepare("DELETE FROM attendance_otps WHERE employee_id = ?").run(realStaff.employee_id);
-        db.prepare("DELETE FROM otps WHERE phone LIKE '%8296264109%' OR phone LIKE '%9876543210%'").run();
+        db.prepare("DELETE FROM otps WHERE phone LIKE '%6360670247%' OR phone LIKE '%9876543210%'").run();
 
         // -------------------------------------------------------------
         // TEST 1: DEMO OTP REMOVAL - Demo numbers no longer return demo OTP
@@ -85,7 +85,7 @@ async function runRealOtpTestSuite() {
         // -------------------------------------------------------------
         console.log("\n--- TEST 4: Real-Time SMS OTP Dispatch via XSMS Gateway ---");
         console.log(`Dispatching live SMS OTP to registered staff member: ${realStaff.name} (Phone: ${realStaff.phone})...`);
-        const liveSmsRes = await client.post('/api/attendance/send-otp', { phone: '8296264109' });
+        const liveSmsRes = await client.post('/api/attendance/send-otp', { phone: '6360670247' });
         console.log("Live send-otp API response:", liveSmsRes.status, liveSmsRes.data);
         assert(liveSmsRes.status === 200, "Live SMS send-otp succeeded with HTTP 200");
         assert(liveSmsRes.data.success === true, "Response reports success = true");
@@ -107,7 +107,7 @@ async function runRealOtpTestSuite() {
         // -------------------------------------------------------------
         console.log("\n--- TEST 5: Invalid OTP Submission and Attempt Counter ---");
         const invalidVerifyRes = await client.post('/api/attendance/verify-otp', {
-            phone: '8296264109',
+            phone: '6360670247',
             otp: '000000'
         });
         console.log("Invalid OTP response:", invalidVerifyRes.status, invalidVerifyRes.data);
@@ -120,12 +120,12 @@ async function runRealOtpTestSuite() {
         console.log("\n--- TEST 6: Account Lockout after 5 Consecutive Failed Attempts ---");
         for (let i = 2; i <= 5; i++) {
             await client.post('/api/attendance/verify-otp', {
-                phone: '8296264109',
+                phone: '6360670247',
                 otp: '000000'
             });
         }
         const lockoutVerifyRes = await client.post('/api/attendance/verify-otp', {
-            phone: '8296264109',
+            phone: '6360670247',
             otp: '000000'
         });
         console.log("Attempt 6 response:", lockoutVerifyRes.status, lockoutVerifyRes.data);
@@ -133,7 +133,7 @@ async function runRealOtpTestSuite() {
         assert(lockoutVerifyRes.data.error.includes("temporarily locked") || lockoutVerifyRes.data.error.includes("locked"), "Locked banner indicates account is locked");
 
         // Clean lockout for subsequent tests
-        db.prepare("DELETE FROM auth_lockouts WHERE identifier LIKE '%8296264109%'").run();
+        db.prepare("DELETE FROM auth_lockouts WHERE identifier LIKE '%6360670247%'").run();
 
         // -------------------------------------------------------------
         // TEST 7: OTP EXPIRATION ENFORCEMENT
@@ -147,7 +147,7 @@ async function runRealOtpTestSuite() {
         db.prepare("INSERT INTO attendance_otps (employee_id, otp, expires_at, is_used, attempts) VALUES (?, ?, ?, 0, 0)").run(realStaff.employee_id, expiredHash, pastDate);
 
         const expiredVerifyRes = await client.post('/api/attendance/verify-otp', {
-            phone: '8296264109',
+            phone: '6360670247',
             otp: expiredCode
         });
         console.log("Expired OTP verify response:", expiredVerifyRes.status, expiredVerifyRes.data);
@@ -165,7 +165,7 @@ async function runRealOtpTestSuite() {
         db.prepare("INSERT INTO attendance_otps (employee_id, otp, expires_at, is_used, attempts) VALUES (?, ?, ?, 0, 0)").run(realStaff.employee_id, testHash, validFutureDate);
 
         const validVerifyRes = await client.post('/api/attendance/verify-otp', {
-            phone: '8296264109',
+            phone: '6360670247',
             otp: testCode
         });
         console.log("Valid OTP verify response:", validVerifyRes.status, validVerifyRes.data?.message);
@@ -175,7 +175,7 @@ async function runRealOtpTestSuite() {
 
         // Immediately attempt to REUSE the same OTP
         const reuseRes = await client.post('/api/attendance/verify-otp', {
-            phone: '8296264109',
+            phone: '6360670247',
             otp: testCode
         });
         console.log("Reused OTP verify response:", reuseRes.status, reuseRes.data);
@@ -194,7 +194,7 @@ async function runRealOtpTestSuite() {
             db.prepare("INSERT INTO attendance_otps (employee_id, otp, expires_at, is_used, attempts, created_at) VALUES (?, ?, ?, 1, 0, datetime('now'))").run(realStaff.employee_id, dummyHash, dummyExp);
         }
         // Next request via API must be rate limited (429)
-        const rateLimitRes = await client.post('/api/attendance/send-otp', { phone: '8296264109' });
+        const rateLimitRes = await client.post('/api/attendance/send-otp', { phone: '6360670247' });
         console.log("6th OTP request response:", rateLimitRes.status, rateLimitRes.data);
         assert(rateLimitRes.status === 429, "6th rapid OTP request rate-limited with HTTP 429");
         assert(rateLimitRes.data.error.includes("Too many OTP requests"), "Rate limit error displayed");
