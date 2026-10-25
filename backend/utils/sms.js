@@ -179,12 +179,11 @@ const sendVerification = async (phone) => {
 
         return { success: true, provider: 'xsms' };
     } catch (error) {
-        console.error(`[SMS ERROR] Gateway connection failed:`, error.message);
-        let host = 'gateway';
-        try { host = new URL(url).hostname; } catch {}
+        console.error(`[SMS ERROR] Gateway connection failed:`, error.message, 'Hostname:', error.hostname, 'URL:', error.config?.url);
+        const failedHost = error.hostname || (error.config?.url ? new URL(error.config.url).hostname : 'unknown');
         return { 
             success: false, 
-            error: `SMS service temporarily unavailable (${error.code || error.message} connecting to ${host}). Please verify mobile reception or try again shortly.` 
+            error: `SMS service temporarily unavailable (${error.code || error.message} connecting to ${failedHost}). Please verify mobile reception or try again shortly.` 
         };
     }
 };
