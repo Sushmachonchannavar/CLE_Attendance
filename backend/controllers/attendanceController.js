@@ -71,15 +71,44 @@ function checkLockout(identifier) {
     }
 }
 
+function getKolkataDate(date = new Date()) {
+    return new Intl.DateTimeFormat('en-CA', {
+        timeZone: 'Asia/Kolkata',
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit'
+    }).format(date);
+}
+
+function getKolkataTimeString(date = new Date()) {
+    return date.toLocaleTimeString('en-US', {
+        timeZone: 'Asia/Kolkata',
+        hour12: true
+    });
+}
+
+function getKolkataHourAndMinute(date = new Date()) {
+    const hour = parseInt(new Intl.DateTimeFormat('en-US', {
+        timeZone: 'Asia/Kolkata',
+        hour: 'numeric',
+        hourCycle: 'h23'
+    }).format(date), 10);
+    const minute = parseInt(new Intl.DateTimeFormat('en-US', {
+        timeZone: 'Asia/Kolkata',
+        minute: 'numeric'
+    }).format(date), 10);
+    return { hour, minute };
+}
+
 const DUTY_START_HOUR = 9;   // 9:00 AM
 const LATE_THRESHOLD_MINUTE = 20; // 9:20 AM
 
 exports.punch = (req, res) => {
     const { lat, lng } = req.body;
     const userId = req.user.id;
-    const today = new Date().toISOString().split('T')[0];
     const now = new Date();
-    const timeString = now.toLocaleTimeString();
+    const today = getKolkataDate(now);
+    const timeString = getKolkataTimeString(now);
     const utcString = now.toISOString();
 
     if (lat === undefined || lng === undefined || lat === null || lng === null || lat === '' || lng === '') {
@@ -95,13 +124,19 @@ exports.punch = (req, res) => {
     // Check if already exist for today
     let record = db.prepare('SELECT * FROM attendance WHERE user_id = ? AND date = ?').get(userId, today);
 
+    // Duplicate punch check: already completed today
+    if (record && record.punch_out_time) {
+        return res.status(400).json({ error: 'Already completed attendance for today.' });
+    }
+
     // Check Geofence
     const distance = getDistanceFromLatLonInMeters(latitude, longitude, CAMPUS_LAT, CAMPUS_LNG);
     const isInside = isPointInPolygon(latitude, longitude, CAMPUS_GEOFENCE) || distance <= GEOFENCE_RADIUS_METERS;
 
-    if (!record && !isInside) {
-        // Enforce geofence strictly for punch-in for ALL users
-        console.log(`Punch-in rejected for user ${userId}: Outside geofence (${Math.round(distance)}m away)`);
+    // Both punch-in and punch-out strictly require staff member to be inside assigned campus geofence
+    if (!isInside) {
+        const actionType = record ? 'Punch-out' : 'Punch-in';
+        console.log(`${actionType} rejected for user ${userId}: Outside geofence (${Math.round(distance)}m away)`);
         return res.status(400).json({
             error: `You are outside the campus geofence. Distance: ${Math.round(distance)}m.`,
             distance: Math.round(distance)
@@ -109,11 +144,8 @@ exports.punch = (req, res) => {
     }
 
     if (record) {
-        if (record.punch_out_time) {
-            return res.status(400).json({ error: 'Already completed attendance for today.' });
-        }
-        // Punch Out
-        const distanceOut = getDistanceFromLatLonInMeters(latitude, longitude, CAMPUS_LAT, CAMPUS_LNG);
+        // Punch Out - Staff can punch out at any time provided they have an active session and are inside campus geofence
+        const distanceOut = distance;
         db.prepare(`
             UPDATE attendance 
             SET punch_out_time = ?, punch_out_utc = ?, location_lat_out = ?, location_lng_out = ?, distance_out = ? 
@@ -125,9 +157,8 @@ exports.punch = (req, res) => {
 
         res.json({ message: 'Punched Out successfully', time: timeString, utcTime: utcString });
     } else {
-        // Punch In - Calculate Late Status
-        const hour = now.getHours();
-        const minute = now.getMinutes();
+        // Punch In - Staff can punch in at any time of day provided they are inside campus geofence
+        const { hour, minute } = getKolkataHourAndMinute(now);
         const isLate = (hour > DUTY_START_HOUR || (hour === DUTY_START_HOUR && minute > LATE_THRESHOLD_MINUTE)) ? 1 : 0;
         const roleVal = (req.user.role === 'hoi' || req.user.role === 'principal') ? 'PRINCIPAL' : 'STAFF';
         const statusVal = isLate ? 'late' : 'present';
@@ -155,7 +186,7 @@ exports.punch = (req, res) => {
                 timestamp = excluded.timestamp,
                 is_inside_campus = excluded.is_inside_campus,
                 is_tracking = 1
-        `).run(userId, latitude, longitude, null, utcString, isInside ? 1 : 0);
+        `).run(userId, latitude, longitude, null, utcString, 1);
 
         res.json({
             message: `Punched In successfully ${isLate ? '(Late)' : '(On Time)'}`,
@@ -174,7 +205,7 @@ exports.getHistory = (req, res) => {
 
 exports.getStatus = (req, res) => {
     const userId = req.user.id;
-    const today = new Date().toISOString().split('T')[0];
+    const today = getKolkataDate();
     const record = db.prepare('SELECT * FROM attendance WHERE user_id = ? AND date = ?').get(userId, today);
     res.json({ punchedIn: !!record, punchedOut: !!(record && record.punch_out_time), record });
 };
@@ -455,7 +486,7 @@ exports.verifyOTP = async (req, res) => {
             { expiresIn: '7d' }
         );
 
-        // 9. Punch in action (if coordinates are provided)
+        // 9. Punch in / out action (if coordinates are provided)
         if (lat !== undefined && lng !== undefined) {
             const latitude = parseFloat(lat);
             const longitude = parseFloat(lng);
@@ -464,21 +495,28 @@ exports.verifyOTP = async (req, res) => {
                 return res.status(400).json({ error: 'Invalid coordinates provided for punch-in.' });
             }
 
-            console.log(`[OTP PUNCH-IN] Processing punch-in for user ID: ${user.id}`);
+            console.log(`[OTP PUNCH] Processing punch for user ID: ${user.id}`);
 
-            const today = new Date().toISOString().split('T')[0];
-            const timeString = now.toLocaleTimeString();
+            const today = getKolkataDate(now);
+            const timeString = getKolkataTimeString(now);
             const utcString = now.toISOString();
 
             // Check if already exist for today
             let record = db.prepare('SELECT * FROM attendance WHERE user_id = ? AND date = ?').get(user.id, today);
             
+            // Duplicate punch check: already completed today
+            if (record && record.punch_out_time) {
+                return res.status(400).json({ error: 'Already completed attendance for today.' });
+            }
+
             // Check Geofence
             const distance = getDistanceFromLatLonInMeters(latitude, longitude, CAMPUS_LAT, CAMPUS_LNG);
             const isInside = isPointInPolygon(latitude, longitude, CAMPUS_GEOFENCE) || distance <= GEOFENCE_RADIUS_METERS;
 
-            if (!record && !isInside) {
-                console.log(`[OTP PUNCH-IN REJECTED] Outside geofence for user ID ${user.id} (${Math.round(distance)}m away)`);
+            // Both punch-in and punch-out strictly require staff member to be inside assigned campus geofence
+            if (!isInside) {
+                const actionType = record ? 'Punch-out' : 'Punch-in';
+                console.log(`[OTP ${actionType.toUpperCase()} REJECTED] Outside geofence for user ID ${user.id} (${Math.round(distance)}m away)`);
                 return res.status(400).json({
                     error: `You are outside the campus geofence. Distance: ${Math.round(distance)}m.`,
                     distance: Math.round(distance)
@@ -486,11 +524,8 @@ exports.verifyOTP = async (req, res) => {
             }
 
             if (record) {
-                if (record.punch_out_time) {
-                    return res.status(400).json({ error: 'Already completed attendance for today.' });
-                }
-                // Punch Out
-                const distanceOut = getDistanceFromLatLonInMeters(latitude, longitude, CAMPUS_LAT, CAMPUS_LNG);
+                // Punch Out - Staff can punch out at any time provided they have an active session and are inside campus geofence
+                const distanceOut = distance;
                 db.prepare(`
                     UPDATE attendance 
                     SET punch_out_time = ?, punch_out_utc = ?, location_lat_out = ?, location_lng_out = ?, distance_out = ? 
@@ -511,9 +546,8 @@ exports.verifyOTP = async (req, res) => {
                     punchRecord: updatedRecord
                 });
             } else {
-                // Punch In - Calculate Late Status
-                const hour = now.getHours();
-                const minute = now.getMinutes();
+                // Punch In - Staff can punch in at any time of day provided they are inside campus geofence
+                const { hour, minute } = getKolkataHourAndMinute(now);
                 const isLate = (hour > DUTY_START_HOUR || (hour === DUTY_START_HOUR && minute > LATE_THRESHOLD_MINUTE)) ? 1 : 0;
                 const roleVal = (user.role === 'hoi' || user.role === 'principal') ? 'PRINCIPAL' : 'STAFF';
                 const statusVal = isLate ? 'late' : 'present';
@@ -542,7 +576,7 @@ exports.verifyOTP = async (req, res) => {
                         timestamp = excluded.timestamp,
                         is_inside_campus = excluded.is_inside_campus,
                         is_tracking = 1
-                `).run(user.id, latitude, longitude, null, utcString, isInside ? 1 : 0);
+                `).run(user.id, latitude, longitude, null, utcString, 1);
 
                 const newRecord = db.prepare('SELECT * FROM attendance WHERE id = ?').get(runResult.lastInsertRowid);
                 console.log(`[OTP PUNCH-IN SUCCESS] Punched In successfully for user ${user.id} ${isLate ? '(Late)' : '(On Time)'}`);
@@ -579,7 +613,7 @@ exports.updateLocation = (req, res) => {
     const userId = req.user.id;
 
     // Verify user is currently punched in (date = today, punch_out_time IS NULL)
-    const today = new Date().toISOString().split('T')[0];
+    const today = getKolkataDate();
     const record = db.prepare('SELECT * FROM attendance WHERE user_id = ? AND date = ?').get(userId, today);
 
     if (!record || record.punch_out_time) {
@@ -670,7 +704,7 @@ exports.updateLocation = (req, res) => {
 };
 
 exports.getEmployeeLocations = (req, res) => {
-    const today = new Date().toISOString().split('T')[0];
+    const today = getKolkataDate();
 
     try {
         const employees = db.prepare(`

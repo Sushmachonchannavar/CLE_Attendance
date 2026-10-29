@@ -22,22 +22,36 @@ const HOST = process.env.HOST || '0.0.0.0';
 app.set('trust proxy', 1);
 
 // CORS configuration
+// Log the configured FRONTEND_URL at startup so it is visible in Render/Koyeb logs
+console.log(`[CORS] Configured FRONTEND_URL: ${process.env.FRONTEND_URL || '(not set — using regex patterns only)'}`);
+console.log(`[CORS] NODE_ENV: ${process.env.NODE_ENV || 'development'}`);
+
 const isAllowedOrigin = (origin) => {
     // Non-browser clients (curl, mobile apps, Postman) do not send an Origin header
     if (!origin) return true;
 
     // Explicit configured frontend URL(s) - support comma-separated list
     if (process.env.FRONTEND_URL) {
-        const configuredUrls = process.env.FRONTEND_URL.split(',').map(u => u.trim().replace(/\/$/, ''));
+        const configuredUrls = process.env.FRONTEND_URL
+            .split(',')
+            .map(u => u.trim().replace(/\/$/, ''))
+            .filter(u => u.length > 0);
         if (configuredUrls.includes(origin)) {
+            console.log(`[CORS] Allowed via FRONTEND_URL list: ${origin}`);
             return true;
         }
     }
 
-    // Allow Cloudflare Pages (including subdomains/previews), Cloudflare Tunnels, and Vercel domains
-    if (/^https:\/\/([a-zA-Z0-9-]+\.)*pages\.dev$/.test(origin) || 
-        /^https:\/\/([a-zA-Z0-9-]+\.)*trycloudflare\.com$/.test(origin) || 
-        /^https:\/\/([a-zA-Z0-9-]+\.)*vercel\.app$/.test(origin)) {
+    // Allow Cloudflare Pages (including subdomains/previews) and Cloudflare Tunnels
+    if (/^https:\/\/([a-zA-Z0-9-]+\.)*pages\.dev$/.test(origin) ||
+        /^https:\/\/([a-zA-Z0-9-]+\.)*trycloudflare\.com$/.test(origin)) {
+        console.log(`[CORS] Allowed via Cloudflare pattern: ${origin}`);
+        return true;
+    }
+
+    // Allow all Vercel domains: production (*.vercel.app) and preview deployments (git branch previews)
+    if (/^https:\/\/[a-zA-Z0-9][a-zA-Z0-9-]*(\.vercel\.app)$/.test(origin)) {
+        console.log(`[CORS] Allowed via Vercel pattern: ${origin}`);
         return true;
     }
 
@@ -46,8 +60,9 @@ const isAllowedOrigin = (origin) => {
         return true;
     }
 
-    // In production, strictly enforce allowed origins
+    // In production, strictly enforce allowed origins (deny anything not matched above)
     if (process.env.NODE_ENV === 'production') {
+        console.warn(`[CORS REJECTED] Origin '${origin}' denied in production mode.`);
         return false;
     }
 
@@ -119,6 +134,18 @@ app.get('/', (req, res) => {
     res.send('Staff Attendance System API is running');
 });
 
+// Non-production CORS diagnostics: helps identify origin mismatches in staging/dev
+if (process.env.NODE_ENV !== 'production') {
+    app.get('/api/debug/cors', (req, res) => {
+        res.json({
+            origin: req.headers['origin'] || null,
+            host: req.headers['host'] || null,
+            configured_frontend_url: process.env.FRONTEND_URL || null,
+            node_env: process.env.NODE_ENV || 'development'
+        });
+    });
+}
+
 app.get('/health', (req, res) => {
     try {
         db.prepare('SELECT 1').get();
@@ -136,6 +163,31 @@ app.get('/api/health', (req, res) => {
     } catch (dbErr) {
         console.error('[HEALTH CHECK FAILED] Database error:', dbErr.message);
         res.status(500).json({ status: 'error', error: 'Database service unreachable', timestamp: new Date().toISOString() });
+    }
+});
+
+// Diagnostic health endpoint — reports user count, DB path, and CORS config (no secrets)
+// Used to verify Render/Koyeb deployment state after a redeploy or database reset
+app.get('/api/health/detailed', (req, res) => {
+    try {
+        db.prepare('SELECT 1').get();
+        const userCount = db.prepare("SELECT COUNT(*) AS count FROM users").get();
+        const activeUserCount = db.prepare("SELECT COUNT(*) AS count FROM users WHERE status = 'active'").get();
+        const dbPath = process.env.DATABASE_PATH || process.env.DB_FILE || '(local default)';
+        const frontendUrl = process.env.FRONTEND_URL || '(not set)';
+        res.status(200).json({
+            status: 'ok',
+            database: 'connected',
+            timestamp: new Date().toISOString(),
+            totalUsers: userCount ? userCount.count : 0,
+            activeUsers: activeUserCount ? activeUserCount.count : 0,
+            dbPath,
+            configuredFrontendUrl: frontendUrl,
+            nodeEnv: process.env.NODE_ENV || 'development'
+        });
+    } catch (dbErr) {
+        console.error('[HEALTH DETAILED FAILED]:', dbErr.message);
+        res.status(500).json({ status: 'error', error: dbErr.message, timestamp: new Date().toISOString() });
     }
 });
 

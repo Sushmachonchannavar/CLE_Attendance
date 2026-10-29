@@ -219,6 +219,25 @@ async function runAllTests() {
                 recordResult('TC-GEO-002', 'Geofence', 'Outside campus punch block', 'Rejected with 400 Geofence warning', `Status ${res.status}: ${JSON.stringify(res.body)}`, 'FAIL');
             }
 
+            // TC-GEO-003: Outside Campus Punch-Out Block
+            // First punch in inside campus
+            await request(app)
+                .post('/api/attendance/punch')
+                .set('Authorization', `Bearer ${staffToken}`)
+                .send({ lat: 16.426026, lng: 74.589353 }); // Inside campus
+
+            // Attempt to punch out while outside campus
+            res = await request(app)
+                .post('/api/attendance/punch')
+                .set('Authorization', `Bearer ${staffToken}`)
+                .send({ lat: 10.0, lng: 10.0 }); // Outside campus
+            
+            if (res.status === 400 && res.body.error.includes("outside the campus")) {
+                recordResult('TC-GEO-003', 'Geofence', 'Outside campus punch-out block', 'Rejected with 400 Geofence warning', `Status ${res.status}: ${res.body.error}`, 'PASS');
+            } else {
+                recordResult('TC-GEO-003', 'Geofence', 'Outside campus punch-out block', 'Rejected with 400 Geofence warning', `Status ${res.status}: ${JSON.stringify(res.body)}`, 'FAIL');
+            }
+
             // TC-GEO-004: Invalid Coordinates
             res = await request(app)
                 .post('/api/attendance/punch')

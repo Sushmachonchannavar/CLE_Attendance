@@ -36,6 +36,7 @@ git push origin main
    - **Name:** `cle-attendance-backend` (or any name you prefer)
    - **Region:** `Singapore` (or nearest to your users)
    - **Branch:** `main`
+   
    - **Root Directory:** `backend` *(CRITICAL: do not leave empty)*
    - **Runtime:** `Node`
    - **Build Command:** `npm install`

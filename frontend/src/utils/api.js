@@ -23,7 +23,8 @@ export const getBaseURL = () => {
         const hostname = window.location.hostname;
         const isLocalhost = hostname === 'localhost' || hostname === '127.0.0.1';
 
-        // 1. If running on local development machine, relative /api uses Vite proxy to local backend (port 5001)
+        // 1. If running on local development machine, use VITE_API_URL if set to a remote URL,
+        //    otherwise use Vite proxy via relative /api (points to local backend on port 5001).
         if (isLocalhost) {
             if (rawUrl && typeof rawUrl === 'string' && rawUrl.trim() !== '' && !rawUrl.startsWith('/')) {
                 const trimmed = rawUrl.trim().replace(/\/+$/, '');
@@ -32,7 +33,8 @@ export const getBaseURL = () => {
             return '/api';
         }
 
-        // 2. If an explicit remote HTTPS API URL is provided in env (e.g. VITE_API_URL)
+        // 2. If an explicit remote HTTPS API URL is configured via VITE_API_URL, use it directly.
+        //    This takes priority for any non-localhost deployed environment.
         if (rawUrl && typeof rawUrl === 'string' && rawUrl.trim() !== '' && !rawUrl.startsWith('/')) {
             const trimmed = rawUrl.trim().replace(/\/+$/, '');
             const finalUrl = trimmed.endsWith('/api') ? trimmed : `${trimmed}/api`;
@@ -42,7 +44,7 @@ export const getBaseURL = () => {
         }
 
         // 3. If accessed via local network LAN IP (e.g. mobile phone testing on Wi-Fi at 192.168.x.x)
-        const isLanIp = /^(192\.168\.|10\.|172\.(1[6-9]|2\d|3[01])\.)/.test(hostname);
+        const isLanIp = /^(192\.168\.|10\.|172\.(1[6-9]|2\d|3[01])\.)\d+\.\d+$/.test(hostname);
         if (isLanIp) {
             if (rawUrl && typeof rawUrl === 'string' && rawUrl.startsWith('https://')) {
                 const trimmed = rawUrl.trim().replace(/\/+$/, '');
@@ -52,23 +54,31 @@ export const getBaseURL = () => {
             return `http://${hostname}:5001/api`;
         }
 
-        // 4. If running on Vercel with configured serverless proxy rewrites in vercel.json
+        // 4. If running on Vercel (production or any preview deployment, e.g. *.vercel.app):
+        //    vercel.json rewrites /api/* → Render backend, so use relative /api path.
+        //    This avoids cross-origin preflight by keeping requests on the same Vercel origin.
         if (hostname.endsWith('.vercel.app')) {
             return '/api';
         }
 
-        // 5. On Cloudflare Pages (e.g. cle-attendance.pages.dev) or remote production hosts:
-        // Cloudflare Pages cannot proxy POST requests via static redirects (returns 405 Method Not Allowed).
-        // Therefore, connect directly to the live secure HTTPS backend.
+        // 5. On Cloudflare Pages (e.g. cle-attendance.pages.dev) or any other remote production host:
+        //    Cloudflare Pages static redirects cannot proxy POST requests (405 Method Not Allowed).
+        //    Connect directly to the live HTTPS backend instead.
         return LIVE_BACKEND_URL;
     }
 
     return LIVE_BACKEND_URL;
 };
 
+const resolvedBaseURL = getBaseURL();
+
+// Log the resolved API base URL in the browser's DevTools console on page load.
+// In production, open DevTools → Console and verify this matches the expected backend URL.
+console.log(`[API] Base URL resolved to: ${resolvedBaseURL}`);
+
 const api = axios.create({
-    baseURL: getBaseURL(),
-    timeout: 30000, // 30s timeout to allow cold-start handling without hanging indefinitely
+    baseURL: resolvedBaseURL,
+    timeout: 30000, // 30s timeout to handle Render free-tier cold-start without hanging
 });
 
 api.interceptors.request.use((config) => {
@@ -82,6 +92,22 @@ api.interceptors.request.use((config) => {
 api.interceptors.response.use(
     (response) => response,
     (error) => {
+        // Log actionable diagnostic information in browser console for production debugging.
+        // Open DevTools → Console to see exact HTTP status, URL, and error body.
+        if (error.response) {
+            console.error(
+                `[API Error] ${error.config?.method?.toUpperCase()} ${error.config?.url} → HTTP ${error.response.status}:`,
+                error.response.data
+            );
+        } else if (error.request) {
+            console.error(
+                '[API Error] No response received — possible network error or CORS block:',
+                error.message,
+                '| URL:', error.config?.url
+            );
+        } else {
+            console.error('[API Error]', error.message);
+        }
         return Promise.reject(error);
     }
 );

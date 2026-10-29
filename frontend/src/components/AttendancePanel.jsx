@@ -111,11 +111,9 @@ const CAMPUS_GEOFENCE = [
     { lat: 16.425672 + latOffset, lng: 74.590506 + lngOffset }, // Southeast Corner
     { lat: 16.425672 + latOffset, lng: 74.588000 + lngOffset }  // Southwest Corner
 ];
-const GEOFENCE_RADIUS_METERS = 300;
-const PRIVACY_RADIUS_METERS = 500; // Hide map if further than this
+const GEOFENCE_RADIUS_METERS = 500;
+const PRIVACY_RADIUS_METERS = 800; // Hide map if further than this
 const DUTY_START_HOUR = 9;   // 9:00 AM
-const DUTY_END_HOUR = 18;    // 6:00 PM
-const DUTY_END_MINUTE = 30;  // 6:30 PM
 const LATE_THRESHOLD_MINUTE = 20; // After 9:20 AM is late
 
 const AttendancePanel = () => {
@@ -127,7 +125,6 @@ const AttendancePanel = () => {
     const [error, setError] = useState('');
     const [loading, setLoading] = useState(false);
     const [msg, setMsg] = useState('');
-    const [isWithinDutyHours, setIsWithinDutyHours] = useState(false);
 
     // Secure OTP states
     const [showOtpModal, setShowOtpModal] = useState(false);
@@ -137,24 +134,6 @@ const AttendancePanel = () => {
 
     useEffect(() => {
         fetchStatus();
-
-        // Check duty hours initially and every minute
-        const checkTime = () => {
-            const now = new Date();
-            const hour = now.getHours();
-            const minute = now.getMinutes();
-
-            // Check if 09:00 <= current time < 18:30
-            const isAfterStart = hour >= DUTY_START_HOUR;
-            const isBeforeEnd = hour < DUTY_END_HOUR || (hour === DUTY_END_HOUR && minute < DUTY_END_MINUTE);
-
-            const within = isAfterStart && isBeforeEnd;
-            setIsWithinDutyHours(within);
-            return within;
-        };
-
-        const timer = setInterval(checkTime, 60000);
-        checkTime();
 
         let watchId;
         const startWatching = () => {
@@ -192,7 +171,6 @@ const AttendancePanel = () => {
 
         return () => {
             if (watchId) navigator.geolocation.clearWatch(watchId);
-            clearInterval(timer);
         };
     }, []);
 
@@ -378,12 +356,18 @@ const AttendancePanel = () => {
 
     const getPunchStatus = () => {
         if (!status?.record?.punch_in_time) return null;
+        if (status?.record?.is_late !== undefined && status?.record?.is_late !== null) {
+            return status.record.is_late
+                ? { label: 'Late Punch', class: 'text-amber-700 bg-amber-50 border-amber-200' }
+                : { label: 'On Time', class: 'text-emerald-700 bg-emerald-50 border-emerald-200' };
+        }
         const [time, period] = status.record.punch_in_time.split(' ');
         const [hour, minute] = time.split(':').map(Number);
 
         let h = hour;
-        if (period === 'PM' && h !== 12) h += 12;
-        if (period === 'AM' && h === 12) h = 0;
+        const upperPeriod = (period || '').toUpperCase();
+        if (upperPeriod === 'PM' && h !== 12) h += 12;
+        if (upperPeriod === 'AM' && h === 12) h = 0;
 
         if (h > DUTY_START_HOUR || (h === DUTY_START_HOUR && minute > LATE_THRESHOLD_MINUTE)) {
             return { label: 'Late Punch', class: 'text-amber-700 bg-amber-50 border-amber-200' };
@@ -452,13 +436,12 @@ const AttendancePanel = () => {
                         return (
                             <div
                                 key={label}
-                                className={`flex flex-col items-center text-center p-2 rounded-xl transition-all duration-200 ${
-                                    isCurrent
+                                className={`flex flex-col items-center text-center p-2 rounded-xl transition-all duration-200 ${isCurrent
                                         ? 'bg-blue-600 text-white shadow-md shadow-blue-600/20 font-bold'
                                         : isDone
-                                        ? 'bg-emerald-50 text-emerald-700 border border-emerald-200 font-semibold'
-                                        : 'bg-white text-slate-400 border border-slate-200/60 font-medium'
-                                }`}
+                                            ? 'bg-emerald-50 text-emerald-700 border border-emerald-200 font-semibold'
+                                            : 'bg-white text-slate-400 border border-slate-200/60 font-medium'
+                                    }`}
                             >
                                 <span className="text-[10px] uppercase tracking-tighter line-clamp-1">{label}</span>
                             </div>
@@ -481,9 +464,8 @@ const AttendancePanel = () => {
                             )}
                         </div>
                         <div className="flex items-center gap-3">
-                            <h4 className={`text-2xl sm:text-3xl font-black ${
-                                status.punchedOut ? 'text-slate-700' : status.punchedIn ? 'text-emerald-600' : 'text-slate-600'
-                            }`}>
+                            <h4 className={`text-2xl sm:text-3xl font-black ${status.punchedOut ? 'text-slate-700' : status.punchedIn ? 'text-emerald-600' : 'text-slate-600'
+                                }`}>
                                 {status.punchedOut ? 'Shift Completed' : status.punchedIn ? 'Active On-Duty' : 'Not Punched In'}
                             </h4>
                         </div>
@@ -508,11 +490,10 @@ const AttendancePanel = () => {
                                 <Radio className="w-4 h-4 text-blue-500" />
                                 Geofence Status:
                             </span>
-                            <span className={`font-bold px-2.5 py-0.5 rounded-full uppercase text-[10px] ${
-                                isInside
+                            <span className={`font-bold px-2.5 py-0.5 rounded-full uppercase text-[10px] ${isInside
                                     ? 'bg-emerald-100 text-emerald-800 border border-emerald-200'
                                     : 'bg-rose-100 text-rose-800 border border-rose-200'
-                            }`}>
+                                }`}>
                                 {isInside ? 'Inside Campus' : 'Outside Campus'}
                             </span>
                         </div>
@@ -529,7 +510,7 @@ const AttendancePanel = () => {
                                 <Clock className="w-4 h-4 text-slate-400" />
                                 Official Duty Window:
                             </span>
-                            <span className="font-bold text-slate-700">09:00 AM – 06:30 PM</span>
+                            <span className="font-bold text-slate-700">Any Time (Campus Geofence)</span>
                         </div>
                     </div>
                 </div>
@@ -608,12 +589,10 @@ const AttendancePanel = () => {
                             <div className="w-full h-full bg-slate-100 flex items-center justify-center flex-col p-6 text-center">
                                 <Navigation className="w-10 h-10 text-slate-300 animate-pulse mb-3" />
                                 <p className="text-sm font-bold text-slate-700 uppercase tracking-tight">
-                                    {isWithinDutyHours ? 'Privacy Zone Active' : 'Off Duty Mode'}
+                                    Privacy Zone Active
                                 </p>
                                 <p className="text-xs text-slate-500 mt-2 italic max-w-xs leading-relaxed">
-                                    {isWithinDutyHours
-                                        ? 'Map tracing activates within the 500m campus perimeter. Move closer to the institutional gate to reveal coordinates.'
-                                        : 'Outside standard operating hours (09:00 - 18:30). Late punch-out is enabled whenever ready.'}
+                                    Map tracing activates within the 500m campus perimeter. Move closer to the institutional gate to reveal coordinates.
                                 </p>
                             </div>
                         )}
@@ -649,11 +628,10 @@ const AttendancePanel = () => {
                     <button
                         onClick={status.punchedIn ? handlePunch : handleRequestOTP}
                         disabled={loading || sendingOtp || !location || !isInside}
-                        className={`w-full py-4.5 px-6 rounded-2xl font-black text-lg tracking-wide shadow-xl transition-all duration-200 active:scale-[0.99] disabled:grayscale disabled:opacity-50 disabled:cursor-not-allowed ${
-                            status.punchedIn
+                        className={`w-full py-4.5 px-6 rounded-2xl font-black text-lg tracking-wide shadow-xl transition-all duration-200 active:scale-[0.99] disabled:grayscale disabled:opacity-50 disabled:cursor-not-allowed ${status.punchedIn
                                 ? 'bg-gradient-to-r from-rose-600 via-rose-700 to-red-800 text-white shadow-rose-600/30 hover:shadow-rose-600/40'
                                 : 'bg-gradient-to-r from-blue-700 via-blue-600 to-indigo-700 text-white shadow-blue-600/30 hover:shadow-blue-600/40'
-                        }`}
+                            }`}
                     >
                         <div className="flex items-center justify-center gap-3">
                             {(loading || sendingOtp) && <RefreshCw className="w-5 h-5 animate-spin" />}
@@ -661,10 +639,10 @@ const AttendancePanel = () => {
                                 {sendingOtp
                                     ? 'Sending OTP...'
                                     : loading
-                                    ? 'Transmitting punch...'
-                                    : status.punchedIn
-                                    ? 'Punch Out (End Shift)'
-                                    : 'Punch In (Verify & Begin)'}
+                                        ? 'Transmitting punch...'
+                                        : status.punchedIn
+                                            ? 'Punch Out (End Shift)'
+                                            : 'Punch In (Verify & Begin)'}
                             </span>
                         </div>
                     </button>
@@ -748,9 +726,8 @@ const AttendancePanel = () => {
                                     type="text"
                                     inputMode="numeric"
                                     maxLength={6}
-                                    className={`w-full px-4 py-3.5 bg-slate-50 border ${
-                                        otpErrorText ? 'border-rose-400 ring-2 ring-rose-400/20' : 'border-slate-200 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500'
-                                    } rounded-2xl text-center text-2xl font-black tracking-[0.5rem] text-slate-900 focus:outline-none transition-all`}
+                                    className={`w-full px-4 py-3.5 bg-slate-50 border ${otpErrorText ? 'border-rose-400 ring-2 ring-rose-400/20' : 'border-slate-200 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500'
+                                        } rounded-2xl text-center text-2xl font-black tracking-[0.5rem] text-slate-900 focus:outline-none transition-all`}
                                     value={otpInput}
                                     onChange={(e) => {
                                         setOtpInput(e.target.value.replace(/\D/g, '').slice(0, 6));
