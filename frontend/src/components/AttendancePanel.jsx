@@ -131,39 +131,81 @@ const AttendancePanel = () => {
     const [otpInput, setOtpInput] = useState('');
     const [otpErrorText, setOtpErrorText] = useState('');
     const [sendingOtp, setSendingOtp] = useState(false);
+    const [isLocating, setIsLocating] = useState(false);
+
+    const applyLocationFix = useCallback((position) => {
+        const { latitude, longitude, accuracy } = position.coords;
+        setLocation({ lat: latitude, lng: longitude, accuracy: accuracy || 0 });
+        const dist = getDistanceFromLatLonInMeters(latitude, longitude, CAMPUS_LAT, CAMPUS_LNG);
+        setDistance(dist);
+        setError('');
+        setIsLocating(false);
+    }, []);
+
+    const acquireLocation = useCallback((highAccuracy = true) => {
+        if (!navigator.geolocation) {
+            setError('Geolocation is not supported by this browser.');
+            setIsLocating(false);
+            return;
+        }
+
+        setIsLocating(true);
+        navigator.geolocation.getCurrentPosition(
+            (pos) => {
+                applyLocationFix(pos);
+            },
+            (err) => {
+                console.warn(`[Geolocation] Attempt with highAccuracy=${highAccuracy} failed:`, err.message);
+                // If high-accuracy satellite GPS timed out or was unavailable, retry with network/Wi-Fi geolocation
+                if (highAccuracy) {
+                    console.log('[Geolocation] Retrying with standard network accuracy...');
+                    acquireLocation(false);
+                    return;
+                }
+
+                setIsLocating(false);
+                let errMsg = 'Unable to retrieve your location.';
+                const isEmbed = /FBAN|FBAV|Instagram|WhatsApp|Line|Snapchat/i.test(navigator.userAgent || '');
+                if (err.code === 1) {
+                    errMsg = isEmbed
+                        ? 'Location blocked in in-app browser. Tap the ⋮ menu in the top corner and choose "Open in Chrome" or "Open in Browser".'
+                        : 'Location permission denied. Click the 🔒 lock icon in the address bar and select "Allow" for location.';
+                } else if (err.code === 2) {
+                    errMsg = 'Location position unavailable. Ensure GPS/Location is enabled in device settings and try moving near a window.';
+                } else if (err.code === 3) {
+                    errMsg = 'Location request timed out. Tap "Sync GPS Coordinate Lock" below to retry.';
+                }
+                setError(errMsg);
+            },
+            {
+                enableHighAccuracy: highAccuracy,
+                timeout: highAccuracy ? 10000 : 20000,
+                maximumAge: highAccuracy ? 10000 : 60000
+            }
+        );
+    }, [applyLocationFix]);
 
     useEffect(() => {
         fetchStatus();
+        acquireLocation(true);
 
         let watchId;
         const startWatching = () => {
-            if (!navigator.geolocation) {
-                setError('Geolocation is not supported by this browser.');
-                return;
-            }
+            if (!navigator.geolocation) return;
 
             watchId = navigator.geolocation.watchPosition(
                 (position) => {
-                    const { latitude, longitude, accuracy } = position.coords;
-                    setLocation({ lat: latitude, lng: longitude, accuracy: accuracy || 0 });
-                    const dist = getDistanceFromLatLonInMeters(latitude, longitude, CAMPUS_LAT, CAMPUS_LNG);
-                    setDistance(dist);
-                    setError('');
+                    applyLocationFix(position);
                 },
                 (err) => {
-                    console.error("Location error:", err);
-                    let errMsg = 'Unable to retrieve your location.';
-                    if (err.code === 1) errMsg = 'Location permission denied. Please allow location access.';
-                    else if (err.code === 2) errMsg = 'Location position unavailable. Try moving to an open area.';
-                    else if (err.code === 3) errMsg = 'Location request timed out. Retrying...';
-
-                    setError(errMsg);
-                    if (err.code !== 3) {
+                    console.warn("[Geolocation] WatchPosition update warning:", err.message);
+                    if (err.code === 1) {
+                        setError('Location permission denied. Please allow location access in your browser.');
                         setLocation(null);
                         setDistance(null);
                     }
                 },
-                { enableHighAccuracy: true, maximumAge: 0, timeout: 15000 }
+                { enableHighAccuracy: true, maximumAge: 15000, timeout: 25000 }
             );
         };
 
@@ -172,7 +214,7 @@ const AttendancePanel = () => {
         return () => {
             if (watchId) navigator.geolocation.clearWatch(watchId);
         };
-    }, []);
+    }, [acquireLocation, applyLocationFix]);
 
     const handleAutoLogoutAndPunchOut = useCallback(async () => {
         if (loading) return;
@@ -237,26 +279,9 @@ const AttendancePanel = () => {
     };
 
     const triggerManualLocation = () => {
-        setError('Requesting fresh GPS lock...');
-        if (!navigator.geolocation) {
-            setError('Geolocation not supported.');
-            return;
-        }
-
-        navigator.geolocation.getCurrentPosition(
-            (position) => {
-                const { latitude, longitude, accuracy } = position.coords;
-                setLocation({ lat: latitude, lng: longitude, accuracy: accuracy || 0 });
-                const dist = getDistanceFromLatLonInMeters(latitude, longitude, CAMPUS_LAT, CAMPUS_LNG);
-                setDistance(dist);
-                setError('');
-            },
-            (err) => {
-                console.error("Manual location failed:", err);
-                setError(`Location failed: ${err.message}. Ensure location is ON in system settings.`);
-            },
-            { enableHighAccuracy: true, timeout: 15000 }
-        );
+        setError('');
+        setMsg('Syncing GPS coordinates with satellite and network providers...');
+        acquireLocation(true);
     };
 
     const handlePunch = async () => {
@@ -414,11 +439,11 @@ const AttendancePanel = () => {
                 {/* Real-time GPS Pulse Indicator */}
                 <div className="flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-slate-50 border border-slate-200 self-start sm:self-auto">
                     <span className="flex h-2.5 w-2.5 relative">
-                        <span className={`animate-ping absolute inline-flex h-full w-full rounded-full ${location ? 'bg-emerald-400' : 'bg-rose-400'} opacity-75`} />
-                        <span className={`relative inline-flex rounded-full h-2.5 w-2.5 ${location ? 'bg-emerald-500' : 'bg-rose-500'}`} />
+                        <span className={`animate-ping absolute inline-flex h-full w-full rounded-full ${location ? 'bg-emerald-400' : isLocating ? 'bg-amber-400' : 'bg-rose-400'} opacity-75`} />
+                        <span className={`relative inline-flex rounded-full h-2.5 w-2.5 ${location ? 'bg-emerald-500' : isLocating ? 'bg-amber-500' : 'bg-rose-500'}`} />
                     </span>
                     <span className="text-[11px] font-bold text-slate-600 uppercase tracking-wider">
-                        {location ? 'GPS Locked & Active' : 'Acquiring GPS Signal'}
+                        {location ? 'GPS Locked & Active' : isLocating ? 'Acquiring GPS Signal...' : 'GPS Inactive'}
                     </span>
                 </div>
             </div>
@@ -522,8 +547,11 @@ const AttendancePanel = () => {
                             <MapPin className="w-4 h-4 text-blue-600" />
                             Campus Geofence Area
                         </span>
-                        {location && isNearby && (
-                            <span className="px-2 py-0.5 bg-slate-900 text-emerald-400 rounded-md font-mono text-[10px]">
+                        {location && (
+                            <span className={`px-2 py-0.5 rounded-md font-mono text-[10px] ${isInside
+                                    ? 'bg-slate-900 text-emerald-400'
+                                    : 'bg-slate-800 text-amber-300'
+                                }`}>
                                 {location.lat.toFixed(5)}, {location.lng.toFixed(5)}
                             </span>
                         )}
@@ -585,14 +613,29 @@ const AttendancePanel = () => {
                                     />
                                 )}
                             </MapContainer>
+                        ) : location ? (
+                            <div className="w-full h-full bg-slate-100 flex items-center justify-center flex-col p-6 text-center">
+                                <MapPin className="w-10 h-10 text-blue-600 mb-2" />
+                                <p className="text-sm font-bold text-slate-800 uppercase tracking-tight">
+                                    Location Verified • Outside Campus
+                                </p>
+                                <p className="text-xs text-slate-600 mt-1 font-medium max-w-xs leading-relaxed">
+                                    Coordinates: <span className="font-mono font-bold text-slate-800">{location.lat.toFixed(5)}, {location.lng.toFixed(5)}</span>
+                                </p>
+                                <p className="text-xs text-slate-500 mt-1 max-w-xs">
+                                    Distance to campus: <strong className="text-slate-700">{distance >= 1000 ? `${(distance / 1000).toFixed(1)} km` : `${Math.round(distance)} meters`}</strong>. Live campus map activates when within 800m of the institutional perimeter.
+                                </p>
+                            </div>
                         ) : (
                             <div className="w-full h-full bg-slate-100 flex items-center justify-center flex-col p-6 text-center">
-                                <Navigation className="w-10 h-10 text-slate-300 animate-pulse mb-3" />
+                                <Navigation className="w-10 h-10 text-slate-400 animate-pulse mb-3" />
                                 <p className="text-sm font-bold text-slate-700 uppercase tracking-tight">
-                                    Privacy Zone Active
+                                    {isLocating ? 'Acquiring GPS Signal...' : 'Waiting for Location Access'}
                                 </p>
                                 <p className="text-xs text-slate-500 mt-2 italic max-w-xs leading-relaxed">
-                                    Map tracing activates within the 500m campus perimeter. Move closer to the institutional gate to reveal coordinates.
+                                    {isLocating
+                                        ? 'Contacting device GPS satellites and network towers...'
+                                        : 'Please ensure location permission is allowed in your browser, or tap "Sync GPS Coordinate Lock" below.'}
                                 </p>
                             </div>
                         )}
