@@ -26,7 +26,12 @@ const CAMPUS_GEOFENCE = [
     { lat: 16.429076 + latOffset, lng: 74.585012 + lngOffset }, // West-Northwest (~600m)
     { lat: 16.431051 + latOffset, lng: 74.587071 + lngOffset }  // North-Northwest (~600m)
 ];
-const GEOFENCE_RADIUS_METERS = 600;
+const GEOFENCE_RADIUS_METERS = process.env.GEOFENCE_RADIUS_METERS ? parseInt(process.env.GEOFENCE_RADIUS_METERS, 10) : 600;
+
+exports.GEOFENCE_RADIUS_METERS = GEOFENCE_RADIUS_METERS;
+exports.CAMPUS_LAT = CAMPUS_LAT;
+exports.CAMPUS_LNG = CAMPUS_LNG;
+exports.CAMPUS_GEOFENCE = CAMPUS_GEOFENCE;
 
 
 

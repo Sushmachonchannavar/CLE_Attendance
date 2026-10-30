@@ -6,6 +6,7 @@ import {
     Navigation,
     Clock,
     Shield,
+    ShieldCheck,
     AlertTriangle,
     KeyRound,
     RefreshCw,
@@ -439,7 +440,10 @@ const AttendancePanel = () => {
                         <MapPin className="w-6 h-6" />
                     </div>
                     <div>
-                        <h3 className="text-xl font-bold text-slate-800 tracking-tight">CLE Campus Attendance Portal</h3>
+                        <div className="flex items-center gap-2 flex-wrap">
+                            <h3 className="text-xl font-bold text-slate-800 tracking-tight">CLE Campus Attendance Portal</h3>
+                            <span className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-blue-100 text-blue-700 border border-blue-200">600m Geofence</span>
+                        </div>
                         <p className="text-xs text-slate-500 font-medium mt-0.5">High-Precision Geofenced Punching & Live Verification</p>
                     </div>
                 </div>
@@ -537,6 +541,14 @@ const AttendancePanel = () => {
                                 <span className="font-mono font-bold text-slate-800">{Math.round(distance)} meters</span>
                             </div>
                         )}
+
+                        <div className="flex items-center justify-between p-3 rounded-xl bg-white border border-slate-200/80 text-xs">
+                            <span className="font-semibold text-slate-600 flex items-center gap-1.5">
+                                <ShieldCheck className="w-4 h-4 text-blue-500" />
+                                Geofence Perimeter:
+                            </span>
+                            <span className="font-bold text-slate-800">600 meters</span>
+                        </div>
 
                         <div className="flex items-center justify-between p-3 rounded-xl bg-white border border-slate-200/80 text-xs">
                             <span className="font-semibold text-slate-600 flex items-center gap-1.5">
@@ -701,6 +713,12 @@ const AttendancePanel = () => {
                         <p className="text-center text-xs text-rose-600 font-bold uppercase tracking-tight mt-2 flex items-center justify-center gap-1">
                             <AlertTriangle className="w-3.5 h-3.5" />
                             Geofence Enforcement Active: Must be located inside campus boundary
+                        </p>
+                    )}
+                    {!location && (
+                        <p className="text-center text-xs text-amber-600 font-bold uppercase tracking-tight mt-2 flex items-center justify-center gap-1">
+                            <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                            Acquiring GPS location... Please ensure Location is allowed in your browser
                         </p>
                     )}
                 </div>

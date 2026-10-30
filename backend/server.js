@@ -175,20 +175,57 @@ app.get('/api/health/detailed', (req, res) => {
         const activeUserCount = db.prepare("SELECT COUNT(*) AS count FROM users WHERE status = 'active'").get();
         const dbPath = process.env.DATABASE_PATH || process.env.DB_FILE || '(local default)';
         const frontendUrl = process.env.FRONTEND_URL || '(not set)';
+        const { CAMPUS_LAT, CAMPUS_LNG, GEOFENCE_RADIUS_METERS } = require('./controllers/attendanceController');
         res.status(200).json({
             status: 'ok',
+            version: '600m-geofence',
             database: 'connected',
             timestamp: new Date().toISOString(),
             totalUsers: userCount ? userCount.count : 0,
             activeUsers: activeUserCount ? activeUserCount.count : 0,
             dbPath,
             configuredFrontendUrl: frontendUrl,
+            campusCoordinates: { lat: CAMPUS_LAT, lng: CAMPUS_LNG },
+            geofenceRadiusMeters: GEOFENCE_RADIUS_METERS,
             nodeEnv: process.env.NODE_ENV || 'development'
         });
     } catch (dbErr) {
         console.error('[HEALTH DETAILED FAILED]:', dbErr.message);
         res.status(500).json({ status: 'error', error: dbErr.message, timestamp: new Date().toISOString() });
     }
+});
+
+// Diagnostic public geofence status check (allows instant verification from browser)
+app.get('/api/geofence/status', (req, res) => {
+    const { CAMPUS_LAT, CAMPUS_LNG, GEOFENCE_RADIUS_METERS } = require('./controllers/attendanceController');
+    const lat = req.query.lat ? parseFloat(req.query.lat) : CAMPUS_LAT;
+    const lng = req.query.lng ? parseFloat(req.query.lng) : CAMPUS_LNG;
+    
+    // Haversine calculation in meters
+    const R = 6371e3;
+    const phi1 = (lat * Math.PI) / 180;
+    const phi2 = (CAMPUS_LAT * Math.PI) / 180;
+    const deltaPhi = ((CAMPUS_LAT - lat) * Math.PI) / 180;
+    const deltaLambda = ((CAMPUS_LNG - lng) * Math.PI) / 180;
+    const a = Math.sin(deltaPhi / 2) * Math.sin(deltaPhi / 2) +
+        Math.cos(phi1) * Math.cos(phi2) * Math.sin(deltaLambda / 2) * Math.sin(deltaLambda / 2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    const distanceMeters = Math.round(R * c);
+    const isInside = distanceMeters <= GEOFENCE_RADIUS_METERS;
+
+    res.json({
+        status: 'ok',
+        version: '600m-geofence',
+        timestamp: new Date().toISOString(),
+        geofenceRadiusMeters: GEOFENCE_RADIUS_METERS,
+        campusCoordinates: { lat: CAMPUS_LAT, lng: CAMPUS_LNG },
+        testedCoordinates: { lat, lng },
+        distanceMeters,
+        isInsideCampus: isInside,
+        message: isInside 
+            ? `Coordinates (${lat}, ${lng}) are INSIDE campus perimeter (${distanceMeters}m <= ${GEOFENCE_RADIUS_METERS}m). Punch allowed.`
+            : `Coordinates (${lat}, ${lng}) are OUTSIDE campus perimeter (${distanceMeters}m > ${GEOFENCE_RADIUS_METERS}m). Punch blocked.`
+    });
 });
 
 // Error handling middleware
