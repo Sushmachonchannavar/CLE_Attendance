@@ -106,13 +106,21 @@ const latOffset = CAMPUS_LAT - DEFAULT_LAT;
 const lngOffset = CAMPUS_LNG - DEFAULT_LNG;
 
 const CAMPUS_GEOFENCE = [
-    { lat: 16.426378 + 0.000900 + latOffset, lng: 74.589884 - 0.000936 + lngOffset }, // Northwest Corner (~100m)
-    { lat: 16.426378 + 0.000900 + latOffset, lng: 74.589884 + 0.000936 + lngOffset }, // Northeast Corner (~100m)
-    { lat: 16.426378 - 0.000900 + latOffset, lng: 74.589884 + 0.000936 + lngOffset }, // Southeast Corner (~100m)
-    { lat: 16.426378 - 0.000900 + latOffset, lng: 74.589884 - 0.000936 + lngOffset }  // Southwest Corner (~100m)
+    { lat: 16.431774 + latOffset, lng: 74.589884 + lngOffset }, // North (~600m)
+    { lat: 16.431051 + latOffset, lng: 74.592697 + lngOffset }, // North-Northeast (~600m)
+    { lat: 16.429076 + latOffset, lng: 74.594756 + lngOffset }, // East-Northeast (~600m)
+    { lat: 16.426378 + latOffset, lng: 74.595510 + lngOffset }, // East (~600m)
+    { lat: 16.423680 + latOffset, lng: 74.594756 + lngOffset }, // East-Southeast (~600m)
+    { lat: 16.421705 + latOffset, lng: 74.592697 + lngOffset }, // South-Southeast (~600m)
+    { lat: 16.420982 + latOffset, lng: 74.589884 + lngOffset }, // South (~600m)
+    { lat: 16.421705 + latOffset, lng: 74.587071 + lngOffset }, // South-Southwest (~600m)
+    { lat: 16.423680 + latOffset, lng: 74.585012 + lngOffset }, // West-Southwest (~600m)
+    { lat: 16.426378 + latOffset, lng: 74.584258 + lngOffset }, // West (~600m)
+    { lat: 16.429076 + latOffset, lng: 74.585012 + lngOffset }, // West-Northwest (~600m)
+    { lat: 16.431051 + latOffset, lng: 74.587071 + lngOffset }  // North-Northwest (~600m)
 ];
-const GEOFENCE_RADIUS_METERS = 100;
-const PRIVACY_RADIUS_METERS = 100; // Tracing active up to 100m inside campus
+const GEOFENCE_RADIUS_METERS = 600;
+const PRIVACY_RADIUS_METERS = 600; // Live map & tracing active up to 600m campus perimeter
 const DUTY_START_HOUR = 9;   // 9:00 AM
 const LATE_THRESHOLD_MINUTE = 20; // After 9:20 AM is late
 
@@ -245,7 +253,7 @@ const AttendancePanel = () => {
         }
 
         const dist = getDistanceFromLatLonInMeters(location.lat, location.lng, CAMPUS_LAT, CAMPUS_LNG);
-        const isInsideGeo = isPointInPolygon(location.lat, location.lng, CAMPUS_GEOFENCE) || dist <= GEOFENCE_RADIUS_METERS;
+        const isInsideGeo = isPointInPolygon(location.lat, location.lng, CAMPUS_GEOFENCE) || Math.round(dist) <= GEOFENCE_RADIUS_METERS;
         if (isInsideGeo) {
             outsideCountRef.current = 0;
         } else {
@@ -376,8 +384,8 @@ const AttendancePanel = () => {
         </div>
     );
 
-    const isInside = location !== null && (isPointInPolygon(location.lat, location.lng, CAMPUS_GEOFENCE) || (distance !== null && distance <= GEOFENCE_RADIUS_METERS));
-    const isNearby = distance !== null && distance <= PRIVACY_RADIUS_METERS;
+    const isInside = location !== null && (isPointInPolygon(location.lat, location.lng, CAMPUS_GEOFENCE) || (distance !== null && Math.round(distance) <= GEOFENCE_RADIUS_METERS));
+    const isNearby = distance !== null && Math.round(distance) <= PRIVACY_RADIUS_METERS;
 
     const getPunchStatus = () => {
         if (!status?.record?.punch_in_time) return null;
@@ -623,7 +631,7 @@ const AttendancePanel = () => {
                                     Coordinates: <span className="font-mono font-bold text-slate-800">{location.lat.toFixed(5)}, {location.lng.toFixed(5)}</span>
                                 </p>
                                 <p className="text-xs text-slate-500 mt-1 max-w-xs">
-                                    Distance to campus: <strong className="text-slate-700">{distance >= 1000 ? `${(distance / 1000).toFixed(1)} km` : `${Math.round(distance)} meters`}</strong>. Live campus map activates when within 100m of the institutional perimeter.
+                                    Distance to campus: <strong className="text-slate-700">{distance >= 1000 ? `${(distance / 1000).toFixed(1)} km` : `${Math.round(distance)} meters`}</strong>. Live campus map activates when within 600m of the institutional perimeter.
                                 </p>
                             </div>
                         ) : (

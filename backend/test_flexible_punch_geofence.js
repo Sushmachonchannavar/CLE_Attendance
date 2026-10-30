@@ -180,6 +180,78 @@ async function runTests() {
     assert.strictEqual(earlyMorningPunchOutInside.status, 200, 'Punch-out outside office hours inside campus should succeed');
     console.log('  [PASS] Outside-hours punch-out allowed inside campus geofence');
 
+    // ----------------------------------------------------
+    // TEST 8: Specific 600m Geofence Validation Requirements
+    // ----------------------------------------------------
+    console.log('\n8. Testing Specific 600m Geofence Boundary Rules...');
+    
+    // Clear test attendance
+    db.prepare('DELETE FROM attendance WHERE user_id = ? AND date = ?').run(staffId, today);
+    db.prepare('DELETE FROM employee_locations WHERE user_id = ?').run(staffId);
+
+    const R_EARTH = 6371e3;
+    const latCenter = 16.426378;
+    const lngCenter = 74.589884;
+
+    const coords472m = { lat: 16.42900, lng: 74.58640 }; // Screenshot location (~472m)
+    const coords550m = { 
+        lat: Number((latCenter + (550 / (R_EARTH * Math.PI / 180))).toFixed(6)), 
+        lng: lngCenter 
+    };
+    const coords600m = { 
+        lat: Number((latCenter + (600 / (R_EARTH * Math.PI / 180))).toFixed(6)), 
+        lng: lngCenter 
+    };
+    const coordsBeyond600m = { 
+        lat: Number((latCenter + (650 / (R_EARTH * Math.PI / 180))).toFixed(6)), 
+        lng: lngCenter 
+    };
+
+    // A) At 472 meters (from screenshot): MUST BE INSIDE CAMPUS
+    console.log('  Testing at 472m (16.42900, 74.58640)...');
+    const punch472 = await request(app)
+        .post('/api/attendance/punch')
+        .set('Authorization', `Bearer ${staffToken}`)
+        .send(coords472m);
+    assert.strictEqual(punch472.status, 200, '472m point must be recognized as INSIDE campus');
+    console.log('  [PASS] At 472 meters (16.42900, 74.58640): INSIDE CAMPUS (Punch-in allowed)');
+
+    // B) At 550 meters: MUST BE INSIDE CAMPUS (punch-out)
+    console.log('  Testing at 550m...');
+    const punch550 = await request(app)
+        .post('/api/attendance/punch')
+        .set('Authorization', `Bearer ${staffToken}`)
+        .send(coords550m);
+    assert.strictEqual(punch550.status, 200, '550m point must be recognized as INSIDE campus');
+    console.log('  [PASS] At 550 meters: INSIDE CAMPUS (Punch-out allowed)');
+
+    // Reset for 600m & beyond tests
+    db.prepare('DELETE FROM attendance WHERE user_id = ? AND date = ?').run(staffId, today);
+    db.prepare('DELETE FROM employee_locations WHERE user_id = ?').run(staffId);
+
+    // C) At 600 meters: MUST BE INSIDE CAMPUS
+    console.log('  Testing at 600m boundary...');
+    const punch600 = await request(app)
+        .post('/api/attendance/punch')
+        .set('Authorization', `Bearer ${staffToken}`)
+        .send(coords600m);
+    assert.strictEqual(punch600.status, 200, '600m boundary point must be recognized as INSIDE campus');
+    console.log('  [PASS] At 600 meters: INSIDE CAMPUS (Subject to defined boundary rule)');
+
+    // D) Beyond 600 meters (650m): MUST BE OUTSIDE CAMPUS
+    console.log('  Testing beyond 600m (at 650m)...');
+    // First reset today's record to test punch-in rejection at >600m
+    db.prepare('DELETE FROM attendance WHERE user_id = ? AND date = ?').run(staffId, today);
+    db.prepare('DELETE FROM employee_locations WHERE user_id = ?').run(staffId);
+
+    const punchBeyond600 = await request(app)
+        .post('/api/attendance/punch')
+        .set('Authorization', `Bearer ${staffToken}`)
+        .send(coordsBeyond600m);
+    assert.strictEqual(punchBeyond600.status, 400, 'Beyond 600m point must be rejected with 400');
+    assert(punchBeyond600.body.error.includes('outside the campus geofence'), 'Error must specify outside campus geofence');
+    console.log(`  [PASS] Beyond 600 meters: OUTSIDE CAMPUS (Blocked: ${punchBeyond600.body.error})`);
+
     // Clean up test data
     db.prepare('DELETE FROM attendance WHERE user_id = ? AND date = ?').run(staffId, today);
     db.prepare('DELETE FROM employee_locations WHERE user_id = ?').run(staffId);

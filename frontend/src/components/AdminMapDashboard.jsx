@@ -26,10 +26,18 @@ const latOffset = CAMPUS_LAT - DEFAULT_LAT;
 const lngOffset = CAMPUS_LNG - DEFAULT_LNG;
 
 const CAMPUS_GEOFENCE = [
-    { lat: 16.426378 + 0.000900 + latOffset, lng: 74.589884 - 0.000936 + lngOffset }, // Northwest Corner (~100m)
-    { lat: 16.426378 + 0.000900 + latOffset, lng: 74.589884 + 0.000936 + lngOffset }, // Northeast Corner (~100m)
-    { lat: 16.426378 - 0.000900 + latOffset, lng: 74.589884 + 0.000936 + lngOffset }, // Southeast Corner (~100m)
-    { lat: 16.426378 - 0.000900 + latOffset, lng: 74.589884 - 0.000936 + lngOffset }  // Southwest Corner (~100m)
+    { lat: 16.431774 + latOffset, lng: 74.589884 + lngOffset }, // North (~600m)
+    { lat: 16.431051 + latOffset, lng: 74.592697 + lngOffset }, // North-Northeast (~600m)
+    { lat: 16.429076 + latOffset, lng: 74.594756 + lngOffset }, // East-Northeast (~600m)
+    { lat: 16.426378 + latOffset, lng: 74.595510 + lngOffset }, // East (~600m)
+    { lat: 16.423680 + latOffset, lng: 74.594756 + lngOffset }, // East-Southeast (~600m)
+    { lat: 16.421705 + latOffset, lng: 74.592697 + lngOffset }, // South-Southeast (~600m)
+    { lat: 16.420982 + latOffset, lng: 74.589884 + lngOffset }, // South (~600m)
+    { lat: 16.421705 + latOffset, lng: 74.587071 + lngOffset }, // South-Southwest (~600m)
+    { lat: 16.423680 + latOffset, lng: 74.585012 + lngOffset }, // West-Southwest (~600m)
+    { lat: 16.426378 + latOffset, lng: 74.584258 + lngOffset }, // West (~600m)
+    { lat: 16.429076 + latOffset, lng: 74.585012 + lngOffset }, // West-Northwest (~600m)
+    { lat: 16.431051 + latOffset, lng: 74.587071 + lngOffset }  // North-Northwest (~600m)
 ];
 
 const defaultCenter = [CAMPUS_LAT, CAMPUS_LNG];
