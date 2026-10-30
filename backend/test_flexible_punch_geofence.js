@@ -6,8 +6,8 @@ const request = require('supertest');
 const jwt = require('jsonwebtoken');
 
 process.env.NODE_ENV = 'test';
-process.env.CAMPUS_LAT = '16.426026';
-process.env.CAMPUS_LNG = '74.589353';
+process.env.CAMPUS_LAT = '16.426378';
+process.env.CAMPUS_LNG = '74.589884';
 process.env.JWT_SECRET = 'cle_attendance_test_secret_key_minimum_32_characters_123456';
 
 const app = require('./server');
@@ -24,7 +24,7 @@ async function runTests() {
         { expiresIn: '1h' }
     );
 
-    const insideCoords = { lat: 16.426026, lng: 74.589353 };
+    const insideCoords = { lat: 16.426378, lng: 74.589884 };
     const outsideCoords = { lat: 12.9716, lng: 77.5946 }; // Bangalore coords (outside CLE campus)
     const today = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Kolkata' }).format(new Date());
 

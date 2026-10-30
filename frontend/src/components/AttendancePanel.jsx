@@ -97,8 +97,8 @@ const getDistanceFromLatLonInMeters = (lat1, lon1, lat2, lon2) => {
     return d;
 };
 
-const DEFAULT_LAT = 16.426026;
-const DEFAULT_LNG = 74.589353;
+const DEFAULT_LAT = 16.426378;
+const DEFAULT_LNG = 74.589884;
 const CAMPUS_LAT = import.meta.env.VITE_CAMPUS_LAT ? parseFloat(import.meta.env.VITE_CAMPUS_LAT) : DEFAULT_LAT;
 const CAMPUS_LNG = import.meta.env.VITE_CAMPUS_LNG ? parseFloat(import.meta.env.VITE_CAMPUS_LNG) : DEFAULT_LNG;
 
@@ -106,13 +106,13 @@ const latOffset = CAMPUS_LAT - DEFAULT_LAT;
 const lngOffset = CAMPUS_LNG - DEFAULT_LNG;
 
 const CAMPUS_GEOFENCE = [
-    { lat: 16.426380 + latOffset, lng: 74.588000 + lngOffset }, // Northwest Corner
-    { lat: 16.426380 + latOffset, lng: 74.590506 + lngOffset }, // Northeast Corner
-    { lat: 16.425672 + latOffset, lng: 74.590506 + lngOffset }, // Southeast Corner
-    { lat: 16.425672 + latOffset, lng: 74.588000 + lngOffset }  // Southwest Corner
+    { lat: 16.426378 + 0.000900 + latOffset, lng: 74.589884 - 0.000936 + lngOffset }, // Northwest Corner (~100m)
+    { lat: 16.426378 + 0.000900 + latOffset, lng: 74.589884 + 0.000936 + lngOffset }, // Northeast Corner (~100m)
+    { lat: 16.426378 - 0.000900 + latOffset, lng: 74.589884 + 0.000936 + lngOffset }, // Southeast Corner (~100m)
+    { lat: 16.426378 - 0.000900 + latOffset, lng: 74.589884 - 0.000936 + lngOffset }  // Southwest Corner (~100m)
 ];
-const GEOFENCE_RADIUS_METERS = 500;
-const PRIVACY_RADIUS_METERS = 800; // Hide map if further than this
+const GEOFENCE_RADIUS_METERS = 100;
+const PRIVACY_RADIUS_METERS = 100; // Tracing active up to 100m inside campus
 const DUTY_START_HOUR = 9;   // 9:00 AM
 const LATE_THRESHOLD_MINUTE = 20; // After 9:20 AM is late
 
@@ -623,7 +623,7 @@ const AttendancePanel = () => {
                                     Coordinates: <span className="font-mono font-bold text-slate-800">{location.lat.toFixed(5)}, {location.lng.toFixed(5)}</span>
                                 </p>
                                 <p className="text-xs text-slate-500 mt-1 max-w-xs">
-                                    Distance to campus: <strong className="text-slate-700">{distance >= 1000 ? `${(distance / 1000).toFixed(1)} km` : `${Math.round(distance)} meters`}</strong>. Live campus map activates when within 800m of the institutional perimeter.
+                                    Distance to campus: <strong className="text-slate-700">{distance >= 1000 ? `${(distance / 1000).toFixed(1)} km` : `${Math.round(distance)} meters`}</strong>. Live campus map activates when within 100m of the institutional perimeter.
                                 </p>
                             </div>
                         ) : (

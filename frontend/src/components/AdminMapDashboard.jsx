@@ -17,8 +17,8 @@ const createCustomIcon = (name, isInside) => {
     });
 };
 
-const DEFAULT_LAT = 16.426026;
-const DEFAULT_LNG = 74.589353;
+const DEFAULT_LAT = 16.426378;
+const DEFAULT_LNG = 74.589884;
 const CAMPUS_LAT = import.meta.env.VITE_CAMPUS_LAT ? parseFloat(import.meta.env.VITE_CAMPUS_LAT) : DEFAULT_LAT;
 const CAMPUS_LNG = import.meta.env.VITE_CAMPUS_LNG ? parseFloat(import.meta.env.VITE_CAMPUS_LNG) : DEFAULT_LNG;
 
@@ -26,10 +26,10 @@ const latOffset = CAMPUS_LAT - DEFAULT_LAT;
 const lngOffset = CAMPUS_LNG - DEFAULT_LNG;
 
 const CAMPUS_GEOFENCE = [
-    { lat: 16.426380 + latOffset, lng: 74.588000 + lngOffset }, // Northwest Corner
-    { lat: 16.426380 + latOffset, lng: 74.590506 + lngOffset }, // Northeast Corner
-    { lat: 16.425672 + latOffset, lng: 74.590506 + lngOffset }, // Southeast Corner
-    { lat: 16.425672 + latOffset, lng: 74.588000 + lngOffset }  // Southwest Corner
+    { lat: 16.426378 + 0.000900 + latOffset, lng: 74.589884 - 0.000936 + lngOffset }, // Northwest Corner (~100m)
+    { lat: 16.426378 + 0.000900 + latOffset, lng: 74.589884 + 0.000936 + lngOffset }, // Northeast Corner (~100m)
+    { lat: 16.426378 - 0.000900 + latOffset, lng: 74.589884 + 0.000936 + lngOffset }, // Southeast Corner (~100m)
+    { lat: 16.426378 - 0.000900 + latOffset, lng: 74.589884 - 0.000936 + lngOffset }  // Southwest Corner (~100m)
 ];
 
 const defaultCenter = [CAMPUS_LAT, CAMPUS_LNG];

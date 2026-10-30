@@ -3,9 +3,9 @@ const crypto = require('crypto');
 const jwt = require('jsonwebtoken');
 const { sendAttendanceOTP, maskPhone } = require('../utils/sms');
 
-// Mock Campus Geofence (Centroid of the new polygon boundary)
-const DEFAULT_LAT = 16.426026;
-const DEFAULT_LNG = 74.589353;
+// Campus Geofence (Centroid at Lat: 16.426378, Lng: 74.589884 with 100m perimeter)
+const DEFAULT_LAT = 16.426378;
+const DEFAULT_LNG = 74.589884;
 const CAMPUS_LAT = process.env.CAMPUS_LAT ? parseFloat(process.env.CAMPUS_LAT) : DEFAULT_LAT;
 const CAMPUS_LNG = process.env.CAMPUS_LNG ? parseFloat(process.env.CAMPUS_LNG) : DEFAULT_LNG;
 
@@ -13,12 +13,12 @@ const latOffset = CAMPUS_LAT - DEFAULT_LAT;
 const lngOffset = CAMPUS_LNG - DEFAULT_LNG;
 
 const CAMPUS_GEOFENCE = [
-    { lat: 16.426380 + latOffset, lng: 74.588000 + lngOffset }, // Northwest Corner
-    { lat: 16.426380 + latOffset, lng: 74.590506 + lngOffset }, // Northeast Corner
-    { lat: 16.425672 + latOffset, lng: 74.590506 + lngOffset }, // Southeast Corner
-    { lat: 16.425672 + latOffset, lng: 74.588000 + lngOffset }  // Southwest Corner
+    { lat: 16.426378 + 0.000900 + latOffset, lng: 74.589884 - 0.000936 + lngOffset }, // Northwest Corner (~100m)
+    { lat: 16.426378 + 0.000900 + latOffset, lng: 74.589884 + 0.000936 + lngOffset }, // Northeast Corner (~100m)
+    { lat: 16.426378 - 0.000900 + latOffset, lng: 74.589884 + 0.000936 + lngOffset }, // Southeast Corner (~100m)
+    { lat: 16.426378 - 0.000900 + latOffset, lng: 74.589884 - 0.000936 + lngOffset }  // Southwest Corner (~100m)
 ];
-const GEOFENCE_RADIUS_METERS = 300;
+const GEOFENCE_RADIUS_METERS = 100;
 
 
 
