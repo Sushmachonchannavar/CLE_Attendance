@@ -1,11 +1,16 @@
 // Comprehensive Integration Test for Priority 1 Reliability & Integrity Remediation
-process.env.NODE_ENV = 'test';
-process.env.JWT_SECRET = 'a_very_secure_and_long_jwt_secret_for_testing_purposes_only_1234567890';
-process.env.CAMPUS_LAT = '16.426026';
-process.env.CAMPUS_LNG = '74.589353';
-
 const fs = require('fs');
 const path = require('path');
+
+const envPath = path.resolve(__dirname, '.env');
+if (fs.existsSync(envPath)) {
+    require('dotenv').config({ path: envPath });
+}
+
+process.env.NODE_ENV = 'test';
+process.env.JWT_SECRET = process.env.JWT_SECRET || 'a_very_secure_and_long_jwt_secret_for_testing_purposes_only_1234567890';
+process.env.CAMPUS_LAT = '16.426378';
+process.env.CAMPUS_LNG = '74.589884';
 const request = require('supertest');
 const jwt = require('jsonwebtoken');
 

@@ -3,11 +3,20 @@ const crypto = require('crypto');
 const jwt = require('jsonwebtoken');
 const { sendAttendanceOTP, maskPhone } = require('../utils/sms');
 
-// Campus Geofence (Centroid at Lat: 16.426378, Lng: 74.589884 with 600m perimeter)
+// Campus Geofence (Configurable via env; Centroid default Lat: 16.426378, Lng: 74.589884, Radius: 600m)
 const DEFAULT_LAT = 16.426378;
 const DEFAULT_LNG = 74.589884;
-const CAMPUS_LAT = process.env.CAMPUS_LAT ? parseFloat(process.env.CAMPUS_LAT) : DEFAULT_LAT;
-const CAMPUS_LNG = process.env.CAMPUS_LNG ? parseFloat(process.env.CAMPUS_LNG) : DEFAULT_LNG;
+const DEFAULT_RADIUS = 600;
+
+const CAMPUS_LAT = (process.env.CAMPUS_LAT && Number.isFinite(parseFloat(process.env.CAMPUS_LAT))) 
+    ? parseFloat(process.env.CAMPUS_LAT) 
+    : DEFAULT_LAT;
+const CAMPUS_LNG = (process.env.CAMPUS_LNG && Number.isFinite(parseFloat(process.env.CAMPUS_LNG))) 
+    ? parseFloat(process.env.CAMPUS_LNG) 
+    : DEFAULT_LNG;
+const GEOFENCE_RADIUS_METERS = (process.env.GEOFENCE_RADIUS_METERS && Number.isFinite(parseInt(process.env.GEOFENCE_RADIUS_METERS, 10))) 
+    ? parseInt(process.env.GEOFENCE_RADIUS_METERS, 10) 
+    : DEFAULT_RADIUS;
 
 const latOffset = CAMPUS_LAT - DEFAULT_LAT;
 const lngOffset = CAMPUS_LNG - DEFAULT_LNG;
@@ -26,7 +35,6 @@ const CAMPUS_GEOFENCE = [
     { lat: 16.429076 + latOffset, lng: 74.585012 + lngOffset }, // West-Northwest (~600m)
     { lat: 16.431051 + latOffset, lng: 74.587071 + lngOffset }  // North-Northwest (~600m)
 ];
-const GEOFENCE_RADIUS_METERS = process.env.GEOFENCE_RADIUS_METERS ? parseInt(process.env.GEOFENCE_RADIUS_METERS, 10) : 600;
 
 exports.GEOFENCE_RADIUS_METERS = GEOFENCE_RADIUS_METERS;
 exports.CAMPUS_LAT = CAMPUS_LAT;
@@ -128,10 +136,10 @@ exports.punch = (req, res) => {
         return res.status(400).json({ error: 'Location required for attendance tracking' });
     }
 
-    const latitude = Number(lat);
-    const longitude = Number(lng);
-    if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) {
-        return res.status(400).json({ error: 'Invalid coordinates provided for attendance tracking' });
+    const latitude = typeof lat === 'number' ? lat : parseFloat(lat);
+    const longitude = typeof lng === 'number' ? lng : parseFloat(lng);
+    if (!Number.isFinite(latitude) || !Number.isFinite(longitude) || latitude < -90 || latitude > 90 || longitude < -180 || longitude > 180) {
+        return res.status(400).json({ error: 'Invalid coordinates provided. Latitude must be between -90 and 90, and longitude between -180 and 180 degrees.' });
     }
 
     // Check if already exist for today
@@ -239,15 +247,23 @@ exports.sendOTP = async (req, res) => {
             const digits = rawPhone.replace(/\D/g, '');
             const tenDigits = digits.length > 10 ? digits.slice(-10) : digits;
             const withPlus91 = '+91' + tenDigits;
-            user = db.prepare("SELECT * FROM users WHERE (phone = ? OR phone = ? OR phone = ?) AND status = 'active'").get(rawPhone, tenDigits, withPlus91);
+            user = db.prepare("SELECT * FROM users WHERE (phone = ? OR phone = ? OR phone = ?)").get(rawPhone, tenDigits, withPlus91);
         } else {
             const cleanEmpId = employeeId.trim();
-            user = db.prepare("SELECT * FROM users WHERE employee_id = ? AND status = 'active'").get(cleanEmpId);
+            user = db.prepare("SELECT * FROM users WHERE employee_id = ?").get(cleanEmpId);
         }
 
         if (!user) {
-            console.warn('[OTP FAILED] User not found or inactive:', { phone: maskPhone(phone), empId: employeeId });
-            return res.status(404).json({ error: 'User not found or inactive.' });
+            console.warn('[OTP FAILED] User not found:', { phone: maskPhone(phone), empId: employeeId });
+            return res.status(404).json({ error: 'User not found. Please register first.' });
+        }
+
+        if (user.status === 'pending') {
+            return res.status(403).json({ error: 'Your account is pending administrator approval. Please contact the administrator.' });
+        }
+
+        if (user.status !== 'active') {
+            return res.status(403).json({ error: 'Your account is inactive. Please contact the administrator.' });
         }
 
         // Validate user role matches the selected role
@@ -346,8 +362,8 @@ exports.sendOTP = async (req, res) => {
         });
 
     } catch (err) {
-        console.error('Error in sendOTP:', err);
-        res.status(500).json({ error: err.message || 'Internal server error during OTP generation.' });
+        console.error('Error in sendOTP:', err.stack || err.message || err);
+        res.status(500).json({ error: 'Internal server error during OTP generation.' });
     }
 };
 
@@ -372,15 +388,23 @@ exports.verifyOTP = async (req, res) => {
             const digits = rawPhone.replace(/\D/g, '');
             const tenDigits = digits.length > 10 ? digits.slice(-10) : digits;
             const withPlus91 = '+91' + tenDigits;
-            user = db.prepare("SELECT * FROM users WHERE (phone = ? OR phone = ? OR phone = ?) AND status = 'active'").get(rawPhone, tenDigits, withPlus91);
+            user = db.prepare("SELECT * FROM users WHERE (phone = ? OR phone = ? OR phone = ?)").get(rawPhone, tenDigits, withPlus91);
         } else {
             const cleanEmpId = employeeId.trim();
-            user = db.prepare("SELECT * FROM users WHERE employee_id = ? AND status = 'active'").get(cleanEmpId);
+            user = db.prepare("SELECT * FROM users WHERE employee_id = ?").get(cleanEmpId);
         }
 
         if (!user) {
-            console.warn('[OTP VERIFY FAILED] User not found or inactive:', { phone: maskPhone(phone), empId: employeeId });
-            return res.status(404).json({ error: 'User not found or inactive.' });
+            console.warn('[OTP VERIFY FAILED] User not found:', { phone: maskPhone(phone), empId: employeeId });
+            return res.status(404).json({ error: 'User not found. Please register first.' });
+        }
+
+        if (user.status === 'pending') {
+            return res.status(403).json({ error: 'Your account is pending administrator approval. Please contact the administrator.' });
+        }
+
+        if (user.status !== 'active') {
+            return res.status(403).json({ error: 'Your account is inactive. Please contact the administrator.' });
         }
 
         // Validate user role matches the selected role
@@ -471,11 +495,14 @@ exports.verifyOTP = async (req, res) => {
                     VALUES (?, ?, ?)
                 `).run(activeEmpId, lockUntil, 'Exceeded 5 failed OTP verification attempts');
 
-                db.prepare('UPDATE attendance_otps SET is_used = 1 WHERE id = ?').run(latestOtpRow.id);
+                if (latestOtpRow.id) {
+                    db.prepare('UPDATE attendance_otps SET is_used = 1 WHERE id = ?').run(latestOtpRow.id);
+                }
+                db.prepare('DELETE FROM otps WHERE phone = ? OR phone = ?').run(activePhone, activePhone.replace(/\D/g, '').slice(-10));
 
                 console.warn(`[AUTH LOCKOUT] Account locked for 15 mins: ${activeEmpId}`);
                 return res.status(423).json({
-                    error: 'Account locked for 15 minutes due to 5 consecutive failed OTP verification attempts.'
+                    error: 'Account locked for 15 minutes due to 5 consecutive failed OTP verification attempts. This OTP has been invalidated. Please request a new one.'
                 });
             }
 
@@ -500,12 +527,12 @@ exports.verifyOTP = async (req, res) => {
         );
 
         // 9. Punch in / out action (if coordinates are provided)
-        if (lat !== undefined && lng !== undefined) {
-            const latitude = parseFloat(lat);
-            const longitude = parseFloat(lng);
+        if (lat !== undefined && lng !== undefined && lat !== null && lng !== null && lat !== '' && lng !== '') {
+            const latitude = typeof lat === 'number' ? lat : parseFloat(lat);
+            const longitude = typeof lng === 'number' ? lng : parseFloat(lng);
 
-            if (isNaN(latitude) || isNaN(longitude)) {
-                return res.status(400).json({ error: 'Invalid coordinates provided for punch-in.' });
+            if (!Number.isFinite(latitude) || !Number.isFinite(longitude) || latitude < -90 || latitude > 90 || longitude < -180 || longitude > 180) {
+                return res.status(400).json({ error: 'Invalid coordinates provided. Latitude must be between -90 and 90, and longitude between -180 and 180 degrees.' });
             }
 
             console.log(`[OTP PUNCH] Processing punch for user ID: ${user.id}`);
@@ -679,15 +706,15 @@ exports.updateLocation = (req, res) => {
         return res.json({ success: true, processedCount: validPoints.length, isInsideCampus: isInside });
     }
 
-    if (lat === undefined || lng === undefined) {
+    if (lat === undefined || lng === undefined || lat === null || lng === null || lat === '' || lng === '') {
         return res.status(400).json({ error: 'Latitude and Longitude are required.' });
     }
 
-    const latitude = parseFloat(lat);
-    const longitude = parseFloat(lng);
+    const latitude = typeof lat === 'number' ? lat : parseFloat(lat);
+    const longitude = typeof lng === 'number' ? lng : parseFloat(lng);
 
-    if (isNaN(latitude) || isNaN(longitude)) {
-        return res.status(400).json({ error: 'Invalid coordinates.' });
+    if (!Number.isFinite(latitude) || !Number.isFinite(longitude) || latitude < -90 || latitude > 90 || longitude < -180 || longitude > 180) {
+        return res.status(400).json({ error: 'Invalid coordinates provided. Latitude must be between -90 and 90, and longitude between -180 and 180 degrees.' });
     }
 
     const distance = getDistanceFromLatLonInMeters(latitude, longitude, CAMPUS_LAT, CAMPUS_LNG);

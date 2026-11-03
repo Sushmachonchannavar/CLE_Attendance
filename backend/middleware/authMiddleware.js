@@ -1,6 +1,11 @@
 const jwt = require('jsonwebtoken');
 
 module.exports = (req, res, next) => {
+    if (!process.env.JWT_SECRET) {
+        console.error('FATAL: JWT_SECRET environment variable is missing.');
+        return res.status(500).json({ error: 'Server authentication configuration error.' });
+    }
+
     const authHeader = req.header('Authorization');
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
         return res.status(401).json({ error: 'Access denied. No valid bearer token provided.' });

@@ -182,13 +182,13 @@ async function runSecurityTests() {
         { count: principalLeavesList.body.length, roles: principalSeenRoles }
     );
 
-    // 3.7 Unauthenticated SMS route is blocked
+    // 3.7 Removed SMS route is blocked
     const unauthSms = await request(app)
         .post('/api/sms/send-otp')
         .send({ mobile: '9999999999', otp: '123456' });
     assertTest(
-        'Unauthenticated access to /api/sms/send-otp is rejected (returns 401)',
-        unauthSms.status === 401,
+        'Access to deprecated /api/sms/send-otp is unmounted/blocked (returns 404 or 401)',
+        unauthSms.status === 404 || unauthSms.status === 401,
         unauthSms.body
     );
 

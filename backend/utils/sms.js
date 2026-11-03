@@ -132,19 +132,24 @@ const sendVerification = async (phone) => {
     // 2. Fall back to / use configured XSMS gateway
     const rawApiKey = process.env.SMS_AUTH_KEY || process.env.SMS_API_KEY;
     const apiKey = rawApiKey ? rawApiKey.trim().replace(/^["']|["']$/g, '') : '';
+    if (!isGatewayConfigured(apiKey)) {
+        console.error(`[SMS ERROR] SMS gateway credentials (SMS_AUTH_KEY or SMS_API_KEY) are missing or invalid.`);
+        return { success: false, error: 'SMS service unavailable: SMS_AUTH_KEY or SMS_API_KEY environment variable is missing.' };
+    }
+
+    const rawDlt = process.env.DLT_TE_ID;
+    const dltTeId = (rawDlt && rawDlt.trim().toLowerCase() !== 'dlt_te_id' && /^\d+$/.test(rawDlt.trim()))
+        ? rawDlt.trim().replace(/^["']|["']$/g, '')
+        : '';
+    if (!dltTeId) {
+        console.error(`[SMS ERROR] DLT_TE_ID environment variable is missing.`);
+        return { success: false, error: 'SMS service unavailable: DLT_TE_ID environment variable is missing.' };
+    }
+
     const rawSender = process.env.SMS_SENDER;
     const senderId = (rawSender && rawSender.trim().toLowerCase() !== 'sms_sender' && !rawSender.includes('_HERE'))
         ? rawSender.trim().replace(/^["']|["']$/g, '')
         : 'TGSSVM';
-    const rawDlt = process.env.DLT_TE_ID;
-    const dltTeId = (rawDlt && rawDlt.trim().toLowerCase() !== 'dlt_te_id' && /^\d+$/.test(rawDlt.trim()))
-        ? rawDlt.trim().replace(/^["']|["']$/g, '')
-        : '1507166573508565333';
-
-    if (!isGatewayConfigured(apiKey)) {
-        console.error(`[SMS ERROR] No valid SMS provider credentials configured (neither Twilio nor XSMS).`);
-        return { success: false, error: 'SMS service is temporarily unavailable: SMS provider credentials missing or unconfigured.' };
-    }
 
     const otp = generateOTP();
     const expiresAt = new Date(Date.now() + 5 * 60 * 1000).toISOString(); // 5 mins
@@ -340,19 +345,24 @@ const sendAttendanceOTP = async (phone, otp) => {
     // 2. Check XSMS gateway
     const rawApiKey = process.env.SMS_AUTH_KEY || process.env.SMS_API_KEY;
     const apiKey = rawApiKey ? rawApiKey.trim().replace(/^["']|["']$/g, '') : '';
+    if (!isGatewayConfigured(apiKey)) {
+        console.error(`[SMS ERROR] SMS gateway credentials (SMS_AUTH_KEY or SMS_API_KEY) are missing or invalid.`);
+        return { success: false, error: 'SMS service unavailable: SMS_AUTH_KEY or SMS_API_KEY environment variable is missing.' };
+    }
+
+    const rawDlt = process.env.DLT_TE_ID;
+    const templateId = (rawDlt && rawDlt.trim().toLowerCase() !== 'dlt_te_id' && /^\d+$/.test(rawDlt.trim()))
+        ? rawDlt.trim().replace(/^["']|["']$/g, '')
+        : '';
+    if (!templateId) {
+        console.error(`[SMS ERROR] DLT_TE_ID environment variable is missing.`);
+        return { success: false, error: 'SMS service unavailable: DLT_TE_ID environment variable is missing.' };
+    }
+
     const rawSender = process.env.SMS_SENDER;
     const senderId = (rawSender && rawSender.trim().toLowerCase() !== 'sms_sender' && !rawSender.includes('_HERE'))
         ? rawSender.trim().replace(/^["']|["']$/g, '')
         : 'TGSSVM';
-    const rawDlt = process.env.DLT_TE_ID;
-    const templateId = (rawDlt && rawDlt.trim().toLowerCase() !== 'dlt_te_id' && /^\d+$/.test(rawDlt.trim()))
-        ? rawDlt.trim().replace(/^["']|["']$/g, '')
-        : '1507166573508565333';
-
-    if (!isGatewayConfigured(apiKey)) {
-        console.error(`[SMS ERROR] SMS gateway credentials are not configured or invalid.`);
-        return { success: false, error: 'SMS service unavailable: Gateway credentials missing' };
-    }
 
     const message = `जरूरी सूचना  Dear Staff your OTP for attendance punch-in is ${otp} This code is valid for 5 minutes Please do not share it C.L.E Society's Sr Sec School`;
 

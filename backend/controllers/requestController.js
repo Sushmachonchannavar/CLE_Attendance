@@ -58,8 +58,8 @@ exports.applyLeave = (req, res) => {
 
         res.json({ message: 'Leave applied successfully', id: result.lastInsertRowid });
     } catch (err) {
-        console.error('Error applying leave:', err.message || err);
-        res.status(500).json({ error: err.message || 'Failed to apply leave' });
+        console.error('Error applying leave:', err.stack || err.message || err);
+        res.status(500).json({ error: 'Failed to apply leave due to an internal server error.' });
     }
 };
 
@@ -146,8 +146,8 @@ exports.updateLeaveStatus = (req, res) => {
 
         res.json({ message: 'Leave status updated successfully', status, decisionTime });
     } catch (err) {
-        console.error('Error updating leave status:', err.message || err);
-        res.status(500).json({ error: err.message || 'Failed to update leave status' });
+        console.error('Error updating leave status:', err.stack || err.message || err);
+        res.status(500).json({ error: 'Failed to update leave status due to an internal server error.' });
     }
 };
 
@@ -207,8 +207,9 @@ exports.applyOD = (req, res) => {
             } catch (e) {
                 console.error('Failed to delete file on error:', e.message);
             }
+            console.error('Error applying OD:', err.stack || err.message || err);
         }
-        res.status(500).json({ error: err.message || 'Failed to apply OD' });
+        res.status(500).json({ error: 'Failed to apply OD due to an internal server error.' });
     }
 };
 
@@ -295,8 +296,8 @@ exports.updateODStatus = (req, res) => {
 
         res.json({ message: 'OD status updated successfully', status, decisionTime });
     } catch (err) {
-        console.error('Error updating OD status:', err.message || err);
-        res.status(500).json({ error: err.message || 'Failed to update OD status' });
+        console.error('Error updating OD status:', err.stack || err.message || err);
+        res.status(500).json({ error: 'Failed to update OD status due to an internal server error.' });
     }
 };
 
@@ -339,8 +340,8 @@ exports.getAllLeaves = (req, res) => {
         const leaves = db.prepare(query).all(...params);
         res.json(leaves);
     } catch (err) {
-        console.error('Error fetching all leaves:', err.message || err);
-        res.status(500).json({ error: err.message || 'Failed to fetch leaves' });
+        console.error('Error fetching all leaves:', err.stack || err.message || err);
+        res.status(500).json({ error: 'Failed to fetch leaves due to an internal server error.' });
     }
 };
 
@@ -384,8 +385,8 @@ exports.getAllODs = (req, res) => {
         const ods = db.prepare(query).all(...params);
         res.json(ods);
     } catch (err) {
-        console.error('Error fetching all ODs:', err.message || err);
-        res.status(500).json({ error: err.message || 'Failed to fetch ODs' });
+        console.error('Error fetching all ODs:', err.stack || err.message || err);
+        res.status(500).json({ error: 'Failed to fetch ODs due to an internal server error.' });
     }
 };
 
@@ -461,7 +462,8 @@ exports.deleteLeave = (req, res) => {
         db.prepare('DELETE FROM leaves WHERE id = ?').run(id);
         res.json({ message: 'Leave application cleared' });
     } catch (err) {
-        res.status(500).json({ error: err.message });
+        console.error('Error deleting leave:', err.stack || err.message || err);
+        res.status(500).json({ error: 'Failed to clear leave application.' });
     }
 };
 
@@ -505,7 +507,8 @@ exports.deleteOD = (req, res) => {
         db.prepare('DELETE FROM od_requests WHERE id = ?').run(id);
         res.json({ message: 'OD application cleared' });
     } catch (err) {
-        res.status(500).json({ error: err.message });
+        console.error('Error deleting OD:', err.stack || err.message || err);
+        res.status(500).json({ error: 'Failed to clear OD application.' });
     }
 };
 

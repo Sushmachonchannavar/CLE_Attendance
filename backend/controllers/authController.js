@@ -58,9 +58,17 @@ exports.login = async (req, res) => {
         return res.status(429).json({ error: 'Too many OTP requests. Please try again after 10 minutes.' });
     }
 
-    const existingUser = db.prepare("SELECT * FROM users WHERE (phone = ? OR phone = ? OR phone = ?) AND status = 'active'").get(rawPhone, tenDigits, withPlus91);
+    const existingUser = db.prepare("SELECT * FROM users WHERE (phone = ? OR phone = ? OR phone = ?)").get(rawPhone, tenDigits, withPlus91);
     if (!existingUser) {
         return res.status(403).json({ error: 'Mobile number not found. Please register first.' });
+    }
+
+    if (existingUser.status === 'pending') {
+        return res.status(403).json({ error: 'Your account is pending administrator approval. Please contact the administrator.' });
+    }
+
+    if (existingUser.status !== 'active') {
+        return res.status(403).json({ error: 'Your account is inactive. Please contact the administrator.' });
     }
 
     // Validate user role matches the selected role
@@ -105,25 +113,72 @@ exports.login = async (req, res) => {
 exports.register = (req, res) => {
     try {
         const { firstName, lastName, mobile, collegeName, departmentName, employeeId } = req.body;
-        if (!firstName || !mobile) {
-            return res.status(400).json({ error: 'First name and mobile are required' });
+        
+        // 1. Input validation
+        if (!firstName || typeof firstName !== 'string' || firstName.trim().length < 2) {
+            return res.status(400).json({ error: 'First name is required and must be at least 2 characters.' });
+        }
+        if (firstName.trim().length > 50) {
+            return res.status(400).json({ error: 'First name cannot exceed 50 characters.' });
         }
 
-        const name = `${firstName} ${lastName}`.trim();
-        const cleanEmpId = employeeId && employeeId.trim() !== '' ? employeeId.trim() : `EMP-${mobile.replace(/\D/g, '')}`;
+        const cleanFirst = firstName.trim();
+        const cleanLast = lastName && typeof lastName === 'string' ? lastName.trim() : '';
+        if (cleanLast.length > 50) {
+            return res.status(400).json({ error: 'Last name cannot exceed 50 characters.' });
+        }
+        const fullName = cleanLast ? `${cleanFirst} ${cleanLast}` : cleanFirst;
 
-        // Check if user already exists
-        const existingUser = db.prepare('SELECT * FROM users WHERE phone = ? OR (employee_id = ? AND employee_id IS NOT NULL)').get(mobile, cleanEmpId);
-        if (existingUser) {
-            return res.status(409).json({ error: 'A user with this mobile number or employee ID already exists. Please log in.' });
+        if (!mobile || typeof mobile !== 'string') {
+            return res.status(400).json({ error: 'Mobile number is required.' });
+        }
+        const rawDigits = mobile.replace(/\D/g, '');
+        const tenDigits = rawDigits.length > 10 ? rawDigits.slice(-10) : rawDigits;
+        if (tenDigits.length !== 10 || !/^[6-9]\d{9}$/.test(tenDigits)) {
+            return res.status(400).json({ error: 'Please enter a valid 10-digit Indian mobile number.' });
         }
 
-        db.prepare('INSERT INTO users (phone, name, college, department, role, employee_id, status) VALUES (?, ?, ?, ?, ?, ?, ?)')
-            .run(mobile, name, collegeName, departmentName, 'staff', cleanEmpId, 'active');
-        res.json({ message: 'Registration successful!' });
+        let cleanEmpId = null;
+        if (employeeId && typeof employeeId === 'string' && employeeId.trim() !== '') {
+            cleanEmpId = employeeId.trim().toUpperCase();
+            if (!/^[A-Z0-9_-]{3,30}$/.test(cleanEmpId)) {
+                return res.status(400).json({ error: 'Employee ID must be 3-30 alphanumeric characters, hyphens, or underscores.' });
+            }
+        } else {
+            cleanEmpId = `EMP-${tenDigits}`;
+        }
+
+        const cleanCollege = collegeName && typeof collegeName === 'string' ? collegeName.trim().slice(0, 100) : '';
+        const cleanDept = departmentName && typeof departmentName === 'string' ? departmentName.trim().slice(0, 100) : '';
+
+        // 2. Conflict check (Never update an existing user; return 409 if exists)
+        const withPlus91 = '+91' + tenDigits;
+        const existing = db.prepare(`
+            SELECT id, status FROM users 
+            WHERE phone = ? OR phone = ? OR phone = ? OR employee_id = ?
+        `).get(mobile.trim(), tenDigits, withPlus91, cleanEmpId);
+
+        if (existing) {
+            return res.status(409).json({ 
+                error: 'A user with this mobile number or employee ID already exists. Please log in.' 
+            });
+        }
+
+        // 3. Insert new user strictly with status 'pending'
+        db.prepare(`
+            INSERT INTO users (phone, name, college, department, role, employee_id, status) 
+            VALUES (?, ?, ?, ?, 'staff', ?, 'pending')
+        `).run(tenDigits, fullName, cleanCollege, cleanDept, cleanEmpId);
+
+        console.log(`[AUTH] New user registration submitted: ${fullName} (${tenDigits}, status: pending)`);
+
+        return res.status(201).json({
+            success: true,
+            message: 'Registration submitted successfully. Your account is pending administrator approval before you can log in.'
+        });
     } catch (err) {
-        console.error('Registration error:', err.message || err);
-        res.status(500).json({ error: err.message || 'Registration failed' });
+        console.error('Registration error:', err.stack || err.message || err);
+        return res.status(500).json({ error: 'Registration failed due to an internal server error.' });
     }
 };
 
@@ -145,9 +200,17 @@ exports.verify = async (req, res) => {
         });
     }
 
-    let user = db.prepare("SELECT * FROM users WHERE (phone = ? OR phone = ? OR phone = ?) AND status = 'active'").get(rawPhone, tenDigits, withPlus91);
+    let user = db.prepare("SELECT * FROM users WHERE (phone = ? OR phone = ? OR phone = ?)").get(rawPhone, tenDigits, withPlus91);
     if (!user) {
         return res.status(403).json({ error: 'User does not exist. Please register first.' });
+    }
+
+    if (user.status === 'pending') {
+        return res.status(403).json({ error: 'Your account is pending administrator approval. Please contact the administrator.' });
+    }
+
+    if (user.status !== 'active') {
+        return res.status(403).json({ error: 'Your account is inactive. Please contact the administrator.' });
     }
 
     // Validate user role matches the selected role
@@ -191,7 +254,8 @@ exports.verifyToken = (req, res) => {
             user: user || req.user
         });
     } catch (err) {
-        res.status(500).json({ error: err.message || 'Token verification failed' });
+        console.error('Token verification error:', err.stack || err.message || err);
+        res.status(500).json({ error: 'Token verification failed.' });
     }
 };
 
@@ -225,7 +289,7 @@ exports.updateProfile = (req, res) => {
             user: updatedUser
         });
     } catch (err) {
-        console.error('Error updating profile:', err.message || err);
-        res.status(500).json({ error: err.message || 'Failed to update profile' });
+        console.error('Error updating profile:', err.stack || err.message || err);
+        res.status(500).json({ error: 'Failed to update profile.' });
     }
 };

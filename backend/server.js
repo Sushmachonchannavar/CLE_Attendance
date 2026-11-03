@@ -1,8 +1,15 @@
-require('dotenv').config();
-const express = require('express');
-const cors = require('cors');
 const path = require('path');
 const fs = require('fs');
+
+const envPath = path.resolve(__dirname, '.env');
+if (fs.existsSync(envPath)) {
+    require('dotenv').config({ path: envPath });
+} else {
+    require('dotenv').config();
+}
+
+const express = require('express');
+const cors = require('cors');
 // eslint-disable-next-line no-unused-vars
 const db = require('./database');
 
@@ -89,10 +96,13 @@ app.use(cors({
 
 app.use(express.json());
 
-// Safe request logging middleware (without leaking headers, tokens, OTPs, phone numbers, or GPS data)
+// Request logging middleware (logs method, path, status code, and duration; no headers or bodies)
 app.use((req, res, next) => {
-    const timestamp = new Date().toISOString();
-    console.log(`[${timestamp}] ${req.method} ${req.path}`);
+    const start = Date.now();
+    res.on('finish', () => {
+        const duration = Date.now() - start;
+        console.log(`[HTTP] ${req.method} ${req.originalUrl || req.path} ${res.statusCode} (${duration}ms)`);
+    });
     next();
 });
 
@@ -101,7 +111,6 @@ app.use('/api/auth', require('./routes/authRoutes'));
 app.use('/api/attendance', require('./routes/attendanceRoutes'));
 app.use('/api/requests', require('./routes/requestRoutes'));
 app.use('/api/reports', require('./routes/reportRoutes'));
-app.use('/api/sms', require('./routes/smsRoutes'));
 
 // Location Tracking Routes
 const auth = require('./middleware/authMiddleware');
@@ -191,7 +200,7 @@ app.get('/api/health/detailed', (req, res) => {
         });
     } catch (dbErr) {
         console.error('[HEALTH DETAILED FAILED]:', dbErr.message);
-        res.status(500).json({ status: 'error', error: dbErr.message, timestamp: new Date().toISOString() });
+        res.status(500).json({ status: 'error', error: 'Database health check failed.', timestamp: new Date().toISOString() });
     }
 });
 
@@ -233,8 +242,8 @@ app.use((err, req, res, next) => {
     if (err && err.message === 'Not allowed by CORS') {
         return res.status(403).json({ error: 'Access denied: Origin not allowed by CORS policy' });
     }
-    console.error('Server error:', err.message || err);
-    res.status(500).json({ error: err.message || 'Internal server error' });
+    console.error('Server error:', err.stack || err.message || err);
+    res.status(500).json({ error: 'Internal server error.' });
 });
 
 // Graceful shutdown handling for systemd and PM2

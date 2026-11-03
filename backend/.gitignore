@@ -1,0 +1,27 @@
+# Environment and secret files
+.env
+.env.*
+*.env
+
+# SQLite databases
+*.sqlite
+*.sqlite3
+*.sqlite-shm
+*.sqlite-wal
+*.db
+*.db-shm
+*.db-wal
+
+# Storage, uploads and backups
+uploads/
+backups/
+
+# Build artifacts and dependencies
+dist/
+node_modules/
+
+# Archives and logs
+*.zip
+*.tar.gz
+*.log
+
