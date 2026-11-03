@@ -4,7 +4,7 @@ const fs = require('fs');
 
 async function generateQRCodes() {
     const localUrl = 'http://192.168.1.36:5173/download';
-    const prodUrl = 'https://attendance.clesociety.edu.in/download';
+    const prodUrl = 'https://cle-attendance.vercel.app/download';
 
     const artifactDir = 'C:\\Users\\Sumit\\.gemini\\antigravity-ide\\brain\\72b8f696-3cd2-455e-ac9c-9f0daedf8e88';
     const frontendPublic = path.resolve(__dirname, '../../frontend/public');

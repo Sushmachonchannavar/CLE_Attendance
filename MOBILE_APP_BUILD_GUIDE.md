@@ -80,9 +80,9 @@ Native mobile apps cannot use `http://localhost:5001` because `localhost` refers
 #### Option A: Production Mobile Build (Recommended)
 Set your deployed HTTPS backend URL in `frontend/.env.production`:
 ```ini
-VITE_API_URL=https://attendance.clesociety.edu.in/api
-VITE_CAMPUS_LAT=16.426026
-VITE_CAMPUS_LNG=74.589353
+VITE_API_URL=https://cle-attendance-1.onrender.com/api
+VITE_CAMPUS_LAT=16.426378
+VITE_CAMPUS_LNG=74.589884
 ```
 
 #### Option B: Local Wi-Fi Testing (Development)

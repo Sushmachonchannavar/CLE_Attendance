@@ -42,9 +42,9 @@ jobs:
       - name: Build Web Production Bundle
         working-directory: frontend
         env:
-          VITE_API_URL: ${{ secrets.VITE_API_URL || 'https://attendance.clesociety.edu.in/api' }}
-          VITE_CAMPUS_LAT: ${{ secrets.VITE_CAMPUS_LAT || '16.426026' }}
-          VITE_CAMPUS_LNG: ${{ secrets.VITE_CAMPUS_LNG || '74.589353' }}
+          VITE_API_URL: ${{ secrets.VITE_API_URL || 'https://cle-attendance-1.onrender.com/api' }}
+          VITE_CAMPUS_LAT: ${{ secrets.VITE_CAMPUS_LAT || '16.426378' }}
+          VITE_CAMPUS_LNG: ${{ secrets.VITE_CAMPUS_LNG || '74.589884' }}
         run: npm run build
 
       - name: Copy Web Assets to Android
