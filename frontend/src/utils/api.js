@@ -83,6 +83,7 @@ console.log(`[API] Base URL resolved to: ${resolvedBaseURL}`);
 const api = axios.create({
     baseURL: resolvedBaseURL,
     timeout: 60000, // 60s timeout to allow Render free-tier cold-start (30-50s) to finish without aborting
+    withCredentials: true // Transmit HTTP-only session cookies with all cross-site & same-site requests
 });
 
 api.interceptors.request.use((config) => {
@@ -96,6 +97,15 @@ api.interceptors.request.use((config) => {
 api.interceptors.response.use(
     (response) => response,
     (error) => {
+        // If a protected API route returns 401 Unauthorized, dispatch a session expiration event
+        if (error.response && error.response.status === 401) {
+            const requestUrl = error.config?.url || '';
+            const isAuthAttempt = requestUrl.includes('/auth/login') || requestUrl.includes('/auth/verify');
+            if (!isAuthAttempt && typeof window !== 'undefined' && window.dispatchEvent) {
+                window.dispatchEvent(new CustomEvent('auth:session_expired'));
+            }
+        }
+
         // Log actionable diagnostic information in browser console for production debugging.
         // Open DevTools → Console to see exact HTTP status, URL, and error body.
         if (error.response) {

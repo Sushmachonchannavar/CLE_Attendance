@@ -1,54 +1,73 @@
-import { createContext, useState, useEffect, useContext } from 'react';
+import { createContext, useState, useEffect, useContext, useCallback } from 'react';
 import api from '../utils/api';
 
 // eslint-disable-next-line react-refresh/only-export-components
 export const AuthContext = createContext();
 
 export const AuthProvider = ({ children }) => {
-    const [user, setUser] = useState(null);
+    const [user, setUser] = useState(() => {
+        try {
+            const cachedUser = localStorage.getItem('user');
+            return cachedUser ? JSON.parse(cachedUser) : null;
+        } catch {
+            return null;
+        }
+    });
     const [loading, setLoading] = useState(true);
 
-    useEffect(() => {
-        const initializeAuth = async () => {
-            try {
-                const token = localStorage.getItem('token');
-                const userJson = localStorage.getItem('user');
-
-                if (token && userJson) {
-                    try {
-                        const storedUser = JSON.parse(userJson);
-                        setUser(storedUser);
-
-                        // Verify token with backend by making a test request
-                        try {
-                            const res = await api.get('/auth/verify-token');
-                            const updatedUser = res.data.user;
-                            setUser(updatedUser);
-                            localStorage.setItem('user', JSON.stringify(updatedUser));
-                        } catch (err) {
-                            console.warn('Token verification failed:', err.message);
-                            localStorage.removeItem('token');
-                            localStorage.removeItem('user');
-                            setUser(null);
-                        }
-                    } catch (parseErr) {
-                        console.error('Error parsing user data:', parseErr);
-                        localStorage.removeItem('token');
-                        localStorage.removeItem('user');
-                        setUser(null);
-                    }
-                }
-            } catch (err) {
-                console.error('Error loading auth from localStorage:', err);
+    /**
+     * Centralized session verification callback.
+     * Verifies current session with backend using both HTTP-only cookies and Bearer token.
+     */
+    const checkSession = useCallback(async () => {
+        try {
+            const res = await api.get('/auth/verify-token');
+            if (res.data && res.data.user) {
+                const verifiedUser = res.data.user;
+                setUser(verifiedUser);
+                localStorage.setItem('user', JSON.stringify(verifiedUser));
+                return { authenticated: true, user: verifiedUser };
+            }
+            throw new Error('Invalid user payload');
+        } catch (err) {
+            const status = err.response?.status;
+            // Only clear session on actual authentication failure (401 / 403)
+            // Preserve cached state on transient network offline errors for offline mobile queueing
+            if (status === 401 || status === 403) {
+                console.warn('[AUTH SESSION] Session invalid or expired. Resetting session state.');
                 localStorage.removeItem('token');
                 localStorage.removeItem('user');
                 setUser(null);
-            } finally {
-                setLoading(false);
+                return { authenticated: false, error: 'Session expired' };
             }
+            // For network errors, keep cached user if present
+            const cachedUser = localStorage.getItem('user');
+            if (!cachedUser) {
+                setUser(null);
+            }
+            return { authenticated: Boolean(user), offline: true };
+        } finally {
+            setLoading(false);
+        }
+    }, [user]);
+
+    // Initial session verification on startup
+    useEffect(() => {
+        checkSession();
+
+        // Listen for session expired events dispatched by API response interceptor
+        const handleSessionExpired = () => {
+            console.warn('[AUTH SESSION] Received session expiration event.');
+            localStorage.removeItem('token');
+            localStorage.removeItem('user');
+            setUser(null);
         };
-        initializeAuth();
-    }, []);
+
+        window.addEventListener('auth:session_expired', handleSessionExpired);
+        return () => {
+            window.removeEventListener('auth:session_expired', handleSessionExpired);
+        };
+    }, [checkSession]);
 
     const login = async (phone, role) => {
         try {
@@ -87,10 +106,14 @@ export const AuthProvider = ({ children }) => {
     const verifyOtp = async (phone, otp, targetRole) => {
         try {
             const res = await api.post('/auth/verify', { phone, otp, role: targetRole });
-            localStorage.setItem('token', res.data.token);
-            localStorage.setItem('user', JSON.stringify(res.data.user));
-            setUser(res.data.user);
-            return { success: true };
+            if (res.data.token) {
+                localStorage.setItem('token', res.data.token);
+            }
+            if (res.data.user) {
+                localStorage.setItem('user', JSON.stringify(res.data.user));
+                setUser(res.data.user);
+            }
+            return { success: true, user: res.data.user };
         } catch (error) {
             let errorMsg;
             if (error.response?.data) {
@@ -111,14 +134,30 @@ export const AuthProvider = ({ children }) => {
         }
     };
 
-    const logout = () => {
-        localStorage.removeItem('token');
-        localStorage.removeItem('user');
-        setUser(null);
+    const logout = async () => {
+        try {
+            // Invalidate server session and clear HTTP-only cookie
+            await api.post('/auth/logout').catch(() => {});
+        } finally {
+            // Always purge client-side tokens and state
+            localStorage.removeItem('token');
+            localStorage.removeItem('user');
+            setUser(null);
+        }
     };
 
     return (
-        <AuthContext.Provider value={{ user, login, register, verifyOtp, logout, loading, updateUser }}>
+        <AuthContext.Provider value={{ 
+            user, 
+            login, 
+            register, 
+            verifyOtp, 
+            logout, 
+            loading, 
+            updateUser, 
+            checkSession,
+            isAuthenticated: Boolean(user)
+        }}>
             {children}
         </AuthContext.Provider>
     );

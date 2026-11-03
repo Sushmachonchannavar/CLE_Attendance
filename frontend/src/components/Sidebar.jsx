@@ -1,5 +1,5 @@
 import React from 'react';
-import { Link, useLocation } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { Home, MapPin, Calendar, FileText, BarChart, LogOut, X, User, Smartphone } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import CleLogo from './CleLogo';
@@ -7,6 +7,15 @@ import CleLogo from './CleLogo';
 const Sidebar = ({ isOpen, toggleSidebar }) => {
     const { logout, user } = useAuth();
     const location = useLocation();
+    const navigate = useNavigate();
+
+    const handleLogout = async () => {
+        try {
+            await logout();
+        } finally {
+            navigate('/login', { replace: true });
+        }
+    };
 
     const isActive = (path) => location.pathname === path;
 
@@ -130,7 +139,7 @@ const Sidebar = ({ isOpen, toggleSidebar }) => {
             {/* Logout at Bottom */}
             <div className="p-4 border-t border-slate-800/80">
                 <button
-                    onClick={logout}
+                    onClick={handleLogout}
                     className="flex items-center justify-center w-full px-4 py-3 text-sm font-bold text-rose-300 bg-rose-500/10 border border-rose-500/20 rounded-xl hover:bg-rose-600 hover:text-white transition-all duration-200 shadow-sm active:scale-[0.98] group"
                 >
                     <LogOut className="w-4 h-4 mr-2.5 transition-transform group-hover:-translate-x-0.5" />

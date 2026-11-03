@@ -28,8 +28,15 @@ const Login = () => {
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [resendCooldown, setResendCooldown] = useState(0);
 
-    const { login, verifyOtp } = useAuth();
+    const { login, verifyOtp, user, loading } = useAuth();
     const navigate = useNavigate();
+
+    // Redirect to dashboard immediately if already authenticated (prevent login access / back navigation to login)
+    useEffect(() => {
+        if (user && !loading) {
+            navigate('/dashboard', { replace: true });
+        }
+    }, [user, loading, navigate]);
 
     // Timer countdown for resend OTP
     useEffect(() => {
@@ -95,7 +102,7 @@ const Login = () => {
         try {
             const result = await verifyOtp(cleanPhone, cleanOtp, role);
             if (result.success) {
-                navigate('/dashboard');
+                navigate('/dashboard', { replace: true });
             } else {
                 setOtpError(result.error || 'Invalid OTP. Please try again.');
             }
