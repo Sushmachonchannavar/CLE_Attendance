@@ -36,7 +36,7 @@ export default function DownloadApp() {
     const [deviceType] = useState(initialState.device);
     const [activeTab, setActiveTab] = useState(initialState.tab);
     const [downloadUrl] = useState(() => {
-        return typeof window !== 'undefined' ? `${window.location.origin}/download` : 'https://attendance.clesociety.edu.in/download';
+        return typeof window !== 'undefined' ? `${window.location.origin}/download` : 'https://cle-attendance.vercel.app/download';
     });
     const apkUrl = 'https://github.com/Sushmachonchannavar/CLE_Attendance/releases/download/v1.0.0-mobile/cle-attendance.apk';
 
