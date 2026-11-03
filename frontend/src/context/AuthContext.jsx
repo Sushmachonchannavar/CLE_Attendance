@@ -59,10 +59,10 @@ export const AuthProvider = ({ children }) => {
             let errorMsg;
             if (error.response?.data) {
                 errorMsg = error.response.data.error || error.response.data.message || "Failed to process login request.";
-            } else if (error.code === 'ECONNABORTED') {
-                errorMsg = "Authentication service connection timed out. Please try again shortly.";
+            } else if (error.code === 'ECONNABORTED' || error.message?.includes('timeout')) {
+                errorMsg = "Server is waking up (Render free tier cold start). Please wait a few seconds and try again.";
             } else {
-                errorMsg = "Unable to connect to authentication service. Please verify server status and network connection.";
+                errorMsg = "Unable to connect to authentication service. The server may be waking up from sleep — please wait a moment and retry.";
             }
             return {
                 data: {

@@ -33,11 +33,15 @@ export const getBaseURL = () => {
             return '/api';
         }
 
-        // 2. If an explicit remote HTTPS API URL is configured via VITE_API_URL, use it directly.
-        //    This takes priority for any non-localhost deployed environment.
-        if (rawUrl && typeof rawUrl === 'string' && rawUrl.trim() !== '' && !rawUrl.startsWith('/')) {
-            const trimmed = rawUrl.trim().replace(/\/+$/, '');
-            const finalUrl = trimmed.endsWith('/api') ? trimmed : `${trimmed}/api`;
+        // 2. If an explicit remote HTTPS API URL or relative path is configured via VITE_API_URL, use it directly.
+        //    This takes priority for any non-localhost deployed environment (e.g. self-hosted server reverse proxy).
+        if (rawUrl && typeof rawUrl === 'string' && rawUrl.trim() !== '') {
+            const trimmed = rawUrl.trim();
+            if (trimmed.startsWith('/')) {
+                return trimmed.replace(/\/+$/, '') || '/api';
+            }
+            const cleanUrl = trimmed.replace(/\/+$/, '');
+            const finalUrl = cleanUrl.endsWith('/api') ? cleanUrl : `${cleanUrl}/api`;
             if (!finalUrl.includes('localhost') && !finalUrl.includes('127.0.0.1')) {
                 return finalUrl;
             }
@@ -78,7 +82,7 @@ console.log(`[API] Base URL resolved to: ${resolvedBaseURL}`);
 
 const api = axios.create({
     baseURL: resolvedBaseURL,
-    timeout: 30000, // 30s timeout to handle Render free-tier cold-start without hanging
+    timeout: 60000, // 60s timeout to allow Render free-tier cold-start (30-50s) to finish without aborting
 });
 
 api.interceptors.request.use((config) => {

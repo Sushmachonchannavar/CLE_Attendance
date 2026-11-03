@@ -7,15 +7,22 @@ yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
 
+# Dependencies and build
 node_modules
 dist
 dist-ssr
+uploads/
 
 # Environment files
 .env
 .env.*
 *.env
 *.local
+
+# Database and archives
+*.sqlite
+*.sqlite3
+*.zip
 
 
 # Editor directories and files

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { QRCodeSVG } from 'qrcode.react';
 import { 
@@ -19,35 +19,26 @@ import {
 } from 'lucide-react';
 import CleLogo from '../components/CleLogo';
 
+function detectInitialDevice() {
+    if (typeof window === 'undefined' || typeof navigator === 'undefined') {
+        return { device: 'desktop', tab: 'qr' };
+    }
+    const ua = (navigator.userAgent || '').toLowerCase();
+    const isAndroid = ua.includes('android');
+    const isIOS = /iphone|ipad|ipod/.test(ua) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+    if (isAndroid) return { device: 'android', tab: 'android' };
+    if (isIOS) return { device: 'ios', tab: 'ios' };
+    return { device: 'desktop', tab: 'qr' };
+}
+
 export default function DownloadApp() {
-    const [deviceType, setDeviceType] = useState('unknown'); // 'android', 'ios', or 'desktop'
-    const [activeTab, setActiveTab] = useState('auto'); // 'auto', 'android', 'ios', 'qr'
-    const [downloadUrl, setDownloadUrl] = useState('');
-    const [apkUrl, setApkUrl] = useState('');
-
-    useEffect(() => {
-        // Detect OS
-        const ua = navigator.userAgent.toLowerCase();
-        const isAndroid = ua.includes('android');
-        const isIOS = /iphone|ipad|ipod/.test(ua) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
-
-        if (isAndroid) {
-            setDeviceType('android');
-            setActiveTab('android');
-        } else if (isIOS) {
-            setDeviceType('ios');
-            setActiveTab('ios');
-        } else {
-            setDeviceType('desktop');
-            setActiveTab('qr');
-        }
-
-        // Determine current page URL for QR code and APK download
-        const currentOrigin = typeof window !== 'undefined' ? window.location.origin : 'https://attendance.clesociety.edu.in';
-        setDownloadUrl(`${currentOrigin}/download`);
-        // Direct GitHub Release link ensures download works immediately on any deployed host
-        setApkUrl('https://github.com/Sushmachonchannavar/CLE_Attendance/releases/download/v1.0.0-mobile/cle-attendance.apk');
-    }, []);
+    const [initialState] = useState(detectInitialDevice);
+    const [deviceType] = useState(initialState.device);
+    const [activeTab, setActiveTab] = useState(initialState.tab);
+    const [downloadUrl] = useState(() => {
+        return typeof window !== 'undefined' ? `${window.location.origin}/download` : 'https://attendance.clesociety.edu.in/download';
+    });
+    const apkUrl = 'https://github.com/Sushmachonchannavar/CLE_Attendance/releases/download/v1.0.0-mobile/cle-attendance.apk';
 
     const selectedTab = activeTab === 'auto' ? (deviceType === 'android' ? 'android' : deviceType === 'ios' ? 'ios' : 'qr') : activeTab;
 

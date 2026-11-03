@@ -474,10 +474,10 @@ const AttendancePanel = () => {
                             <div
                                 key={label}
                                 className={`flex flex-col items-center text-center p-2 rounded-xl transition-all duration-200 ${isCurrent
-                                        ? 'bg-blue-600 text-white shadow-md shadow-blue-600/20 font-bold'
-                                        : isDone
-                                            ? 'bg-emerald-50 text-emerald-700 border border-emerald-200 font-semibold'
-                                            : 'bg-white text-slate-400 border border-slate-200/60 font-medium'
+                                    ? 'bg-blue-600 text-white shadow-md shadow-blue-600/20 font-bold'
+                                    : isDone
+                                        ? 'bg-emerald-50 text-emerald-700 border border-emerald-200 font-semibold'
+                                        : 'bg-white text-slate-400 border border-slate-200/60 font-medium'
                                     }`}
                             >
                                 <span className="text-[10px] uppercase tracking-tighter line-clamp-1">{label}</span>
@@ -528,8 +528,8 @@ const AttendancePanel = () => {
                                 Geofence Status:
                             </span>
                             <span className={`font-bold px-2.5 py-0.5 rounded-full uppercase text-[10px] ${isInside
-                                    ? 'bg-emerald-100 text-emerald-800 border border-emerald-200'
-                                    : 'bg-rose-100 text-rose-800 border border-rose-200'
+                                ? 'bg-emerald-100 text-emerald-800 border border-emerald-200'
+                                : 'bg-rose-100 text-rose-800 border border-rose-200'
                                 }`}>
                                 {isInside ? 'Inside Campus' : 'Outside Campus'}
                             </span>
@@ -569,8 +569,8 @@ const AttendancePanel = () => {
                         </span>
                         {location && (
                             <span className={`px-2 py-0.5 rounded-md font-mono text-[10px] ${isInside
-                                    ? 'bg-slate-900 text-emerald-400'
-                                    : 'bg-slate-800 text-amber-300'
+                                ? 'bg-slate-900 text-emerald-400'
+                                : 'bg-slate-800 text-amber-300'
                                 }`}>
                                 {location.lat.toFixed(5)}, {location.lng.toFixed(5)}
                             </span>
@@ -692,8 +692,8 @@ const AttendancePanel = () => {
                         onClick={status.punchedIn ? handlePunch : handleRequestOTP}
                         disabled={loading || sendingOtp || !location || !isInside}
                         className={`w-full py-4.5 px-6 rounded-2xl font-black text-lg tracking-wide shadow-xl transition-all duration-200 active:scale-[0.99] disabled:grayscale disabled:opacity-50 disabled:cursor-not-allowed ${status.punchedIn
-                                ? 'bg-gradient-to-r from-rose-600 via-rose-700 to-red-800 text-white shadow-rose-600/30 hover:shadow-rose-600/40'
-                                : 'bg-gradient-to-r from-blue-700 via-blue-600 to-indigo-700 text-white shadow-blue-600/30 hover:shadow-blue-600/40'
+                            ? 'bg-gradient-to-r from-rose-600 via-rose-700 to-red-800 text-white shadow-rose-600/30 hover:shadow-rose-600/40'
+                            : 'bg-gradient-to-r from-blue-700 via-blue-600 to-indigo-700 text-white shadow-blue-600/30 hover:shadow-blue-600/40'
                             }`}
                     >
                         <div className="flex items-center justify-center gap-3">

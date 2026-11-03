@@ -68,25 +68,6 @@ const LocationTracker = () => {
     const lastSentLocationRef = useRef(null);
     const isFlushingRef = useRef(false);
 
-    // Keep online state in sync
-    useEffect(() => {
-        const handleOnline = () => {
-            setIsOnline(true);
-            flushOfflineQueue();
-        };
-        const handleOffline = () => setIsOnline(false);
-
-        window.addEventListener('online', handleOnline);
-        window.addEventListener('offline', handleOffline);
-
-        setQueueCount(getOfflineQueue().length);
-
-        return () => {
-            window.removeEventListener('online', handleOnline);
-            window.removeEventListener('offline', handleOffline);
-        };
-    }, []);
-
     // Post location update via native HTTP plugin or standard web api
     const postLocationPayload = useCallback(async (payload) => {
         const token = localStorage.getItem('token');
@@ -133,6 +114,25 @@ const LocationTracker = () => {
             isFlushingRef.current = false;
         }
     }, [postLocationPayload]);
+
+    // Keep online state in sync
+    useEffect(() => {
+        const handleOnline = () => {
+            setIsOnline(true);
+            flushOfflineQueue();
+        };
+        const handleOffline = () => setIsOnline(false);
+
+        window.addEventListener('online', handleOnline);
+        window.addEventListener('offline', handleOffline);
+
+        setQueueCount(getOfflineQueue().length);
+
+        return () => {
+            window.removeEventListener('online', handleOnline);
+            window.removeEventListener('offline', handleOffline);
+        };
+    }, [flushOfflineQueue]);
 
     // Securely queue location when offline
     const queueLocation = useCallback((point) => {

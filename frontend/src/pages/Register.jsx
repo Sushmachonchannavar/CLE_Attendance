@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import CleLogo from '../components/CleLogo';
-import { User, Phone, Landmark, BookOpen, ArrowRight, ShieldCheck, AlertCircle, RefreshCw } from 'lucide-react';
+import { User, Phone, Landmark, BookOpen, ArrowRight, ShieldCheck, AlertCircle, RefreshCw, CheckCircle2 } from 'lucide-react';
 
 const Register = () => {
     const [formData, setFormData] = useState({
@@ -14,8 +14,8 @@ const Register = () => {
     });
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [error, setError] = useState('');
+    const [successMessage, setSuccessMessage] = useState('');
 
-    const navigate = useNavigate();
     const { register } = useAuth();
 
     const handleChange = (e) => {
@@ -31,9 +31,14 @@ const Register = () => {
         e.preventDefault();
         if (isSubmitting) return;
 
+        if (!formData.firstName || formData.firstName.trim().length < 2) {
+            setError('Please enter a valid first name (at least 2 characters).');
+            return;
+        }
+
         const cleanMobile = formData.mobile.replace(/\D/g, '');
-        if (cleanMobile.length < 10) {
-            setError('Please enter a valid 10-digit mobile number.');
+        if (cleanMobile.length !== 10 || !/^[6-9]\d{9}$/.test(cleanMobile)) {
+            setError('Please enter a valid 10-digit Indian mobile number.');
             return;
         }
 
@@ -46,11 +51,9 @@ const Register = () => {
                 mobile: cleanMobile
             });
             if (result.success) {
-                alert(result.message || 'Registration successful! Redirecting to login.');
-                navigate('/login');
+                setSuccessMessage(result.message || 'Registration submitted successfully. Your account is pending administrator approval before you can log in.');
             } else {
                 setError(result.error || 'Registration failed. Please try again.');
-                alert(`Error: ${result.error || 'Registration failed.'}`);
             }
         } catch (err) {
             console.error('Registration failed', err);
@@ -82,7 +85,32 @@ const Register = () => {
 
             {/* Registration Card */}
             <div className="relative w-full max-w-lg bg-white rounded-3xl shadow-2xl border border-slate-100 p-6 sm:p-8 z-10 animate-in zoom-in-95 duration-300">
-                <form onSubmit={handleRegister} className="space-y-4">
+                {successMessage ? (
+                    <div className="text-center py-4 space-y-4 animate-in fade-in zoom-in-95 duration-300">
+                        <div className="w-16 h-16 bg-emerald-100 text-emerald-600 rounded-2xl flex items-center justify-center mx-auto shadow-inner">
+                            <CheckCircle2 className="w-9 h-9" />
+                        </div>
+                        <div>
+                            <h2 className="text-xl font-bold text-slate-800">Registration Submitted</h2>
+                            <p className="text-amber-600 font-bold text-xs uppercase tracking-wider mt-1">
+                                Pending Administrator Approval
+                            </p>
+                        </div>
+                        <p className="text-sm text-slate-600 font-medium px-2 leading-relaxed">
+                            {successMessage}
+                        </p>
+                        <div className="pt-2">
+                            <Link
+                                to="/login"
+                                className="w-full inline-flex py-3.5 px-4 bg-gradient-to-r from-blue-700 via-blue-600 to-blue-800 text-white rounded-xl font-bold text-sm uppercase tracking-wider shadow-lg shadow-blue-600/30 hover:shadow-blue-600/40 hover:-translate-y-0.5 active:translate-y-0 transition-all duration-200 items-center justify-center gap-2"
+                            >
+                                <span>Proceed to Login</span>
+                                <ArrowRight className="w-4 h-4" />
+                            </Link>
+                        </div>
+                    </div>
+                ) : (
+                    <form onSubmit={handleRegister} className="space-y-4">
                     {/* First & Last Name Grid */}
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         <div>
@@ -240,6 +268,7 @@ const Register = () => {
                         </p>
                     </div>
                 </form>
+                )}
             </div>
 
             <div className="mt-6 text-center text-[11px] text-slate-400 font-medium z-10 flex items-center gap-2">
