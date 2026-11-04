@@ -1,6 +1,7 @@
 const db = require('../database');
 const jwt = require('jsonwebtoken');
 const { sendVerification, checkVerification, maskPhone } = require('../utils/sms');
+const { getAuthCookieOptions, getClearCookieOptions } = require('../utils/cookies');
 
 // In-memory rate limiting for login OTP requests (Max 5 requests per 10 minutes)
 const loginAttemptsMap = new Map();
@@ -243,19 +244,42 @@ exports.verify = async (req, res) => {
         { expiresIn: '7d' }
     );
 
+    // Set secure HTTP-only session cookie
+    try {
+        res.cookie('token', token, getAuthCookieOptions());
+    } catch (cookieErr) {
+        console.warn('[AUTH] Could not set cookie header:', cookieErr.message);
+    }
+
     res.json({ token, user, success: true, otpVerified: true, message: 'Login successful' });
 };
 
 exports.verifyToken = (req, res) => {
     try {
         const user = db.prepare('SELECT id, name, phone, role, college, department, employee_id, status FROM users WHERE id = ?').get(req.user.id);
+        if (!user) {
+            return res.status(401).json({ error: 'User account no longer exists.' });
+        }
+        if (user.status !== 'active') {
+            return res.status(403).json({ error: 'User account is not active.' });
+        }
         res.json({
             message: 'Token is valid',
-            user: user || req.user
+            user: user
         });
     } catch (err) {
         console.error('Token verification error:', err.stack || err.message || err);
         res.status(500).json({ error: 'Token verification failed.' });
+    }
+};
+
+exports.logout = (req, res) => {
+    try {
+        res.clearCookie('token', getClearCookieOptions());
+        res.json({ success: true, message: 'Logged out successfully' });
+    } catch (err) {
+        console.error('Logout error:', err.stack || err.message || err);
+        res.status(500).json({ error: 'Logout failed.' });
     }
 };
 

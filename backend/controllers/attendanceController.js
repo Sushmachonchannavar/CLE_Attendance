@@ -2,6 +2,7 @@ const db = require('../database');
 const crypto = require('crypto');
 const jwt = require('jsonwebtoken');
 const { sendAttendanceOTP, maskPhone } = require('../utils/sms');
+const { getAuthCookieOptions } = require('../utils/cookies');
 
 // Campus Geofence (Configurable via env; Centroid default Lat: 16.426378, Lng: 74.589884, Radius: 600m)
 const DEFAULT_LAT = 16.426378;
@@ -525,6 +526,13 @@ exports.verifyOTP = async (req, res) => {
             process.env.JWT_SECRET, 
             { expiresIn: '7d' }
         );
+
+        // Set secure HTTP-only session cookie
+        try {
+            res.cookie('token', token, getAuthCookieOptions());
+        } catch (cookieErr) {
+            console.warn('[ATTENDANCE AUTH] Could not set session cookie:', cookieErr.message);
+        }
 
         // 9. Punch in / out action (if coordinates are provided)
         if (lat !== undefined && lng !== undefined && lat !== null && lng !== null && lat !== '' && lng !== '') {

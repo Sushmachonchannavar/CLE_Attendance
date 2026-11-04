@@ -19,6 +19,7 @@ dist/
 build/
 .DS_Store
 backend/uploads/
+uploads/
 backend/backups/
 backups_pre_deployment/
 *.zip

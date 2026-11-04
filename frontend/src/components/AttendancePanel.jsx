@@ -120,8 +120,8 @@ const CAMPUS_GEOFENCE = [
     { lat: 16.429076 + latOffset, lng: 74.585012 + lngOffset }, // West-Northwest (~600m)
     { lat: 16.431051 + latOffset, lng: 74.587071 + lngOffset }  // North-Northwest (~600m)
 ];
-const GEOFENCE_RADIUS_METERS = 600;
-const PRIVACY_RADIUS_METERS = 600; // Live map & tracing active up to 600m campus perimeter
+const GEOFENCE_RADIUS_METERS = 300;
+const PRIVACY_RADIUS_METERS = 500; // Live map & tracing active up to 600m campus perimeter
 const DUTY_START_HOUR = 9;   // 9:00 AM
 const LATE_THRESHOLD_MINUTE = 20; // After 9:20 AM is late
 

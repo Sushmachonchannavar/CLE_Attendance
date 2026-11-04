@@ -109,7 +109,7 @@ module.exports = {
 
         // Seed real active staff if not existing (demo users removed)
         const seedUsers = [
-            [102, 'Sushma Chonchannavar', '6360670247', 'staff', 'Bsc', 'EMP-6360670247', 'active']
+            [102, 'Sushma Chonchannavar', '6360670247', 'admin', 'Administration', 'EMP-6360670247', 'active']
         ];
 
         const insertUser = db.prepare(`

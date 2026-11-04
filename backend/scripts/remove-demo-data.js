@@ -7,7 +7,7 @@ const DEMO_EMP_IDS = ['EMP000', 'EMP001', 'EMP100', 'EMP101'];
 
 function findDemoData() {
     const placeholders = DEMO_USER_IDS.map(() => '?').join(',');
-    
+
     const users = db.prepare(`SELECT id, name, phone, role, employee_id, status FROM users WHERE id IN (${placeholders})`).all(...DEMO_USER_IDS);
     const attendanceCount = db.prepare(`SELECT COUNT(*) AS c FROM attendance WHERE user_id IN (${placeholders})`).get(...DEMO_USER_IDS).c;
     const leavesCount = db.prepare(`SELECT COUNT(*) AS c FROM leaves WHERE user_id IN (${placeholders})`).get(...DEMO_USER_IDS).c;
@@ -33,7 +33,7 @@ function deleteDemoData() {
         const lvs = db.prepare(`DELETE FROM leaves WHERE user_id IN (${placeholders})`).run(...DEMO_USER_IDS);
         const ods = db.prepare(`DELETE FROM od_requests WHERE user_id IN (${placeholders})`).run(...DEMO_USER_IDS);
         const locs = db.prepare(`DELETE FROM employee_locations WHERE user_id IN (${placeholders})`).run(...DEMO_USER_IDS);
-        
+
         try {
             db.prepare(`DELETE FROM approval_audit_logs WHERE actor_id IN (${placeholders}) OR target_user_id IN (${placeholders})`).run(...DEMO_USER_IDS, ...DEMO_USER_IDS);
         } catch {
@@ -42,7 +42,7 @@ function deleteDemoData() {
 
         db.prepare(`DELETE FROM otps WHERE phone IN (${phonePlaceholders})`).run(...DEMO_PHONES, ...DEMO_PHONES.map(p => '+91' + p));
         db.prepare(`DELETE FROM attendance_otps WHERE employee_id IN (${empPlaceholders})`).run(...DEMO_EMP_IDS);
-        
+
         const usr = db.prepare(`DELETE FROM users WHERE id IN (${placeholders})`).run(...DEMO_USER_IDS);
 
         return {

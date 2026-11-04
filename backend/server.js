@@ -10,6 +10,7 @@ if (fs.existsSync(envPath)) {
 
 const express = require('express');
 const cors = require('cors');
+const cookieParser = require('cookie-parser');
 // eslint-disable-next-line no-unused-vars
 const db = require('./database');
 
@@ -94,6 +95,7 @@ app.use(cors({
     allowedHeaders: ['Content-Type', 'Authorization']
 }));
 
+app.use(cookieParser());
 app.use(express.json());
 
 // Request logging middleware (logs method, path, status code, and duration; no headers or bodies)

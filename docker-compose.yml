@@ -14,8 +14,15 @@ services:
       - UPLOAD_DIR=/var/data/uploads/od-documents
       - JWT_SECRET=${JWT_SECRET:-e7b4cf5910c284a1d4f2981096a605f8841dfcb487f54c96a32d18bc36829ae4}
       - FRONTEND_URL=${FRONTEND_URL:-http://localhost:5173,https://cle-attendance.pages.dev}
-      - CAMPUS_LAT=${CAMPUS_LAT:-16.426026}
-      - CAMPUS_LNG=${CAMPUS_LNG:-74.589353}
+      - CAMPUS_LAT=${CAMPUS_LAT:-16.426378}
+      - CAMPUS_LNG=${CAMPUS_LNG:-74.589884}
+      - GEOFENCE_RADIUS_METERS=${GEOFENCE_RADIUS_METERS:-600}
+      - SMS_API_KEY=${SMS_API_KEY:-}
+      - SMS_AUTH_KEY=${SMS_AUTH_KEY:-}
+      - SMS_SENDER=${SMS_SENDER:-TGSSVM}
+      - DLT_TE_ID=${DLT_TE_ID:-1507166573508565333}
+      - SMS_BASE_URL=${SMS_BASE_URL:-https://m.xsms.in/api/sendhttp.php}
+      - SMS_CAMPAIGN=${SMS_CAMPAIGN:-test}
     volumes:
       - attendance_data:/var/data
 

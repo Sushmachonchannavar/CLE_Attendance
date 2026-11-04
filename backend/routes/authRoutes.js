@@ -10,6 +10,7 @@ router.post('/register', registerLimiter, authController.register);
 router.post('/verify', otpVerifyLimiter, authController.verify);
 router.post('/verify-otp', otpVerifyLimiter, authController.verify);
 router.get('/verify-token', authMiddleware, authController.verifyToken);
+router.post('/logout', authController.logout);
 router.put('/profile', authMiddleware, authController.updateProfile);
 
 module.exports = router;

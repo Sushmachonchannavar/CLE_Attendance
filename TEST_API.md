@@ -3,7 +3,7 @@
 ## Demo Credentials
 
 ### Admin User (Can approve/reject leaves and ODs)
-- Phone: `9999999999`
+- Phone: `6360670247`
 - OTP: `1234`
 - Role: `admin`
 - User ID: `1`
@@ -40,7 +40,7 @@ The "network error" when submitting leave/OD approval is likely happening becaus
 ## Testing Steps
 
 1. **Login as Admin**
-   - Phone: `9999999999`
+   - Phone: `6360670247`
    - OTP: `1234`
 
 2. **Apply a Leave** (as a staff user first if needed)
