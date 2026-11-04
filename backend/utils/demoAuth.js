@@ -2,33 +2,35 @@ const crypto = require('crypto');
 
 /**
  * Checks whether demo login is enabled.
- * - In production (NODE_ENV === 'production'): STRICTLY DISABLED by default,
- *   unless explicitly set to 'true' via DEMO_LOGIN_ENABLED environment variable.
- * - In non-production (development, test): ENABLED by default,
- *   unless explicitly disabled via DEMO_LOGIN_ENABLED=false.
+ * - Enabled by default unless explicitly disabled via DEMO_LOGIN_ENABLED=false.
+ * - If DEMO_LOGIN_ENABLED=false is configured, all demo login is strictly disabled.
  */
 function isDemoLoginEnabled() {
-    if (process.env.NODE_ENV === 'production') {
-        return process.env.DEMO_LOGIN_ENABLED === 'true';
-    }
     return process.env.DEMO_LOGIN_ENABLED !== 'false';
 }
 
 /**
  * Returns the configured demo parameters.
+ * Supports both predefined Admin testing accounts: 9999999999 and 6360670247.
+ * Supports Principal testing account: 8888888888.
+ * Custom numbers can also be supplied via DEMO_ADMIN_PHONE and DEMO_PRINCIPAL_PHONE.
  */
 function getDemoConfig() {
-    const rawAdmin = process.env.DEMO_ADMIN_PHONE || '9999999999';
-    const adminPhones = rawAdmin
-        .split(',')
-        .map(p => p.replace(/\D/g, '').slice(-10))
-        .filter(p => p.length === 10);
+    const defaultAdmins = ['9999999999', '6360670247'];
+    const rawAdmin = process.env.DEMO_ADMIN_PHONE;
+    let adminPhones = defaultAdmins;
+    if (rawAdmin && typeof rawAdmin === 'string') {
+        const custom = rawAdmin.split(',').map(p => p.replace(/\D/g, '').slice(-10)).filter(p => p.length === 10);
+        adminPhones = Array.from(new Set([...defaultAdmins, ...custom]));
+    }
 
-    const rawPrincipal = process.env.DEMO_PRINCIPAL_PHONE || '8888888888';
-    const principalPhones = rawPrincipal
-        .split(',')
-        .map(p => p.replace(/\D/g, '').slice(-10))
-        .filter(p => p.length === 10);
+    const defaultPrincipals = ['8888888888'];
+    const rawPrincipal = process.env.DEMO_PRINCIPAL_PHONE;
+    let principalPhones = defaultPrincipals;
+    if (rawPrincipal && typeof rawPrincipal === 'string') {
+        const custom = rawPrincipal.split(',').map(p => p.replace(/\D/g, '').slice(-10)).filter(p => p.length === 10);
+        principalPhones = Array.from(new Set([...defaultPrincipals, ...custom]));
+    }
 
     const demoOtp = (process.env.DEMO_OTP || '123456').trim();
 
@@ -97,7 +99,14 @@ function handleDemoSendOtp(phone, role, db) {
     const hashedOtp = crypto.createHash('sha256').update(demoOtp).digest('hex');
     const expiresAt = new Date(Date.now() + 5 * 60 * 1000).toISOString();
 
-    // Store in otps table (hashed for security, 5-minute expiry)
+    // Reset any prior failed attempts for this authorized demo user
+    try {
+        db.prepare("DELETE FROM auth_lockouts WHERE identifier LIKE ? OR identifier LIKE ?").run(`%${cleanPhone}%`, `%${withPlus91}%`);
+    } catch (lockoutResetErr) {
+        // Non-fatal
+    }
+
+    // Store in otps table (hashed for security, 5-minute expiry, attempts reset to 0)
     db.prepare('INSERT OR REPLACE INTO otps (phone, otp, expires_at, attempts) VALUES (?, ?, ?, 0)').run(withPlus91, hashedOtp, expiresAt);
     db.prepare('INSERT OR REPLACE INTO otps (phone, otp, expires_at, attempts) VALUES (?, ?, ?, 0)').run(cleanPhone, hashedOtp, expiresAt);
 
