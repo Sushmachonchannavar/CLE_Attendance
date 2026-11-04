@@ -14,3 +14,4 @@ module.exports = {
         db.prepare("UPDATE users SET role = 'hoi', status = 'active' WHERE phone = '8888888888'").run();
     }
 };
+
