@@ -2,6 +2,7 @@ const db = require('../database');
 const jwt = require('jsonwebtoken');
 const { sendVerification, checkVerification, maskPhone } = require('../utils/sms');
 const { getAuthCookieOptions, getClearCookieOptions } = require('../utils/cookies');
+const { isDemoLogin, handleDemoSendOtp, verifyDemoOtp } = require('../utils/demoAuth');
 
 // In-memory rate limiting for login OTP requests (Max 5 requests per 10 minutes)
 const loginAttemptsMap = new Map();
@@ -84,6 +85,13 @@ exports.login = async (req, res) => {
             console.warn('[AUTH FAILED] Role mismatch for user:', { phone: maskPhone(phone), dbRole, targetRole });
             return res.status(403).json({ error: `User is not registered as ${displayRole}.` });
         }
+    }
+
+    // Check if authorized demo login applies (Admin / Principal testing only)
+    if (isDemoLogin(tenDigits, role)) {
+        console.log(`[AUTH DEMO] Demo OTP initiated for authorized ${role} user: ${maskPhone(phone)}`);
+        const demoRes = handleDemoSendOtp(tenDigits, role, db);
+        return res.json(demoRes);
     }
 
     try {
@@ -228,7 +236,14 @@ exports.verify = async (req, res) => {
         }
     }
 
-    const verifyResult = await checkVerification(phone, otp);
+    let verifyResult;
+    if (isDemoLogin(tenDigits, role)) {
+        console.log(`[AUTH DEMO] Verifying demo OTP for authorized ${role} user: ${maskPhone(phone)}`);
+        verifyResult = verifyDemoOtp(tenDigits, role, otp, db);
+    } else {
+        // Staff and production: strictly verified against real SMS OTP gateway
+        verifyResult = await checkVerification(phone, otp);
+    }
 
     if (!verifyResult.success) {
         const statusCode = verifyResult.locked ? 423 : 400;

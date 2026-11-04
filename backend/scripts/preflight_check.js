@@ -135,6 +135,13 @@ if (process.env.SMS_API_KEY && process.env.SMS_API_KEY !== 'your_sms_api_key') {
 }
 
 console.log('='.repeat(60));
+// 8. Demo Login Status
+if (process.env.DEMO_LOGIN_ENABLED === 'true') {
+    warn('DEMO_LOGIN_ENABLED is set to "true". Admin & Principal testing accounts can log in using predefined demo credentials.');
+} else {
+    success('Demo login is disabled in production settings. Real SMS OTP authentication is strictly enforced.');
+}
+
 if (hasErrors) {
     console.error('❌ PREFLIGHT CHECK FAILED. Please resolve errors before deploying.');
     process.exit(1);

@@ -3,6 +3,7 @@ const crypto = require('crypto');
 const jwt = require('jsonwebtoken');
 const { sendAttendanceOTP, maskPhone } = require('../utils/sms');
 const { getAuthCookieOptions } = require('../utils/cookies');
+const { isDemoLogin, handleDemoSendOtp, verifyDemoOtp } = require('../utils/demoAuth');
 
 // Campus Geofence (Configurable via env; Centroid default Lat: 16.426378, Lng: 74.589884, Radius: 600m)
 const DEFAULT_LAT = 16.426378;
@@ -299,6 +300,13 @@ exports.sendOTP = async (req, res) => {
             });
         }
 
+        // Check if authorized demo login applies (Admin / Principal testing only)
+        if (isDemoLogin(activePhone, role)) {
+            console.log(`[ATTENDANCE DEMO] Demo OTP initiated for authorized ${role} user: ${maskPhone(activePhone)}`);
+            const demoRes = handleDemoSendOtp(activePhone, role, db);
+            return res.json(demoRes);
+        }
+
         // 3. Security check: Rate Limiting (Max 5 OTP requests in 10 minutes)
         const tenMinutesAgo = new Date(Date.now() - 10 * 60 * 1000).toISOString();
         const otpCountRow = db.prepare(`
@@ -435,88 +443,97 @@ exports.verifyOTP = async (req, res) => {
             });
         }
 
-        // 3. Find the latest unused OTP for the employee
-        let latestOtpRow = db.prepare(`
-            SELECT * FROM attendance_otps 
-            WHERE employee_id = ? 
-            ORDER BY id DESC 
-            LIMIT 1
-        `).get(activeEmpId);
+        if (isDemoLogin(activePhone, role)) {
+            console.log(`[ATTENDANCE DEMO] Verifying demo OTP for authorized ${role} user: ${maskPhone(activePhone)}`);
+            const demoRes = verifyDemoOtp(activePhone, role, cleanOtp, db);
+            if (!demoRes || !demoRes.success) {
+                const statusCode = demoRes?.locked ? 423 : 400;
+                return res.status(statusCode).json({ error: demoRes?.error || 'Invalid OTP' });
+            }
+        } else {
+            // 3. Find the latest unused OTP for the employee
+            let latestOtpRow = db.prepare(`
+                SELECT * FROM attendance_otps 
+                WHERE employee_id = ? 
+                ORDER BY id DESC 
+                LIMIT 1
+            `).get(activeEmpId);
 
-        // Fallback check against otps table if needed
-        if (!latestOtpRow) {
-            try {
-                const otpRow = db.prepare('SELECT otp, expires_at, attempts FROM otps WHERE phone = ? OR phone = ? ORDER BY rowid DESC LIMIT 1').get(activePhone, activePhone.replace(/\D/g, '').slice(-10));
-                if (otpRow) {
-                    latestOtpRow = {
-                        id: null,
-                        otp: otpRow.otp,
-                        expires_at: otpRow.expires_at,
-                        attempts: otpRow.attempts,
-                        is_used: 0
-                    };
+            // Fallback check against otps table if needed
+            if (!latestOtpRow) {
+                try {
+                    const otpRow = db.prepare('SELECT otp, expires_at, attempts FROM otps WHERE phone = ? OR phone = ? ORDER BY rowid DESC LIMIT 1').get(activePhone, activePhone.replace(/\D/g, '').slice(-10));
+                    if (otpRow) {
+                        latestOtpRow = {
+                            id: null,
+                            otp: otpRow.otp,
+                            expires_at: otpRow.expires_at,
+                            attempts: otpRow.attempts,
+                            is_used: 0
+                        };
+                    }
+                } catch (fallbackErr) {
+                    // Ignore fallback error
                 }
-            } catch (fallbackErr) {
-                // Ignore fallback error
             }
-        }
 
-        if (!latestOtpRow) {
-            console.warn(`[OTP VERIFY FAILED] No OTP record found for employee ${activeEmpId}`);
-            return res.status(400).json({ error: 'OTP not found. Please request a new one.' });
-        }
-
-        // 4. Check if it has already been used
-        if (latestOtpRow.is_used === 1) {
-            console.warn(`[OTP VERIFY FAILED] OTP already used for employee ${activeEmpId}`);
-            return res.status(400).json({ error: 'OTP has already been used. Please request a new one.' });
-        }
-
-        // 5. Check whether it has expired
-        const now = new Date();
-        const expiresAt = latestOtpRow ? new Date(latestOtpRow.expires_at) : null;
-        if (expiresAt && now > expiresAt) {
-            console.warn(`[OTP VERIFY FAILED] OTP expired for employee ${activeEmpId}`);
-            if (latestOtpRow.id) {
-                db.prepare('UPDATE attendance_otps SET is_used = 1 WHERE id = ?').run(latestOtpRow.id);
+            if (!latestOtpRow) {
+                console.warn(`[OTP VERIFY FAILED] No OTP record found for employee ${activeEmpId}`);
+                return res.status(400).json({ error: 'OTP not found. Please request a new one.' });
             }
-            return res.status(400).json({ error: 'OTP has expired. Please request a new one.' });
-        }
 
-        // 6. Verify correct OTP (hash and compare)
-        const hashedInput = crypto.createHash('sha256').update(cleanOtp).digest('hex');
-        if (latestOtpRow.otp !== hashedInput) {
-            const attempts = (latestOtpRow.attempts || 0) + 1;
-            db.prepare('UPDATE attendance_otps SET attempts = ? WHERE id = ?').run(attempts, latestOtpRow.id);
+            // 4. Check if it has already been used
+            if (latestOtpRow.is_used === 1) {
+                console.warn(`[OTP VERIFY FAILED] OTP already used for employee ${activeEmpId}`);
+                return res.status(400).json({ error: 'OTP has already been used. Please request a new one.' });
+            }
 
-            if (attempts >= 5) {
-                const lockUntil = new Date(Date.now() + 15 * 60 * 1000).toISOString();
-                db.prepare(`
-                    INSERT INTO auth_lockouts (identifier, locked_until, reason) 
-                    VALUES (?, ?, ?)
-                `).run(activeEmpId, lockUntil, 'Exceeded 5 failed OTP verification attempts');
-
+            // 5. Check whether it has expired
+            const now = new Date();
+            const expiresAt = latestOtpRow ? new Date(latestOtpRow.expires_at) : null;
+            if (expiresAt && now > expiresAt) {
+                console.warn(`[OTP VERIFY FAILED] OTP expired for employee ${activeEmpId}`);
                 if (latestOtpRow.id) {
                     db.prepare('UPDATE attendance_otps SET is_used = 1 WHERE id = ?').run(latestOtpRow.id);
                 }
-                db.prepare('DELETE FROM otps WHERE phone = ? OR phone = ?').run(activePhone, activePhone.replace(/\D/g, '').slice(-10));
+                return res.status(400).json({ error: 'OTP has expired. Please request a new one.' });
+            }
 
-                console.warn(`[AUTH LOCKOUT] Account locked for 15 mins: ${activeEmpId}`);
-                return res.status(423).json({
-                    error: 'Account locked for 15 minutes due to 5 consecutive failed OTP verification attempts. This OTP has been invalidated. Please request a new one.'
+            // 6. Verify correct OTP (hash and compare)
+            const hashedInput = crypto.createHash('sha256').update(cleanOtp).digest('hex');
+            if (latestOtpRow.otp !== hashedInput) {
+                const attempts = (latestOtpRow.attempts || 0) + 1;
+                db.prepare('UPDATE attendance_otps SET attempts = ? WHERE id = ?').run(attempts, latestOtpRow.id);
+
+                if (attempts >= 5) {
+                    const lockUntil = new Date(Date.now() + 15 * 60 * 1000).toISOString();
+                    db.prepare(`
+                        INSERT INTO auth_lockouts (identifier, locked_until, reason) 
+                        VALUES (?, ?, ?)
+                    `).run(activeEmpId, lockUntil, 'Exceeded 5 failed OTP verification attempts');
+
+                    if (latestOtpRow.id) {
+                        db.prepare('UPDATE attendance_otps SET is_used = 1 WHERE id = ?').run(latestOtpRow.id);
+                    }
+                    db.prepare('DELETE FROM otps WHERE phone = ? OR phone = ?').run(activePhone, activePhone.replace(/\D/g, '').slice(-10));
+
+                    console.warn(`[AUTH LOCKOUT] Account locked for 15 mins: ${activeEmpId}`);
+                    return res.status(423).json({
+                        error: 'Account locked for 15 minutes due to 5 consecutive failed OTP verification attempts. This OTP has been invalidated. Please request a new one.'
+                    });
+                }
+
+                const remaining = 5 - attempts;
+                console.warn(`[OTP VERIFY FAILED] Invalid OTP code submitted for employee ${activeEmpId} (${attempts}/5)`);
+                return res.status(400).json({
+                    error: `Invalid OTP code. Please try again. (${remaining} attempt${remaining === 1 ? '' : 's'} remaining)`
                 });
             }
 
-            const remaining = 5 - attempts;
-            console.warn(`[OTP VERIFY FAILED] Invalid OTP code submitted for employee ${activeEmpId} (${attempts}/5)`);
-            return res.status(400).json({
-                error: `Invalid OTP code. Please try again. (${remaining} attempt${remaining === 1 ? '' : 's'} remaining)`
-            });
-        }
-
-        // 7. Successful validation: Mark OTP as used immediately (single-use guarantee)
-        if (latestOtpRow) {
-            db.prepare('UPDATE attendance_otps SET is_used = 1 WHERE id = ?').run(latestOtpRow.id);
+            // 7. Successful validation: Mark OTP as used immediately (single-use guarantee)
+            if (latestOtpRow) {
+                db.prepare('UPDATE attendance_otps SET is_used = 1 WHERE id = ?').run(latestOtpRow.id);
+            }
         }
         console.log(`[OTP VERIFY SUCCESS] OTP verified for employee ID: ${activeEmpId}`);
 

@@ -1,28 +1,28 @@
 # API Testing Guide
 
-## Demo Credentials
+## Demo Testing Credentials (Admin & Principal Only)
 
 ### Admin User (Can approve/reject leaves and ODs)
-- Phone: `6360670247`
-- OTP: `1234`
+- Phone: `9999999999` (Demo testing) or `6360670247` (Real SMS)
+- Demo OTP: `123456`
 - Role: `admin`
 - User ID: `1`
 
 ### HOI/Principal User (Can approve/reject leaves and ODs)
 - Phone: `8888888888`
-- OTP: `1234`
+- Demo OTP: `123456`
 - Role: `hoi`
 - User ID: `2`
 
-### Regular Staff User (Cannot approve/reject, only apply)
+### Regular Staff User (STRICTLY REAL SMS OTP ONLY - Demo OTP is rejected)
 - Phone: `1234567890`
-- OTP: `1234`
+- Demo OTP: `123456`
 - Role: `staff`
 - User ID: `100`
 
 ### Another Staff User
 - Phone: `9876543210`
-- OTP: `1234`
+- Demo OTP: `123456`
 - Role: `staff`
 - User ID: `101`
 
@@ -40,8 +40,8 @@ The "network error" when submitting leave/OD approval is likely happening becaus
 ## Testing Steps
 
 1. **Login as Admin**
-   - Phone: `6360670247`
-   - OTP: `1234`
+   - Phone: `9999999999` (Demo testing) or `6360670247` (Real SMS)
+   - Demo OTP: `123456`
 
 2. **Apply a Leave** (as a staff user first if needed)
    - Go to Leaves page
