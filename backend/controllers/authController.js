@@ -87,7 +87,7 @@ exports.login = async (req, res) => {
         }
     }
 
-    // Check if authorized demo login applies (Admin / Principal testing only)
+    // Check if authorized demo login applies (Principal testing only; Admin & Staff strictly use real SMS OTP)
     if (isDemoLogin(tenDigits, role)) {
         console.log(`[AUTH DEMO] Demo OTP initiated for authorized ${role} user: ${maskPhone(phone)}`);
         const demoRes = handleDemoSendOtp(tenDigits, role, db);
@@ -241,7 +241,7 @@ exports.verify = async (req, res) => {
         console.log(`[AUTH DEMO] Verifying demo OTP for authorized ${role} user: ${maskPhone(phone)}`);
         verifyResult = verifyDemoOtp(tenDigits, role, otp, db);
     } else {
-        // Staff and production: strictly verified against real SMS OTP gateway
+        // Admin, Staff, and production: strictly verified against real SMS OTP gateway
         verifyResult = await checkVerification(phone, otp);
     }
 

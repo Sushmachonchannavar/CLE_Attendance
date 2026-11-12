@@ -300,7 +300,7 @@ exports.sendOTP = async (req, res) => {
             });
         }
 
-        // Check if authorized demo login applies (Admin / Principal testing only)
+        // Check if authorized demo login applies (Principal testing only; Admin & Staff strictly use real SMS OTP)
         if (isDemoLogin(activePhone, role)) {
             console.log(`[ATTENDANCE DEMO] Demo OTP initiated for authorized ${role} user: ${maskPhone(activePhone)}`);
             const demoRes = handleDemoSendOtp(activePhone, role, db);
