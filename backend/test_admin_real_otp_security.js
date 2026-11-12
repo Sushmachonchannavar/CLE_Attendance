@@ -52,14 +52,21 @@ async function runTestSuite() {
         }
     }
 
-    const adminPhone = '6360670247';
+    const adminPhone = '9900000001';
     const principalPhone = '8888888888';
     const staffPhone = '1234567890';
     const demoAdminPhone = '9999999999';
 
+    // Provision a clean test admin for testing
+    db.prepare("DELETE FROM users WHERE phone = ?").run(adminPhone);
+    db.prepare(`
+        INSERT INTO users (name, phone, role, department, employee_id, status)
+        VALUES ('Test Administrator', ?, 'admin', 'Administration', 'EMP-TEST-ADM', 'active')
+    `).run(adminPhone);
+
     // Clean any prior lockouts and otps for test phones
-    db.prepare("DELETE FROM auth_lockouts WHERE identifier LIKE '%6360670247%' OR identifier LIKE '%9999999999%' OR identifier LIKE '%8888888888%' OR identifier LIKE '%1234567890%'").run();
-    db.prepare("DELETE FROM otps WHERE phone LIKE '%6360670247%' OR phone LIKE '%9999999999%' OR phone LIKE '%8888888888%' OR phone LIKE '%1234567890%'").run();
+    db.prepare("DELETE FROM auth_lockouts WHERE identifier LIKE ? OR identifier LIKE '%9999999999%' OR identifier LIKE '%8888888888%' OR identifier LIKE '%1234567890%'").run(`%${adminPhone}%`);
+    db.prepare("DELETE FROM otps WHERE phone LIKE ? OR phone LIKE '%9999999999%' OR phone LIKE '%8888888888%' OR phone LIKE '%1234567890%'").run(`%${adminPhone}%`);
 
     // -------------------------------------------------------------
     // Test 1: Registered Admin with valid real OTP = Admin authenticated
@@ -78,9 +85,9 @@ async function runTestSuite() {
         assert.strictEqual(resVerify.getData().user.role, 'admin');
         assert.strictEqual(resVerify.getData().user.phone, adminPhone);
         assert.ok(resVerify.getData().token, 'Should return JWT token');
-        report('Scenario 1: Registered Admin number (6360670247) + valid real OTP authenticates as Admin', true);
+        report('Scenario 1: Registered Admin number + valid real OTP authenticates as Admin', true);
     } catch (e) {
-        report('Scenario 1: Registered Admin number (6360670247) + valid real OTP authenticates as Admin', false, e.message);
+        report('Scenario 1: Registered Admin number + valid real OTP authenticates as Admin', false, e.message);
     }
 
     // -------------------------------------------------------------
@@ -95,6 +102,14 @@ async function runTestSuite() {
         const resVerify = createMockRes();
         await authController.verify({ body: { phone: '9123456780', otp: '123456', role: 'admin' } }, resVerify);
         assert.strictEqual(resVerify.getStatus(), 403, 'Unregistered phone verify must receive 403');
+
+        // Verify explicitly that removed numbers 6360670247 and 6360670274 are rejected
+        for (const purgedPhone of ['6360670247', '6360670274']) {
+            const resPurged = createMockRes();
+            await authController.login({ body: { phone: purgedPhone, role: 'admin' } }, resPurged);
+            assert.strictEqual(resPurged.getStatus(), 403, `Purged phone ${purgedPhone} must be rejected as unregistered`);
+        }
+
         report('Scenario 2: Unregistered mobile number is rejected with 403 Forbidden', true);
     } catch (e) {
         report('Scenario 2: Unregistered mobile number is rejected with 403 Forbidden', false, e.message);
@@ -274,6 +289,11 @@ async function runTestSuite() {
         report('Scenario 11: Admin session token restores full Admin profile across page refresh', true);
     } catch (e) {
         report('Scenario 11: Admin session token restores full Admin profile across page refresh', false, e.message);
+    } finally {
+        // Clean up test admin
+        db.prepare("DELETE FROM users WHERE phone = ?").run(adminPhone);
+        db.prepare("DELETE FROM otps WHERE phone LIKE ?").run(`%${adminPhone}%`);
+        db.prepare("DELETE FROM auth_lockouts WHERE identifier LIKE ?").run(`%${adminPhone}%`);
     }
 
     console.log('='.repeat(70));
@@ -286,3 +306,4 @@ async function runTestSuite() {
 }
 
 runTestSuite();
+

@@ -201,18 +201,18 @@ async function runProductionAuditSuite() {
     // ----------------------------------------------------
     console.log('\n--- 6. LIVE LOCATION TRACKING & ACCESS CONTROL ---');
 
-    // Setup active on-duty staff user (user 102)
-    const staff102Token = jwt.sign({ id: 102, role: 'staff', employeeId: 'EMP-6360670247' }, JWT_SECRET);
-    db.prepare('DELETE FROM attendance WHERE user_id = 102 AND date = ?').run(today);
+    // Setup active on-duty staff user (user 100)
+    const staff100Token = jwt.sign({ id: 100, role: 'staff', employeeId: 'EMP-1234567890' }, JWT_SECRET);
+    db.prepare('DELETE FROM attendance WHERE user_id = 100 AND date = ?').run(today);
     await request(app)
         .post('/api/attendance/punch')
-        .set('Authorization', `Bearer ${staff102Token}`)
+        .set('Authorization', `Bearer ${staff100Token}`)
         .send({ lat: 16.426378, lng: 74.589884 });
 
     // Active staff updating live location
     const updateLoc = await request(app)
         .post('/api/employee/location')
-        .set('Authorization', `Bearer ${staff102Token}`)
+        .set('Authorization', `Bearer ${staff100Token}`)
         .send({ lat: 16.426378, lng: 74.589884, accuracy: 12 });
     recordTest('Punched-in staff updates live location with HTTP 200', updateLoc.status === 200 && updateLoc.body.isInsideCampus === true);
 

@@ -48,13 +48,21 @@ async function runTestSuite() {
         }
     }
 
-    const adminPhone = '6360670247';
+    const adminPhone = '9900000001';
     const principalPhone = '8888888888';
     const staffPhone = '1234567890';
     const oldDemoAdminPhone = '9999999999';
 
-    db.prepare("DELETE FROM auth_lockouts WHERE identifier LIKE '%6360670247%' OR identifier LIKE '%9999999999%' OR identifier LIKE '%8888888888%' OR identifier LIKE '%1234567890%'").run();
-    db.prepare("DELETE FROM otps WHERE phone LIKE '%6360670247%' OR phone LIKE '%9999999999%' OR phone LIKE '%8888888888%' OR phone LIKE '%1234567890%'").run();
+    // Provision a clean test admin for testing
+    db.prepare("DELETE FROM users WHERE phone = ?").run(adminPhone);
+    const insertAdminRes = db.prepare(`
+        INSERT INTO users (name, phone, role, department, employee_id, status)
+        VALUES ('Test Administrator', ?, 'admin', 'Administration', 'EMP-TEST-ADM', 'active')
+    `).run(adminPhone);
+    const testAdminId = insertAdminRes.lastInsertRowid;
+
+    db.prepare("DELETE FROM auth_lockouts WHERE identifier LIKE ? OR identifier LIKE '%9999999999%' OR identifier LIKE '%8888888888%' OR identifier LIKE '%1234567890%'").run(`%${adminPhone}%`);
+    db.prepare("DELETE FROM otps WHERE phone LIKE ? OR phone LIKE '%9999999999%' OR phone LIKE '%8888888888%' OR phone LIKE '%1234567890%'").run(`%${adminPhone}%`);
 
     // 1. Admin demo numbers are rejected; only real registered admin exists
     try {
@@ -88,9 +96,9 @@ async function runTestSuite() {
         await authController.verify({ body: { phone: adminPhone, otp: adminRealOtp, role: 'admin' } }, resVerify);
         assert.strictEqual(resVerify.getStatus(), 200, 'Admin verify with real OTP should return 200');
         assert.strictEqual(resVerify.getData().user.role, 'admin');
-        report('Scenario 3: Registered Admin (6360670247) with real SMS OTP authenticates as Admin', true);
+        report('Scenario 3: Registered Admin with real SMS OTP authenticates as Admin', true);
     } catch (e) {
-        report('Scenario 3: Registered Admin (6360670247) with real SMS OTP authenticates as Admin', false, e.message);
+        report('Scenario 3: Registered Admin with real SMS OTP authenticates as Admin', false, e.message);
     }
 
     // 4. Principal demo login succeeds
@@ -180,13 +188,23 @@ async function runTestSuite() {
     // 10. Persistent session preserves Admin role
     try {
         const resRestore = createMockRes();
-        authController.verifyToken({ user: { id: 102, role: 'admin' } }, resRestore);
+        authController.verifyToken({ user: { id: testAdminId, role: 'admin' } }, resRestore);
         assert.strictEqual(resRestore.getStatus(), 200);
-        assert.strictEqual(resRestore.getData().user.id, 102);
+        assert.strictEqual(resRestore.getData().user.id, testAdminId);
         assert.strictEqual(resRestore.getData().user.role, 'admin');
+
+        // Verify purged user 102 no longer exists
+        const resPurged = createMockRes();
+        authController.verifyToken({ user: { id: 102, role: 'admin' } }, resPurged);
+        assert.strictEqual(resPurged.getStatus(), 401, 'Purged user 102 must return 401');
+
         report('Scenario 10: Persistent session restores full Admin profile across page refresh', true);
     } catch (e) {
         report('Scenario 10: Persistent session restores full Admin profile across page refresh', false, e.message);
+    } finally {
+        db.prepare("DELETE FROM users WHERE phone = ?").run(adminPhone);
+        db.prepare("DELETE FROM otps WHERE phone LIKE ?").run(`%${adminPhone}%`);
+        db.prepare("DELETE FROM auth_lockouts WHERE identifier LIKE ?").run(`%${adminPhone}%`);
     }
 
     console.log('='.repeat(65));

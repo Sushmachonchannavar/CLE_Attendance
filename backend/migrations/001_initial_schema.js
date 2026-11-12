@@ -107,10 +107,8 @@ module.exports = {
             )
         `).run();
 
-        // Seed real active staff if not existing (demo users removed)
-        const seedUsers = [
-            [102, 'Sushma Chonchannavar', '6360670247', 'admin', 'Administration', 'EMP-6360670247', 'active']
-        ];
+        // Seed users if needed (empty by default)
+        const seedUsers = [];
 
         const insertUser = db.prepare(`
             INSERT OR IGNORE INTO users (id, name, phone, role, department, employee_id, status)

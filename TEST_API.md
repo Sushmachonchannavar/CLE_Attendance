@@ -3,10 +3,9 @@
 ## Authentication & Testing Credentials
 
 ### Admin User (Can approve/reject leaves and ODs)
-- Phone: `6360670247` (STRICTLY REAL SMS OTP ONLY - Demo numbers/OTPs rejected)
-- Authentication: Real carrier SMS OTP (no demo/static OTPs accepted)
+- Authentication: Real carrier SMS OTP (STRICTLY REAL SMS OTP ONLY - Demo numbers/OTPs rejected)
 - Role: `admin`
-- User ID: `102`
+- Provisioning: Create or register an administrator using `node backend/scripts/create-admin.js --phone <PHONE> --name "<NAME>"`
 
 ### HOI/Principal User (Can approve/reject leaves and ODs)
 - Phone: `8888888888`
@@ -31,7 +30,7 @@
 The "network error" when submitting leave/OD approval is likely happening because:
 
 1. **Authentication Issue**: Make sure you're logged in with ADMIN or HOI role
-   - Use phone: `9999999999` or `8888888888` to login, not a regular staff number
+   - Use registered Admin number or Principal (`8888888888`) to login, not a regular staff number
 
 2. **Missing Token**: The token might not be sent properly in the Authorization header
 
@@ -40,7 +39,7 @@ The "network error" when submitting leave/OD approval is likely happening becaus
 ## Testing Steps
 
 1. **Login as Admin**
-   - Phone: `6360670247` (STRICTLY REAL SMS OTP ONLY - Demo numbers/OTPs rejected)
+   - Phone: Registered Admin mobile number (STRICTLY REAL SMS OTP ONLY - Demo numbers/OTPs rejected)
    - Authentication: Real carrier SMS OTP (no demo/static OTPs accepted)
 
 2. **Apply a Leave** (as a staff user first if needed)
