@@ -4,6 +4,9 @@ const { sendVerification, checkVerification, maskPhone } = require('../utils/sms
 const { getAuthCookieOptions, getClearCookieOptions } = require('../utils/cookies');
 const { isDemoLogin, handleDemoSendOtp, verifyDemoOtp } = require('../utils/demoAuth');
 
+// Institutional Administrator constant phone number (Only this number is authorized for Admin role)
+const ADMIN_CONSTANT_PHONE = (process.env.ADMIN_PHONE || '9187477277').trim();
+
 // In-memory rate limiting for login OTP requests (Max 5 requests per 10 minutes)
 const loginAttemptsMap = new Map();
 function checkLoginRateLimit(identifier) {
@@ -84,6 +87,15 @@ exports.login = async (req, res) => {
             const displayRole = (targetRole === 'hoi' || targetRole === 'principal') ? 'Principal' : targetRole.charAt(0).toUpperCase() + targetRole.slice(1);
             console.warn('[AUTH FAILED] Role mismatch for user:', { phone: maskPhone(phone), dbRole, targetRole });
             return res.status(403).json({ error: `User is not registered as ${displayRole}.` });
+        }
+    }
+
+    // Strictly enforce constant Administrator phone number: only 9187477277 can access Admin
+    const adminTenDigits = ADMIN_CONSTANT_PHONE.replace(/\D/g, '').slice(-10);
+    if ((role && role.toLowerCase() === 'admin') || (existingUser.role && existingUser.role.toLowerCase() === 'admin')) {
+        if (tenDigits !== adminTenDigits) {
+            console.warn('[AUTH FAILED] Unauthorized admin access attempt:', { phone: maskPhone(phone), role });
+            return res.status(403).json({ error: 'This mobile number is not authorized for administrator access.' });
         }
     }
 
@@ -236,6 +248,15 @@ exports.verify = async (req, res) => {
         }
     }
 
+    // Strictly enforce constant Administrator phone number: only 9187477277 can access Admin
+    const adminTenDigits = ADMIN_CONSTANT_PHONE.replace(/\D/g, '').slice(-10);
+    if ((role && role.toLowerCase() === 'admin') || (user.role && user.role.toLowerCase() === 'admin')) {
+        if (tenDigits !== adminTenDigits) {
+            console.warn('[AUTH VERIFY FAILED] Unauthorized admin access attempt:', { phone: maskPhone(phone), role });
+            return res.status(403).json({ error: 'This mobile number is not authorized for administrator access.' });
+        }
+    }
+
     let verifyResult;
     if (isDemoLogin(tenDigits, role)) {
         console.log(`[AUTH DEMO] Verifying demo OTP for authorized ${role} user: ${maskPhone(phone)}`);
@@ -332,3 +353,6 @@ exports.updateProfile = (req, res) => {
         res.status(500).json({ error: 'Failed to update profile.' });
     }
 };
+
+exports.ADMIN_CONSTANT_PHONE = ADMIN_CONSTANT_PHONE;
+

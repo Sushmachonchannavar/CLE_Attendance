@@ -48,18 +48,23 @@ async function runTestSuite() {
         }
     }
 
-    const adminPhone = '9900000001';
+    const adminPhone = '9187477277';
     const principalPhone = '8888888888';
     const staffPhone = '1234567890';
     const oldDemoAdminPhone = '9999999999';
 
-    // Provision a clean test admin for testing
-    db.prepare("DELETE FROM users WHERE phone = ?").run(adminPhone);
-    const insertAdminRes = db.prepare(`
-        INSERT INTO users (name, phone, role, department, employee_id, status)
-        VALUES ('Test Administrator', ?, 'admin', 'Administration', 'EMP-TEST-ADM', 'active')
-    `).run(adminPhone);
-    const testAdminId = insertAdminRes.lastInsertRowid;
+    // Provision or ensure constant Admin exists for testing
+    let testAdmin = db.prepare("SELECT id FROM users WHERE phone LIKE ?").get(`%${adminPhone}%`);
+    if (!testAdmin) {
+        const insertRes = db.prepare(`
+            INSERT INTO users (name, phone, role, department, employee_id, status)
+            VALUES ('System Administrator', ?, 'admin', 'Administration', ?, 'active')
+        `).run(adminPhone, `EMP-${adminPhone}`);
+        testAdmin = { id: insertRes.lastInsertRowid };
+    } else {
+        db.prepare("UPDATE users SET role = 'admin', status = 'active' WHERE id = ?").run(testAdmin.id);
+    }
+    const testAdminId = testAdmin.id;
 
     db.prepare("DELETE FROM auth_lockouts WHERE identifier LIKE ? OR identifier LIKE '%9999999999%' OR identifier LIKE '%8888888888%' OR identifier LIKE '%1234567890%'").run(`%${adminPhone}%`);
     db.prepare("DELETE FROM otps WHERE phone LIKE ? OR phone LIKE '%9999999999%' OR phone LIKE '%8888888888%' OR phone LIKE '%1234567890%'").run(`%${adminPhone}%`);
@@ -202,7 +207,7 @@ async function runTestSuite() {
     } catch (e) {
         report('Scenario 10: Persistent session restores full Admin profile across page refresh', false, e.message);
     } finally {
-        db.prepare("DELETE FROM users WHERE phone = ?").run(adminPhone);
+        db.prepare("UPDATE users SET role = 'admin', status = 'active' WHERE phone LIKE ?").run(`%${adminPhone}%`);
         db.prepare("DELETE FROM otps WHERE phone LIKE ?").run(`%${adminPhone}%`);
         db.prepare("DELETE FROM auth_lockouts WHERE identifier LIKE ?").run(`%${adminPhone}%`);
     }

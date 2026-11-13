@@ -52,17 +52,21 @@ async function runTestSuite() {
         }
     }
 
-    const adminPhone = '9900000001';
+    const adminPhone = '9187477277';
     const principalPhone = '8888888888';
     const staffPhone = '1234567890';
     const demoAdminPhone = '9999999999';
 
-    // Provision a clean test admin for testing
-    db.prepare("DELETE FROM users WHERE phone = ?").run(adminPhone);
-    db.prepare(`
-        INSERT INTO users (name, phone, role, department, employee_id, status)
-        VALUES ('Test Administrator', ?, 'admin', 'Administration', 'EMP-TEST-ADM', 'active')
-    `).run(adminPhone);
+    // Provision the official constant Admin for testing
+    const existingAdmin = db.prepare("SELECT id FROM users WHERE phone LIKE ?").get(`%${adminPhone}%`);
+    if (existingAdmin) {
+        db.prepare("UPDATE users SET role = 'admin', status = 'active', department = 'Administration' WHERE id = ?").run(existingAdmin.id);
+    } else {
+        db.prepare(`
+            INSERT INTO users (name, phone, role, department, employee_id, status)
+            VALUES ('System Administrator', ?, 'admin', 'Administration', ?, 'active')
+        `).run(adminPhone, `EMP-${adminPhone}`);
+    }
 
     // Clean any prior lockouts and otps for test phones
     db.prepare("DELETE FROM auth_lockouts WHERE identifier LIKE ? OR identifier LIKE '%9999999999%' OR identifier LIKE '%8888888888%' OR identifier LIKE '%1234567890%'").run(`%${adminPhone}%`);
@@ -289,9 +293,27 @@ async function runTestSuite() {
         report('Scenario 11: Admin session token restores full Admin profile across page refresh', true);
     } catch (e) {
         report('Scenario 11: Admin session token restores full Admin profile across page refresh', false, e.message);
+    }
+
+    // -------------------------------------------------------------
+    // Test 12: Only constant Admin number (9187477277) is authorized
+    // -------------------------------------------------------------
+    try {
+        const nonAdminPhone = '9876543210'; // A registered staff number
+        const resLogin = createMockRes();
+        await authController.login({ body: { phone: nonAdminPhone, role: 'admin' } }, resLogin);
+        assert.strictEqual(resLogin.getStatus(), 403, 'Non-admin constant number must receive 403');
+        assert.ok(resLogin.getData().error.includes('not registered as Admin') || resLogin.getData().error.includes('not authorized'));
+
+        const resVerify = createMockRes();
+        await authController.verify({ body: { phone: nonAdminPhone, otp: '123456', role: 'admin' } }, resVerify);
+        assert.strictEqual(resVerify.getStatus(), 403, 'Non-admin constant number verify must receive 403');
+        report('Scenario 12: Exclusive authorization: only 9187477277 is accepted for Admin role', true);
+    } catch (e) {
+        report('Scenario 12: Exclusive authorization: only 9187477277 is accepted for Admin role', false, e.message);
     } finally {
-        // Clean up test admin
-        db.prepare("DELETE FROM users WHERE phone = ?").run(adminPhone);
+        // Ensure official constant Admin remains active and clean up temporary test artifacts
+        db.prepare("UPDATE users SET role = 'admin', status = 'active' WHERE phone LIKE ?").run(`%${adminPhone}%`);
         db.prepare("DELETE FROM otps WHERE phone LIKE ?").run(`%${adminPhone}%`);
         db.prepare("DELETE FROM auth_lockouts WHERE identifier LIKE ?").run(`%${adminPhone}%`);
     }
