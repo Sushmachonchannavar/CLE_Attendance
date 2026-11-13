@@ -189,7 +189,7 @@ app.get('/api/health/detailed', (req, res) => {
         const { CAMPUS_LAT, CAMPUS_LNG, GEOFENCE_RADIUS_METERS } = require('./controllers/attendanceController');
         res.status(200).json({
             status: 'ok',
-            version: '600m-geofence',
+            version: '300m-geofence',
             database: 'connected',
             timestamp: new Date().toISOString(),
             totalUsers: userCount ? userCount.count : 0,
@@ -226,7 +226,7 @@ app.get('/api/geofence/status', (req, res) => {
 
     res.json({
         status: 'ok',
-        version: '600m-geofence',
+        version: '300m-geofence',
         timestamp: new Date().toISOString(),
         geofenceRadiusMeters: GEOFENCE_RADIUS_METERS,
         campusCoordinates: { lat: CAMPUS_LAT, lng: CAMPUS_LNG },

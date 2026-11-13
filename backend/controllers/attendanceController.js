@@ -5,10 +5,10 @@ const { sendAttendanceOTP, maskPhone } = require('../utils/sms');
 const { getAuthCookieOptions } = require('../utils/cookies');
 const { isDemoLogin, handleDemoSendOtp, verifyDemoOtp } = require('../utils/demoAuth');
 
-// Campus Geofence (Configurable via env; Centroid default Lat: 16.426378, Lng: 74.589884, Radius: 600m)
+// Campus Geofence (Configurable via env; Centroid default Lat: 16.426378, Lng: 74.589884, Radius: 300m)
 const DEFAULT_LAT = 16.426378;
 const DEFAULT_LNG = 74.589884;
-const DEFAULT_RADIUS = 600;
+const DEFAULT_RADIUS = 300;
 
 const CAMPUS_LAT = (process.env.CAMPUS_LAT && Number.isFinite(parseFloat(process.env.CAMPUS_LAT))) 
     ? parseFloat(process.env.CAMPUS_LAT) 
@@ -20,22 +20,21 @@ const GEOFENCE_RADIUS_METERS = (process.env.GEOFENCE_RADIUS_METERS && Number.isF
     ? parseInt(process.env.GEOFENCE_RADIUS_METERS, 10) 
     : DEFAULT_RADIUS;
 
-const latOffset = CAMPUS_LAT - DEFAULT_LAT;
-const lngOffset = CAMPUS_LNG - DEFAULT_LNG;
+const GEOFENCE_SCALE = GEOFENCE_RADIUS_METERS / 600;
 
 const CAMPUS_GEOFENCE = [
-    { lat: 16.431774 + latOffset, lng: 74.589884 + lngOffset }, // North (~600m)
-    { lat: 16.431051 + latOffset, lng: 74.592697 + lngOffset }, // North-Northeast (~600m)
-    { lat: 16.429076 + latOffset, lng: 74.594756 + lngOffset }, // East-Northeast (~600m)
-    { lat: 16.426378 + latOffset, lng: 74.595510 + lngOffset }, // East (~600m)
-    { lat: 16.423680 + latOffset, lng: 74.594756 + lngOffset }, // East-Southeast (~600m)
-    { lat: 16.421705 + latOffset, lng: 74.592697 + lngOffset }, // South-Southeast (~600m)
-    { lat: 16.420982 + latOffset, lng: 74.589884 + lngOffset }, // South (~600m)
-    { lat: 16.421705 + latOffset, lng: 74.587071 + lngOffset }, // South-Southwest (~600m)
-    { lat: 16.423680 + latOffset, lng: 74.585012 + lngOffset }, // West-Southwest (~600m)
-    { lat: 16.426378 + latOffset, lng: 74.584258 + lngOffset }, // West (~600m)
-    { lat: 16.429076 + latOffset, lng: 74.585012 + lngOffset }, // West-Northwest (~600m)
-    { lat: 16.431051 + latOffset, lng: 74.587071 + lngOffset }  // North-Northwest (~600m)
+    { lat: CAMPUS_LAT + 0.005396 * GEOFENCE_SCALE, lng: CAMPUS_LNG + 0.000000 * GEOFENCE_SCALE }, // North (~300m)
+    { lat: CAMPUS_LAT + 0.004673 * GEOFENCE_SCALE, lng: CAMPUS_LNG + 0.002813 * GEOFENCE_SCALE }, // North-Northeast (~300m)
+    { lat: CAMPUS_LAT + 0.002698 * GEOFENCE_SCALE, lng: CAMPUS_LNG + 0.004872 * GEOFENCE_SCALE }, // East-Northeast (~300m)
+    { lat: CAMPUS_LAT + 0.000000 * GEOFENCE_SCALE, lng: CAMPUS_LNG + 0.005626 * GEOFENCE_SCALE }, // East (~300m)
+    { lat: CAMPUS_LAT - 0.002698 * GEOFENCE_SCALE, lng: CAMPUS_LNG + 0.004872 * GEOFENCE_SCALE }, // East-Southeast (~300m)
+    { lat: CAMPUS_LAT - 0.004673 * GEOFENCE_SCALE, lng: CAMPUS_LNG + 0.002813 * GEOFENCE_SCALE }, // South-Southeast (~300m)
+    { lat: CAMPUS_LAT - 0.005396 * GEOFENCE_SCALE, lng: CAMPUS_LNG + 0.000000 * GEOFENCE_SCALE }, // South (~300m)
+    { lat: CAMPUS_LAT - 0.004673 * GEOFENCE_SCALE, lng: CAMPUS_LNG - 0.002813 * GEOFENCE_SCALE }, // South-Southwest (~300m)
+    { lat: CAMPUS_LAT - 0.002698 * GEOFENCE_SCALE, lng: CAMPUS_LNG - 0.004872 * GEOFENCE_SCALE }, // West-Southwest (~300m)
+    { lat: CAMPUS_LAT + 0.000000 * GEOFENCE_SCALE, lng: CAMPUS_LNG - 0.005626 * GEOFENCE_SCALE }, // West (~300m)
+    { lat: CAMPUS_LAT + 0.002698 * GEOFENCE_SCALE, lng: CAMPUS_LNG - 0.004872 * GEOFENCE_SCALE }, // West-Northwest (~300m)
+    { lat: CAMPUS_LAT + 0.004673 * GEOFENCE_SCALE, lng: CAMPUS_LNG - 0.002813 * GEOFENCE_SCALE }  // North-Northwest (~300m)
 ];
 
 exports.GEOFENCE_RADIUS_METERS = GEOFENCE_RADIUS_METERS;

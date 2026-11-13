@@ -103,25 +103,24 @@ const DEFAULT_LNG = 74.589884;
 const CAMPUS_LAT = import.meta.env.VITE_CAMPUS_LAT ? parseFloat(import.meta.env.VITE_CAMPUS_LAT) : DEFAULT_LAT;
 const CAMPUS_LNG = import.meta.env.VITE_CAMPUS_LNG ? parseFloat(import.meta.env.VITE_CAMPUS_LNG) : DEFAULT_LNG;
 
-const latOffset = CAMPUS_LAT - DEFAULT_LAT;
-const lngOffset = CAMPUS_LNG - DEFAULT_LNG;
+const GEOFENCE_RADIUS_METERS = 300;
+const PRIVACY_RADIUS_METERS = 500; // Live map & tracing active up to 500m campus perimeter
+const GEOFENCE_SCALE = GEOFENCE_RADIUS_METERS / 600;
 
 const CAMPUS_GEOFENCE = [
-    { lat: 16.431774 + latOffset, lng: 74.589884 + lngOffset }, // North (~600m)
-    { lat: 16.431051 + latOffset, lng: 74.592697 + lngOffset }, // North-Northeast (~600m)
-    { lat: 16.429076 + latOffset, lng: 74.594756 + lngOffset }, // East-Northeast (~600m)
-    { lat: 16.426378 + latOffset, lng: 74.595510 + lngOffset }, // East (~600m)
-    { lat: 16.423680 + latOffset, lng: 74.594756 + lngOffset }, // East-Southeast (~600m)
-    { lat: 16.421705 + latOffset, lng: 74.592697 + lngOffset }, // South-Southeast (~600m)
-    { lat: 16.420982 + latOffset, lng: 74.589884 + lngOffset }, // South (~600m)
-    { lat: 16.421705 + latOffset, lng: 74.587071 + lngOffset }, // South-Southwest (~600m)
-    { lat: 16.423680 + latOffset, lng: 74.585012 + lngOffset }, // West-Southwest (~600m)
-    { lat: 16.426378 + latOffset, lng: 74.584258 + lngOffset }, // West (~600m)
-    { lat: 16.429076 + latOffset, lng: 74.585012 + lngOffset }, // West-Northwest (~600m)
-    { lat: 16.431051 + latOffset, lng: 74.587071 + lngOffset }  // North-Northwest (~600m)
+    { lat: CAMPUS_LAT + 0.005396 * GEOFENCE_SCALE, lng: CAMPUS_LNG + 0.000000 * GEOFENCE_SCALE }, // North (~300m)
+    { lat: CAMPUS_LAT + 0.004673 * GEOFENCE_SCALE, lng: CAMPUS_LNG + 0.002813 * GEOFENCE_SCALE }, // North-Northeast (~300m)
+    { lat: CAMPUS_LAT + 0.002698 * GEOFENCE_SCALE, lng: CAMPUS_LNG + 0.004872 * GEOFENCE_SCALE }, // East-Northeast (~300m)
+    { lat: CAMPUS_LAT + 0.000000 * GEOFENCE_SCALE, lng: CAMPUS_LNG + 0.005626 * GEOFENCE_SCALE }, // East (~300m)
+    { lat: CAMPUS_LAT - 0.002698 * GEOFENCE_SCALE, lng: CAMPUS_LNG + 0.004872 * GEOFENCE_SCALE }, // East-Southeast (~300m)
+    { lat: CAMPUS_LAT - 0.004673 * GEOFENCE_SCALE, lng: CAMPUS_LNG + 0.002813 * GEOFENCE_SCALE }, // South-Southeast (~300m)
+    { lat: CAMPUS_LAT - 0.005396 * GEOFENCE_SCALE, lng: CAMPUS_LNG + 0.000000 * GEOFENCE_SCALE }, // South (~300m)
+    { lat: CAMPUS_LAT - 0.004673 * GEOFENCE_SCALE, lng: CAMPUS_LNG - 0.002813 * GEOFENCE_SCALE }, // South-Southwest (~300m)
+    { lat: CAMPUS_LAT - 0.002698 * GEOFENCE_SCALE, lng: CAMPUS_LNG - 0.004872 * GEOFENCE_SCALE }, // West-Southwest (~300m)
+    { lat: CAMPUS_LAT + 0.000000 * GEOFENCE_SCALE, lng: CAMPUS_LNG - 0.005626 * GEOFENCE_SCALE }, // West (~300m)
+    { lat: CAMPUS_LAT + 0.002698 * GEOFENCE_SCALE, lng: CAMPUS_LNG - 0.004872 * GEOFENCE_SCALE }, // West-Northwest (~300m)
+    { lat: CAMPUS_LAT + 0.004673 * GEOFENCE_SCALE, lng: CAMPUS_LNG - 0.002813 * GEOFENCE_SCALE }  // North-Northwest (~300m)
 ];
-const GEOFENCE_RADIUS_METERS = 300;
-const PRIVACY_RADIUS_METERS = 500; // Live map & tracing active up to 600m campus perimeter
 const DUTY_START_HOUR = 9;   // 9:00 AM
 const LATE_THRESHOLD_MINUTE = 20; // After 9:20 AM is late
 
@@ -442,7 +441,7 @@ const AttendancePanel = () => {
                     <div>
                         <div className="flex items-center gap-2 flex-wrap">
                             <h3 className="text-xl font-bold text-slate-800 tracking-tight">CLE Campus Attendance Portal</h3>
-                            <span className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-blue-100 text-blue-700 border border-blue-200">600m Geofence</span>
+                            <span className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-blue-100 text-blue-700 border border-blue-200">{GEOFENCE_RADIUS_METERS}m Geofence</span>
                         </div>
                         <p className="text-xs text-slate-500 font-medium mt-0.5">High-Precision Geofenced Punching & Live Verification</p>
                     </div>
@@ -547,7 +546,7 @@ const AttendancePanel = () => {
                                 <ShieldCheck className="w-4 h-4 text-blue-500" />
                                 Geofence Perimeter:
                             </span>
-                            <span className="font-bold text-slate-800">600 meters</span>
+                            <span className="font-bold text-slate-800">{GEOFENCE_RADIUS_METERS} meters</span>
                         </div>
 
                         <div className="flex items-center justify-between p-3 rounded-xl bg-white border border-slate-200/80 text-xs">
@@ -643,7 +642,7 @@ const AttendancePanel = () => {
                                     Coordinates: <span className="font-mono font-bold text-slate-800">{location.lat.toFixed(5)}, {location.lng.toFixed(5)}</span>
                                 </p>
                                 <p className="text-xs text-slate-500 mt-1 max-w-xs">
-                                    Distance to campus: <strong className="text-slate-700">{distance >= 1000 ? `${(distance / 1000).toFixed(1)} km` : `${Math.round(distance)} meters`}</strong>. Live campus map activates when within 600m of the institutional perimeter.
+                                    Distance to campus: <strong className="text-slate-700">{distance >= 1000 ? `${(distance / 1000).toFixed(1)} km` : `${Math.round(distance)} meters`}</strong>. Live campus map activates when within {PRIVACY_RADIUS_METERS}m of the institutional perimeter.
                                 </p>
                             </div>
                         ) : (
