@@ -22,21 +22,23 @@ const DEFAULT_LNG = 74.589250;
 const CAMPUS_LAT = import.meta.env.VITE_CAMPUS_LAT ? parseFloat(import.meta.env.VITE_CAMPUS_LAT) : DEFAULT_LAT;
 const CAMPUS_LNG = import.meta.env.VITE_CAMPUS_LNG ? parseFloat(import.meta.env.VITE_CAMPUS_LNG) : DEFAULT_LNG;
 
-const GEOFENCE_RADIUS_METERS = 140;
+const GEOFENCE_RADIUS_METERS = 120;
+const GEOFENCE_SCALE = GEOFENCE_RADIUS_METERS / 600;
 
-const latOffset = CAMPUS_LAT - DEFAULT_LAT;
-const lngOffset = CAMPUS_LNG - DEFAULT_LNG;
-
-// Accurate campus perimeter boundary polygon (strictly inside surrounding public roads)
+// 120m campus perimeter boundary polygon
 const CAMPUS_GEOFENCE = [
-    { lat: 16.426380 + latOffset, lng: 74.588000 + lngOffset }, // Northwest Corner (Inside road)
-    { lat: 16.426380 + latOffset, lng: 74.589250 + lngOffset }, // North Perimeter (Campus compound wall)
-    { lat: 16.426380 + latOffset, lng: 74.590500 + lngOffset }, // Northeast Corner
-    { lat: 16.426026 + latOffset, lng: 74.590500 + lngOffset }, // East Perimeter
-    { lat: 16.425672 + latOffset, lng: 74.590500 + lngOffset }, // Southeast Corner
-    { lat: 16.425672 + latOffset, lng: 74.589250 + lngOffset }, // South Perimeter (Inside SH18 highway & hospital)
-    { lat: 16.425672 + latOffset, lng: 74.588000 + lngOffset }, // Southwest Corner
-    { lat: 16.426026 + latOffset, lng: 74.588000 + lngOffset }  // West Perimeter (Inside NH160 highway)
+    { lat: CAMPUS_LAT + 0.005396 * GEOFENCE_SCALE, lng: CAMPUS_LNG + 0.000000 * GEOFENCE_SCALE }, // North (120m)
+    { lat: CAMPUS_LAT + 0.004673 * GEOFENCE_SCALE, lng: CAMPUS_LNG + 0.002813 * GEOFENCE_SCALE }, // North-Northeast (120m)
+    { lat: CAMPUS_LAT + 0.002698 * GEOFENCE_SCALE, lng: CAMPUS_LNG + 0.004872 * GEOFENCE_SCALE }, // East-Northeast (120m)
+    { lat: CAMPUS_LAT + 0.000000 * GEOFENCE_SCALE, lng: CAMPUS_LNG + 0.005626 * GEOFENCE_SCALE }, // East (120m)
+    { lat: CAMPUS_LAT - 0.002698 * GEOFENCE_SCALE, lng: CAMPUS_LNG + 0.004872 * GEOFENCE_SCALE }, // East-Southeast (120m)
+    { lat: CAMPUS_LAT - 0.004673 * GEOFENCE_SCALE, lng: CAMPUS_LNG + 0.002813 * GEOFENCE_SCALE }, // South-Southeast (120m)
+    { lat: CAMPUS_LAT - 0.005396 * GEOFENCE_SCALE, lng: CAMPUS_LNG + 0.000000 * GEOFENCE_SCALE }, // South (120m)
+    { lat: CAMPUS_LAT - 0.004673 * GEOFENCE_SCALE, lng: CAMPUS_LNG - 0.002813 * GEOFENCE_SCALE }, // South-Southwest (120m)
+    { lat: CAMPUS_LAT - 0.002698 * GEOFENCE_SCALE, lng: CAMPUS_LNG - 0.004872 * GEOFENCE_SCALE }, // West-Southwest (120m)
+    { lat: CAMPUS_LAT + 0.000000 * GEOFENCE_SCALE, lng: CAMPUS_LNG - 0.005626 * GEOFENCE_SCALE }, // West (120m)
+    { lat: CAMPUS_LAT + 0.002698 * GEOFENCE_SCALE, lng: CAMPUS_LNG - 0.004872 * GEOFENCE_SCALE }, // West-Northwest (120m)
+    { lat: CAMPUS_LAT + 0.004673 * GEOFENCE_SCALE, lng: CAMPUS_LNG - 0.002813 * GEOFENCE_SCALE }  // North-Northwest (120m)
 ];
 
 const defaultCenter = [CAMPUS_LAT, CAMPUS_LNG];

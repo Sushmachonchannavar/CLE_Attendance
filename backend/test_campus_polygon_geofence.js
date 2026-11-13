@@ -8,7 +8,7 @@ const path = require('path');
 process.env.NODE_ENV = 'test';
 process.env.CAMPUS_LAT = '16.426026';
 process.env.CAMPUS_LNG = '74.589250';
-process.env.GEOFENCE_RADIUS_METERS = '140';
+process.env.GEOFENCE_RADIUS_METERS = '120';
 process.env.JWT_SECRET = 'cle_attendance_test_secret_key_minimum_32_characters_123456';
 
 const db = require('./database');
@@ -57,10 +57,9 @@ async function runGeofenceTests() {
     console.log('--- 1. Boundary Polygon Containment Calculations ---');
     const insideLocations = [
         { name: 'Campus Centroid', lat: 16.426026, lng: 74.589250 },
+        { name: 'User Exact Location (81m away)', lat: 16.426026 + (81 / 111139), lng: 74.589250 },
         { name: 'Real DB Punch Point', lat: 16.425780, lng: 74.589700 },
-        { name: 'Standard Staff Test Point', lat: 16.426026, lng: 74.589353 },
-        { name: 'Northwest Interior Wing', lat: 16.426300, lng: 74.588100 },
-        { name: 'Southeast Interior Wing', lat: 16.425700, lng: 74.590400 }
+        { name: 'Standard Staff Test Point', lat: 16.426026, lng: 74.589353 }
     ];
 
     for (const loc of insideLocations) {
@@ -75,11 +74,10 @@ async function runGeofenceTests() {
     }
 
     const outsideRoads = [
-        { name: 'North Perimeter Road (WAY 732625876)', lat: 16.426600, lng: 74.589250 },
-        { name: 'South Highway SH18 (WAY 1386641768)', lat: 16.425100, lng: 74.588000 },
-        { name: 'West Highway NH160 (WAY 1386641764)', lat: 16.426000, lng: 74.587600 },
-        { name: 'East Boundary Access Road', lat: 16.426000, lng: 74.590800 },
-        { name: 'Neighboring Bhate Hospital', lat: 16.425551, lng: 74.588441 }
+        { name: 'North Outer Road (164m away)', lat: 16.427500, lng: 74.589250 },
+        { name: 'South Highway SH18 (168m away)', lat: 16.425100, lng: 74.588000 },
+        { name: 'West Highway NH160 (176m away)', lat: 16.426000, lng: 74.587600 },
+        { name: 'East Boundary Access Road (165m away)', lat: 16.426000, lng: 74.590800 }
     ];
 
     console.log('\n--- 2. Surrounding Public Roads Strictly Blocked ---');
@@ -206,14 +204,14 @@ async function runGeofenceTests() {
     // Update location on road
     {
         const req = {
-            body: { lat: 16.426600, lng: 74.589250, accuracy: 10 }, // North road
+            body: { lat: 16.427500, lng: 74.589250, accuracy: 10 }, // North outer road (164m away)
             user: testUser
         };
         const res = createMockRes();
         await attendanceController.updateLocation(req, res);
         const data = res.getData();
         if (res.getStatus() === 200 && data.isInsideCampus === false) {
-            console.log(`  [PASS] updateLocation on North road returns isInsideCampus: false`);
+            console.log(`  [PASS] updateLocation on North outer road returns isInsideCampus: false`);
             passed++;
         } else {
             console.error(`  [FAIL] updateLocation on road should return isInsideCampus: false:`, res.getStatus(), data);

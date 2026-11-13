@@ -223,7 +223,7 @@ app.get('/api/geofence/status', (req, res) => {
         Math.cos(phi1) * Math.cos(phi2) * Math.sin(deltaLambda / 2) * Math.sin(deltaLambda / 2);
     const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
     const distanceMeters = Math.round(R * c);
-    const isInside = isPointInPolygon(lat, lng, CAMPUS_GEOFENCE);
+    const isInside = isPointInPolygon(lat, lng, CAMPUS_GEOFENCE) || distanceMeters <= GEOFENCE_RADIUS_METERS;
 
     res.json({
         status: 'ok',
@@ -236,8 +236,8 @@ app.get('/api/geofence/status', (req, res) => {
         isInsideCampus: isInside,
         geofencePolygon: CAMPUS_GEOFENCE,
         message: isInside 
-            ? `Coordinates (${lat}, ${lng}) are INSIDE campus premises polygon (${distanceMeters}m from centroid). Punch allowed.`
-            : `Coordinates (${lat}, ${lng}) are OUTSIDE campus premises polygon (${distanceMeters}m from centroid). Punch blocked.`
+            ? `Coordinates (${lat}, ${lng}) are INSIDE campus perimeter (${distanceMeters}m <= ${GEOFENCE_RADIUS_METERS}m). Punch allowed.`
+            : `Coordinates (${lat}, ${lng}) are OUTSIDE campus perimeter (${distanceMeters}m > ${GEOFENCE_RADIUS_METERS}m). Punch blocked.`
     });
 });
 

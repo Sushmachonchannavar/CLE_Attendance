@@ -103,22 +103,24 @@ const DEFAULT_LNG = 74.589250;
 const CAMPUS_LAT = import.meta.env.VITE_CAMPUS_LAT ? parseFloat(import.meta.env.VITE_CAMPUS_LAT) : DEFAULT_LAT;
 const CAMPUS_LNG = import.meta.env.VITE_CAMPUS_LNG ? parseFloat(import.meta.env.VITE_CAMPUS_LNG) : DEFAULT_LNG;
 
-const GEOFENCE_RADIUS_METERS = 140; // Campus perimeter diagonal (~140m from centroid)
+const GEOFENCE_RADIUS_METERS = 120; // 120m campus perimeter
 const PRIVACY_RADIUS_METERS = 500; // Live map & tracing active up to 500m campus vicinity
+const GEOFENCE_SCALE = GEOFENCE_RADIUS_METERS / 600;
 
-const latOffset = CAMPUS_LAT - DEFAULT_LAT;
-const lngOffset = CAMPUS_LNG - DEFAULT_LNG;
-
-// Accurate campus perimeter boundary polygon (strictly inside surrounding public roads)
+// 120m campus perimeter boundary polygon
 const CAMPUS_GEOFENCE = [
-    { lat: 16.426380 + latOffset, lng: 74.588000 + lngOffset }, // Northwest Corner (Inside road)
-    { lat: 16.426380 + latOffset, lng: 74.589250 + lngOffset }, // North Perimeter (Campus compound wall)
-    { lat: 16.426380 + latOffset, lng: 74.590500 + lngOffset }, // Northeast Corner
-    { lat: 16.426026 + latOffset, lng: 74.590500 + lngOffset }, // East Perimeter
-    { lat: 16.425672 + latOffset, lng: 74.590500 + lngOffset }, // Southeast Corner
-    { lat: 16.425672 + latOffset, lng: 74.589250 + lngOffset }, // South Perimeter (Inside SH18 highway & hospital)
-    { lat: 16.425672 + latOffset, lng: 74.588000 + lngOffset }, // Southwest Corner
-    { lat: 16.426026 + latOffset, lng: 74.588000 + lngOffset }  // West Perimeter (Inside NH160 highway)
+    { lat: CAMPUS_LAT + 0.005396 * GEOFENCE_SCALE, lng: CAMPUS_LNG + 0.000000 * GEOFENCE_SCALE }, // North (120m)
+    { lat: CAMPUS_LAT + 0.004673 * GEOFENCE_SCALE, lng: CAMPUS_LNG + 0.002813 * GEOFENCE_SCALE }, // North-Northeast (120m)
+    { lat: CAMPUS_LAT + 0.002698 * GEOFENCE_SCALE, lng: CAMPUS_LNG + 0.004872 * GEOFENCE_SCALE }, // East-Northeast (120m)
+    { lat: CAMPUS_LAT + 0.000000 * GEOFENCE_SCALE, lng: CAMPUS_LNG + 0.005626 * GEOFENCE_SCALE }, // East (120m)
+    { lat: CAMPUS_LAT - 0.002698 * GEOFENCE_SCALE, lng: CAMPUS_LNG + 0.004872 * GEOFENCE_SCALE }, // East-Southeast (120m)
+    { lat: CAMPUS_LAT - 0.004673 * GEOFENCE_SCALE, lng: CAMPUS_LNG + 0.002813 * GEOFENCE_SCALE }, // South-Southeast (120m)
+    { lat: CAMPUS_LAT - 0.005396 * GEOFENCE_SCALE, lng: CAMPUS_LNG + 0.000000 * GEOFENCE_SCALE }, // South (120m)
+    { lat: CAMPUS_LAT - 0.004673 * GEOFENCE_SCALE, lng: CAMPUS_LNG - 0.002813 * GEOFENCE_SCALE }, // South-Southwest (120m)
+    { lat: CAMPUS_LAT - 0.002698 * GEOFENCE_SCALE, lng: CAMPUS_LNG - 0.004872 * GEOFENCE_SCALE }, // West-Southwest (120m)
+    { lat: CAMPUS_LAT + 0.000000 * GEOFENCE_SCALE, lng: CAMPUS_LNG - 0.005626 * GEOFENCE_SCALE }, // West (120m)
+    { lat: CAMPUS_LAT + 0.002698 * GEOFENCE_SCALE, lng: CAMPUS_LNG - 0.004872 * GEOFENCE_SCALE }, // West-Northwest (120m)
+    { lat: CAMPUS_LAT + 0.004673 * GEOFENCE_SCALE, lng: CAMPUS_LNG - 0.002813 * GEOFENCE_SCALE }  // North-Northwest (120m)
 ];
 const DUTY_START_HOUR = 9;   // 9:00 AM
 const LATE_THRESHOLD_MINUTE = 20; // After 9:20 AM is late
@@ -252,7 +254,7 @@ const AttendancePanel = () => {
         }
 
         const dist = getDistanceFromLatLonInMeters(location.lat, location.lng, CAMPUS_LAT, CAMPUS_LNG);
-        const isInsideGeo = isPointInPolygon(location.lat, location.lng, CAMPUS_GEOFENCE);
+        const isInsideGeo = isPointInPolygon(location.lat, location.lng, CAMPUS_GEOFENCE) || (dist !== null && Math.round(dist) <= GEOFENCE_RADIUS_METERS);
         if (isInsideGeo) {
             outsideCountRef.current = 0;
         } else {
@@ -383,7 +385,7 @@ const AttendancePanel = () => {
         </div>
     );
 
-    const isInside = location !== null && isPointInPolygon(location.lat, location.lng, CAMPUS_GEOFENCE);
+    const isInside = location !== null && (isPointInPolygon(location.lat, location.lng, CAMPUS_GEOFENCE) || (distance !== null && Math.round(distance) <= GEOFENCE_RADIUS_METERS));
     const isNearby = distance !== null && Math.round(distance) <= PRIVACY_RADIUS_METERS;
 
     const getPunchStatus = () => {
@@ -545,7 +547,7 @@ const AttendancePanel = () => {
                                 <ShieldCheck className="w-4 h-4 text-blue-500" />
                                 Geofence Perimeter:
                             </span>
-                            <span className="font-bold text-slate-800">{GEOFENCE_RADIUS_METERS} meters (Campus Polygon)</span>
+                            <span className="font-bold text-slate-800">{GEOFENCE_RADIUS_METERS} meters</span>
                         </div>
 
                         <div className="flex items-center justify-between p-3 rounded-xl bg-white border border-slate-200/80 text-xs">
