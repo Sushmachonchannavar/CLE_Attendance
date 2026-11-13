@@ -8,7 +8,7 @@ const path = require('path');
 process.env.NODE_ENV = 'test';
 process.env.CAMPUS_LAT = '16.426026';
 process.env.CAMPUS_LNG = '74.589250';
-process.env.GEOFENCE_RADIUS_METERS = '120';
+process.env.GEOFENCE_RADIUS_METERS = '300';
 process.env.JWT_SECRET = 'cle_attendance_test_secret_key_minimum_32_characters_123456';
 
 const db = require('./database');
@@ -74,10 +74,10 @@ async function runGeofenceTests() {
     }
 
     const outsideRoads = [
-        { name: 'North Outer Road (164m away)', lat: 16.427500, lng: 74.589250 },
-        { name: 'South Highway SH18 (168m away)', lat: 16.425100, lng: 74.588000 },
-        { name: 'West Highway NH160 (176m away)', lat: 16.426000, lng: 74.587600 },
-        { name: 'East Boundary Access Road (165m away)', lat: 16.426000, lng: 74.590800 }
+        { name: 'North Sector Road (350m away)', lat: 16.429175, lng: 74.589250 },
+        { name: 'South Sector Road (350m away)', lat: 16.422877, lng: 74.589250 },
+        { name: 'West Sector Road (350m away)', lat: 16.426026, lng: 74.585966 },
+        { name: 'East Sector Road (350m away)', lat: 16.426026, lng: 74.592534 }
     ];
 
     console.log('\n--- 2. Surrounding Public Roads Strictly Blocked ---');
@@ -134,10 +134,10 @@ async function runGeofenceTests() {
 
     // 5. Punch-Out Testing (Outside road -> blocked; Inside polygon -> allowed)
     console.log('\n--- 5. API Punch-Out Geofence Enforcement ---');
-    // Attempt punch out on road -> blocked
+    // Attempt punch out on road beyond 300m -> blocked
     {
         const req = {
-            body: { lat: 16.426000, lng: 74.587600 }, // West NH160 road
+            body: { lat: 16.429175, lng: 74.589250 }, // 350m away (beyond 300m perimeter)
             user: testUser
         };
         const res = createMockRes();
@@ -145,7 +145,7 @@ async function runGeofenceTests() {
 
         const data = res.getData();
         if (res.getStatus() === 400 && data && data.error && data.error.includes('outside the campus geofence')) {
-            console.log(`  [PASS] Punch-out on NH160 highway strictly blocked -> HTTP 400: ${data.error}`);
+            console.log(`  [PASS] Punch-out beyond 300m strictly blocked -> HTTP 400: ${data.error}`);
             passed++;
         } else {
             console.error(`  [FAIL] Punch-out on road should be blocked. Got:`, res.getStatus(), data);
@@ -201,17 +201,17 @@ async function runGeofenceTests() {
             failed++;
         }
     }
-    // Update location on road
+    // Update location on road beyond 300m
     {
         const req = {
-            body: { lat: 16.427500, lng: 74.589250, accuracy: 10 }, // North outer road (164m away)
+            body: { lat: 16.429175, lng: 74.589250, accuracy: 10 }, // North sector road (350m away)
             user: testUser
         };
         const res = createMockRes();
         await attendanceController.updateLocation(req, res);
         const data = res.getData();
         if (res.getStatus() === 200 && data.isInsideCampus === false) {
-            console.log(`  [PASS] updateLocation on North outer road returns isInsideCampus: false`);
+            console.log(`  [PASS] updateLocation on North sector road (350m) returns isInsideCampus: false`);
             passed++;
         } else {
             console.error(`  [FAIL] updateLocation on road should return isInsideCampus: false:`, res.getStatus(), data);
