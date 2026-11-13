@@ -5,10 +5,10 @@ const { sendAttendanceOTP, maskPhone } = require('../utils/sms');
 const { getAuthCookieOptions } = require('../utils/cookies');
 const { isDemoLogin, handleDemoSendOtp, verifyDemoOtp } = require('../utils/demoAuth');
 
-// Campus Geofence (Configurable via env; Centroid default Lat: 16.426378, Lng: 74.589884, Radius: 300m)
-const DEFAULT_LAT = 16.426378;
-const DEFAULT_LNG = 74.589884;
-const DEFAULT_RADIUS = 300;
+// Campus Geofence (Configurable via env; Centroid default Lat: 16.426026, Lng: 74.589250, Radius: 140m)
+const DEFAULT_LAT = 16.426026;
+const DEFAULT_LNG = 74.589250;
+const DEFAULT_RADIUS = 140;
 
 const CAMPUS_LAT = (process.env.CAMPUS_LAT && Number.isFinite(parseFloat(process.env.CAMPUS_LAT))) 
     ? parseFloat(process.env.CAMPUS_LAT) 
@@ -20,31 +20,23 @@ const GEOFENCE_RADIUS_METERS = (process.env.GEOFENCE_RADIUS_METERS && Number.isF
     ? parseInt(process.env.GEOFENCE_RADIUS_METERS, 10) 
     : DEFAULT_RADIUS;
 
-const GEOFENCE_SCALE = GEOFENCE_RADIUS_METERS / 600;
+const latOffset = CAMPUS_LAT - DEFAULT_LAT;
+const lngOffset = CAMPUS_LNG - DEFAULT_LNG;
 
+// Accurate campus perimeter boundary polygon (strictly inside surrounding public roads)
 const CAMPUS_GEOFENCE = [
-    { lat: CAMPUS_LAT + 0.005396 * GEOFENCE_SCALE, lng: CAMPUS_LNG + 0.000000 * GEOFENCE_SCALE }, // North (~300m)
-    { lat: CAMPUS_LAT + 0.004673 * GEOFENCE_SCALE, lng: CAMPUS_LNG + 0.002813 * GEOFENCE_SCALE }, // North-Northeast (~300m)
-    { lat: CAMPUS_LAT + 0.002698 * GEOFENCE_SCALE, lng: CAMPUS_LNG + 0.004872 * GEOFENCE_SCALE }, // East-Northeast (~300m)
-    { lat: CAMPUS_LAT + 0.000000 * GEOFENCE_SCALE, lng: CAMPUS_LNG + 0.005626 * GEOFENCE_SCALE }, // East (~300m)
-    { lat: CAMPUS_LAT - 0.002698 * GEOFENCE_SCALE, lng: CAMPUS_LNG + 0.004872 * GEOFENCE_SCALE }, // East-Southeast (~300m)
-    { lat: CAMPUS_LAT - 0.004673 * GEOFENCE_SCALE, lng: CAMPUS_LNG + 0.002813 * GEOFENCE_SCALE }, // South-Southeast (~300m)
-    { lat: CAMPUS_LAT - 0.005396 * GEOFENCE_SCALE, lng: CAMPUS_LNG + 0.000000 * GEOFENCE_SCALE }, // South (~300m)
-    { lat: CAMPUS_LAT - 0.004673 * GEOFENCE_SCALE, lng: CAMPUS_LNG - 0.002813 * GEOFENCE_SCALE }, // South-Southwest (~300m)
-    { lat: CAMPUS_LAT - 0.002698 * GEOFENCE_SCALE, lng: CAMPUS_LNG - 0.004872 * GEOFENCE_SCALE }, // West-Southwest (~300m)
-    { lat: CAMPUS_LAT + 0.000000 * GEOFENCE_SCALE, lng: CAMPUS_LNG - 0.005626 * GEOFENCE_SCALE }, // West (~300m)
-    { lat: CAMPUS_LAT + 0.002698 * GEOFENCE_SCALE, lng: CAMPUS_LNG - 0.004872 * GEOFENCE_SCALE }, // West-Northwest (~300m)
-    { lat: CAMPUS_LAT + 0.004673 * GEOFENCE_SCALE, lng: CAMPUS_LNG - 0.002813 * GEOFENCE_SCALE }  // North-Northwest (~300m)
+    { lat: 16.426380 + latOffset, lng: 74.588000 + lngOffset }, // Northwest Corner (Inside road)
+    { lat: 16.426380 + latOffset, lng: 74.589250 + lngOffset }, // North Perimeter (Campus compound wall)
+    { lat: 16.426380 + latOffset, lng: 74.590500 + lngOffset }, // Northeast Corner
+    { lat: 16.426026 + latOffset, lng: 74.590500 + lngOffset }, // East Perimeter
+    { lat: 16.425672 + latOffset, lng: 74.590500 + lngOffset }, // Southeast Corner
+    { lat: 16.425672 + latOffset, lng: 74.589250 + lngOffset }, // South Perimeter (Inside SH18 highway & hospital)
+    { lat: 16.425672 + latOffset, lng: 74.588000 + lngOffset }, // Southwest Corner
+    { lat: 16.426026 + latOffset, lng: 74.588000 + lngOffset }  // West Perimeter (Inside NH160 highway)
 ];
 
-exports.GEOFENCE_RADIUS_METERS = GEOFENCE_RADIUS_METERS;
-exports.CAMPUS_LAT = CAMPUS_LAT;
-exports.CAMPUS_LNG = CAMPUS_LNG;
-exports.CAMPUS_GEOFENCE = CAMPUS_GEOFENCE;
-
-
-
 function isPointInPolygon(lat, lng, polygon) {
+    if (!Array.isArray(polygon) || polygon.length < 3) return false;
     let x = lat, y = lng;
     let inside = false;
     for (let i = 0, j = polygon.length - 1; i < polygon.length; j = i++) {
@@ -57,6 +49,12 @@ function isPointInPolygon(lat, lng, polygon) {
     }
     return inside;
 }
+
+exports.GEOFENCE_RADIUS_METERS = GEOFENCE_RADIUS_METERS;
+exports.CAMPUS_LAT = CAMPUS_LAT;
+exports.CAMPUS_LNG = CAMPUS_LNG;
+exports.CAMPUS_GEOFENCE = CAMPUS_GEOFENCE;
+exports.isPointInPolygon = isPointInPolygon;
 
 function getDistanceFromLatLonInMeters(lat1, lon1, lat2, lon2) {
     var R = 6371; // Radius of the earth in km
@@ -153,7 +151,7 @@ exports.punch = (req, res) => {
 
     // Check Geofence
     const distance = getDistanceFromLatLonInMeters(latitude, longitude, CAMPUS_LAT, CAMPUS_LNG);
-    const isInside = isPointInPolygon(latitude, longitude, CAMPUS_GEOFENCE) || Math.round(distance) <= GEOFENCE_RADIUS_METERS;
+    const isInside = isPointInPolygon(latitude, longitude, CAMPUS_GEOFENCE);
 
     // Both punch-in and punch-out strictly require staff member to be inside assigned campus geofence
     if (!isInside) {
@@ -575,7 +573,7 @@ exports.verifyOTP = async (req, res) => {
 
             // Check Geofence
             const distance = getDistanceFromLatLonInMeters(latitude, longitude, CAMPUS_LAT, CAMPUS_LNG);
-            const isInside = isPointInPolygon(latitude, longitude, CAMPUS_GEOFENCE) || Math.round(distance) <= GEOFENCE_RADIUS_METERS;
+            const isInside = isPointInPolygon(latitude, longitude, CAMPUS_GEOFENCE);
 
             // Both punch-in and punch-out strictly require staff member to be inside assigned campus geofence
             if (!isInside) {
@@ -713,7 +711,7 @@ exports.updateLocation = (req, res) => {
         }
 
         const distance = getDistanceFromLatLonInMeters(latitude, longitude, CAMPUS_LAT, CAMPUS_LNG);
-        const isInside = isPointInPolygon(latitude, longitude, CAMPUS_GEOFENCE) || Math.round(distance) <= GEOFENCE_RADIUS_METERS;
+        const isInside = isPointInPolygon(latitude, longitude, CAMPUS_GEOFENCE);
 
         db.prepare(`
             INSERT INTO employee_locations (user_id, latitude, longitude, accuracy, timestamp, is_inside_campus, is_tracking)
@@ -742,7 +740,7 @@ exports.updateLocation = (req, res) => {
     }
 
     const distance = getDistanceFromLatLonInMeters(latitude, longitude, CAMPUS_LAT, CAMPUS_LNG);
-    const isInside = isPointInPolygon(latitude, longitude, CAMPUS_GEOFENCE) || Math.round(distance) <= GEOFENCE_RADIUS_METERS;
+    const isInside = isPointInPolygon(latitude, longitude, CAMPUS_GEOFENCE);
     
     let timestamp = new Date().toISOString();
     if (clientTimestamp) {

@@ -319,7 +319,7 @@ export default function DownloadApp() {
                         </div>
                         <div className="flex items-center gap-2.5 text-xs text-slate-300">
                             <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
-                            <span>Campus Geofence (300m)</span>
+                            <span>Campus Geofence (Premises Polygon)</span>
                         </div>
                         <div className="flex items-center gap-2.5 text-xs text-slate-300">
                             <Building2 className="w-4 h-4 text-emerald-400 shrink-0" />

@@ -186,10 +186,10 @@ app.get('/api/health/detailed', (req, res) => {
         const activeUserCount = db.prepare("SELECT COUNT(*) AS count FROM users WHERE status = 'active'").get();
         const dbPath = process.env.DATABASE_PATH || process.env.DB_FILE || '(local default)';
         const frontendUrl = process.env.FRONTEND_URL || '(not set)';
-        const { CAMPUS_LAT, CAMPUS_LNG, GEOFENCE_RADIUS_METERS } = require('./controllers/attendanceController');
+        const { CAMPUS_LAT, CAMPUS_LNG, GEOFENCE_RADIUS_METERS, CAMPUS_GEOFENCE } = require('./controllers/attendanceController');
         res.status(200).json({
             status: 'ok',
-            version: '300m-geofence',
+            version: 'campus-polygon-geofence',
             database: 'connected',
             timestamp: new Date().toISOString(),
             totalUsers: userCount ? userCount.count : 0,
@@ -198,6 +198,7 @@ app.get('/api/health/detailed', (req, res) => {
             configuredFrontendUrl: frontendUrl,
             campusCoordinates: { lat: CAMPUS_LAT, lng: CAMPUS_LNG },
             geofenceRadiusMeters: GEOFENCE_RADIUS_METERS,
+            geofencePolygon: CAMPUS_GEOFENCE,
             nodeEnv: process.env.NODE_ENV || 'development'
         });
     } catch (dbErr) {
@@ -208,11 +209,11 @@ app.get('/api/health/detailed', (req, res) => {
 
 // Diagnostic public geofence status check (allows instant verification from browser)
 app.get('/api/geofence/status', (req, res) => {
-    const { CAMPUS_LAT, CAMPUS_LNG, GEOFENCE_RADIUS_METERS } = require('./controllers/attendanceController');
+    const { CAMPUS_LAT, CAMPUS_LNG, GEOFENCE_RADIUS_METERS, CAMPUS_GEOFENCE, isPointInPolygon } = require('./controllers/attendanceController');
     const lat = req.query.lat ? parseFloat(req.query.lat) : CAMPUS_LAT;
     const lng = req.query.lng ? parseFloat(req.query.lng) : CAMPUS_LNG;
     
-    // Haversine calculation in meters
+    // Haversine calculation to campus centroid in meters
     const R = 6371e3;
     const phi1 = (lat * Math.PI) / 180;
     const phi2 = (CAMPUS_LAT * Math.PI) / 180;
@@ -222,20 +223,21 @@ app.get('/api/geofence/status', (req, res) => {
         Math.cos(phi1) * Math.cos(phi2) * Math.sin(deltaLambda / 2) * Math.sin(deltaLambda / 2);
     const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
     const distanceMeters = Math.round(R * c);
-    const isInside = distanceMeters <= GEOFENCE_RADIUS_METERS;
+    const isInside = isPointInPolygon(lat, lng, CAMPUS_GEOFENCE);
 
     res.json({
         status: 'ok',
-        version: '300m-geofence',
+        version: 'campus-polygon-geofence',
         timestamp: new Date().toISOString(),
         geofenceRadiusMeters: GEOFENCE_RADIUS_METERS,
         campusCoordinates: { lat: CAMPUS_LAT, lng: CAMPUS_LNG },
         testedCoordinates: { lat, lng },
         distanceMeters,
         isInsideCampus: isInside,
+        geofencePolygon: CAMPUS_GEOFENCE,
         message: isInside 
-            ? `Coordinates (${lat}, ${lng}) are INSIDE campus perimeter (${distanceMeters}m <= ${GEOFENCE_RADIUS_METERS}m). Punch allowed.`
-            : `Coordinates (${lat}, ${lng}) are OUTSIDE campus perimeter (${distanceMeters}m > ${GEOFENCE_RADIUS_METERS}m). Punch blocked.`
+            ? `Coordinates (${lat}, ${lng}) are INSIDE campus premises polygon (${distanceMeters}m from centroid). Punch allowed.`
+            : `Coordinates (${lat}, ${lng}) are OUTSIDE campus premises polygon (${distanceMeters}m from centroid). Punch blocked.`
     });
 });
 
