@@ -105,7 +105,7 @@ module.exports = {
         } else {
             db.prepare(`
                 INSERT INTO users (name, phone, role, department, employee_id, status)
-                VALUES ('Principal Dr. User', '8888888888', 'hoi', 'Executive Academic Administration', 'EMP001', 'active')
+                VALUES ('Principal', '8888888888', 'hoi', 'Executive Academic Administration', 'EMP001', 'active')
             `).run();
         }
 

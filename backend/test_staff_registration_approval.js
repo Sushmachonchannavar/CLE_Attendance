@@ -54,7 +54,7 @@ async function runTestSuite() {
         }
     }
 
-    const principalUser = { id: 2, role: 'hoi', name: 'Principal Dr. User' };
+    const principalUser = { id: 2, role: 'hoi', name: 'Principal' };
     const adminUser = { id: 155, role: 'admin', name: 'System Administrator' };
     const staffUser = { id: 100, role: 'staff', name: 'Demo Staff 1' };
 

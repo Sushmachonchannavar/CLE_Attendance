@@ -6,7 +6,7 @@ module.exports = {
             VALUES (?, ?, ?, ?, ?, ?, ?)
         `);
 
-        insertUser.run(2, 'Principal Dr. User', '8888888888', 'hoi', 'Executive Academic Administration', 'EMP001', 'active');
+        insertUser.run(2, 'Principal', '8888888888', 'hoi', 'Executive Academic Administration', 'EMP001', 'active');
 
         // Ensure Principal role and active status are set appropriately
         db.prepare("UPDATE users SET role = 'hoi', status = 'active' WHERE phone = '8888888888'").run();

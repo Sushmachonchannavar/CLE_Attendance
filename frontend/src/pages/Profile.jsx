@@ -32,8 +32,35 @@ const Profile = () => {
     const [errorMsg, setErrorMsg] = useState('');
     const [successMsg, setSuccessMsg] = useState('');
 
+    // Fetch freshest user profile directly from SQLite on mount
     useEffect(() => {
-        if (user) {
+        let isMounted = true;
+        api.get('/auth/verify-token').then(res => {
+            if (isMounted && res.data?.user) {
+                if (updateUser) {
+                    updateUser(res.data.user, res.data.token);
+                }
+                setFormData(prev => {
+                    if (!isEditing) {
+                        return {
+                            name: res.data.user.name || '',
+                            college: res.data.user.college || '',
+                            department: res.data.user.department || '',
+                            designation: res.data.user.designation || ''
+                        };
+                    }
+                    return prev;
+                });
+            }
+        }).catch(err => {
+            console.warn('[PROFILE] Could not refresh profile from database:', err.message);
+        });
+        return () => { isMounted = false; };
+    }, []);
+
+    // Sync form data with user state only when not actively editing
+    useEffect(() => {
+        if (user && !isEditing) {
             setFormData({
                 name: user.name || '',
                 college: user.college || '',
@@ -41,7 +68,7 @@ const Profile = () => {
                 designation: user.designation || ''
             });
         }
-    }, [user]);
+    }, [user, isEditing]);
 
     const roleTitle = user?.role === 'hoi' 
         ? 'Principal / Head of Institution' 
@@ -99,8 +126,16 @@ const Profile = () => {
                 localStorage.setItem('token', res.data.token);
             }
 
-            if (res.data?.user && updateUser) {
-                updateUser(res.data.user, res.data.token);
+            if (res.data?.user) {
+                if (updateUser) {
+                    updateUser(res.data.user, res.data.token);
+                }
+                setFormData({
+                    name: res.data.user.name || '',
+                    college: res.data.user.college || '',
+                    department: res.data.user.department || '',
+                    designation: res.data.user.designation || ''
+                });
             }
 
             setSuccessMsg('Profile updated successfully!');

@@ -341,7 +341,7 @@ exports.updateProfile = (req, res) => {
         const trimmedName = name.trim();
         const trimmedDepartment = typeof department === 'string' ? department.trim() : '';
         const trimmedCollege = typeof college === 'string' ? college.trim() : '';
-        const trimmedDesignation = typeof designation === 'string' && designation.trim() ? designation.trim() : null;
+        const trimmedDesignation = typeof designation === 'string' ? designation.trim() : null;
 
         // Find target user by id, employeeId, or phone
         let targetUser = db.prepare('SELECT id, phone, role, employee_id FROM users WHERE id = ?').get(userId);
@@ -359,7 +359,7 @@ exports.updateProfile = (req, res) => {
 
         const targetId = targetUser.id;
 
-        if (trimmedDesignation !== null) {
+        if (designation !== undefined) {
             db.prepare(`
                 UPDATE users 
                 SET name = ?, department = ?, college = ?, designation = ?
@@ -371,6 +371,13 @@ exports.updateProfile = (req, res) => {
                 SET name = ?, department = ?, college = ?
                 WHERE id = ?
             `).run(trimmedName, trimmedDepartment, trimmedCollege, targetId);
+        }
+
+        // Force SQLite WAL checkpoint to ensure persistent write directly to database file
+        try {
+            db.pragma('wal_checkpoint(TRUNCATE)');
+        } catch (walErr) {
+            console.warn('[AUTH] Checkpoint warning:', walErr.message);
         }
 
         const updatedUser = db.prepare(`

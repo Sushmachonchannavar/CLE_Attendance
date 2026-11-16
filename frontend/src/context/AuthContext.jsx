@@ -48,11 +48,11 @@ export const AuthProvider = ({ children }) => {
             if (!cachedUser) {
                 setUser(null);
             }
-            return { authenticated: Boolean(user), offline: true };
+            return { authenticated: Boolean(cachedUser), offline: true };
         } finally {
             setLoading(false);
         }
-    }, [user]);
+    }, []);
 
     // Initial session verification on startup
     useEffect(() => {
