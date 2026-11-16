@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import Layout from '../components/Layout';
 import AttendancePanel from '../components/AttendancePanel';
 import { useAuth } from '../context/AuthContext';
@@ -32,7 +32,15 @@ const Profile = () => {
     const [errorMsg, setErrorMsg] = useState('');
     const [successMsg, setSuccessMsg] = useState('');
 
-    // Fetch freshest user profile directly from SQLite on mount
+    // Ref tracks real-time editing state across asynchronous promises and effects
+    const isEditingRef = useRef(false);
+
+    // Keep ref in sync with state
+    useEffect(() => {
+        isEditingRef.current = isEditing;
+    }, [isEditing]);
+
+    // Fetch freshest user profile directly from SQLite on mount without overwriting active edits
     useEffect(() => {
         let isMounted = true;
         api.get('/auth/verify-token').then(res => {
@@ -40,17 +48,15 @@ const Profile = () => {
                 if (updateUser) {
                     updateUser(res.data.user, res.data.token);
                 }
-                setFormData(prev => {
-                    if (!isEditing) {
-                        return {
-                            name: res.data.user.name || '',
-                            college: res.data.user.college || '',
-                            department: res.data.user.department || '',
-                            designation: res.data.user.designation || ''
-                        };
-                    }
-                    return prev;
-                });
+                // Only populate form data if user is not actively typing in the form
+                if (!isEditingRef.current) {
+                    setFormData({
+                        name: res.data.user.name || '',
+                        college: res.data.user.college || '',
+                        department: res.data.user.department || '',
+                        designation: res.data.user.designation || ''
+                    });
+                }
             }
         }).catch(err => {
             console.warn('[PROFILE] Could not refresh profile from database:', err.message);
@@ -60,7 +66,7 @@ const Profile = () => {
 
     // Sync form data with user state only when not actively editing
     useEffect(() => {
-        if (user && !isEditing) {
+        if (user && !isEditingRef.current) {
             setFormData({
                 name: user.name || '',
                 college: user.college || '',
@@ -68,7 +74,7 @@ const Profile = () => {
                 designation: user.designation || ''
             });
         }
-    }, [user, isEditing]);
+    }, [user]);
 
     const roleTitle = user?.role === 'hoi' 
         ? 'Principal / Head of Institution' 
@@ -83,6 +89,7 @@ const Profile = () => {
     };
 
     const handleStartEdit = () => {
+        isEditingRef.current = true;
         setFormData({
             name: user?.name || '',
             college: user?.college || '',
@@ -95,6 +102,7 @@ const Profile = () => {
     };
 
     const handleCancelEdit = () => {
+        isEditingRef.current = false;
         setFormData({
             name: user?.name || '',
             college: user?.college || '',
@@ -107,7 +115,8 @@ const Profile = () => {
 
     const handleSaveProfile = async (e) => {
         e.preventDefault();
-        if (!formData.name.trim()) {
+        const trimmedName = formData.name ? formData.name.trim() : '';
+        if (!trimmedName) {
             setErrorMsg('Official Full Name is required.');
             return;
         }
@@ -116,9 +125,9 @@ const Profile = () => {
         setErrorMsg('');
         try {
             const res = await api.put('/auth/profile', {
-                name: formData.name.trim(),
-                college: formData.college.trim(),
-                department: formData.department.trim(),
+                name: trimmedName,
+                college: formData.college ? formData.college.trim() : '',
+                department: formData.department ? formData.department.trim() : '',
                 designation: formData.designation ? formData.designation.trim() : ''
             });
 
@@ -139,6 +148,7 @@ const Profile = () => {
             }
 
             setSuccessMsg('Profile updated successfully!');
+            isEditingRef.current = false;
             setIsEditing(false);
 
             setTimeout(() => {
@@ -256,14 +266,26 @@ const Profile = () => {
                             /* READ-ONLY VIEW */
                             <div className="space-y-3.5">
                                 {/* Full Name */}
-                                <div className="p-3.5 bg-slate-50/80 rounded-2xl border border-slate-200/70 flex items-start gap-3">
-                                    <User className="w-4 h-4 text-slate-400 mt-0.5 shrink-0" />
-                                    <div className="min-w-0 flex-1">
-                                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Official Full Name</p>
-                                        <p data-testid="display-profile-name" className="text-xs font-bold text-slate-800 mt-0.5 truncate">
-                                            {user?.name || 'N/A'}
-                                        </p>
+                                <div 
+                                    onClick={handleStartEdit}
+                                    role="button"
+                                    tabIndex={0}
+                                    onKeyDown={(e) => (e.key === 'Enter' || e.key === ' ') && handleStartEdit()}
+                                    title="Click to edit Official Full Name"
+                                    className="p-3.5 bg-slate-50/80 hover:bg-blue-50/60 hover:border-blue-300 rounded-2xl border border-slate-200/70 flex items-start justify-between gap-3 cursor-pointer transition-all group"
+                                >
+                                    <div className="flex items-start gap-3 min-w-0 flex-1">
+                                        <User className="w-4 h-4 text-slate-400 group-hover:text-blue-600 mt-0.5 shrink-0 transition-colors" />
+                                        <div className="min-w-0 flex-1">
+                                            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider group-hover:text-blue-600 transition-colors">Official Full Name</p>
+                                            <p data-testid="display-profile-name" className="text-xs font-bold text-slate-800 mt-0.5 truncate">
+                                                {user?.name || 'N/A'}
+                                            </p>
+                                        </div>
                                     </div>
+                                    <span className="p-1 text-slate-400 group-hover:text-blue-600 transition-colors shrink-0">
+                                        <Edit3 className="w-3.5 h-3.5" />
+                                    </span>
                                 </div>
 
                                 {/* Mobile Number */}
@@ -290,36 +312,72 @@ const Profile = () => {
                                 </div>
 
                                 {/* Official Designation */}
-                                <div className="p-3.5 bg-slate-50/80 rounded-2xl border border-slate-200/70 flex items-start gap-3">
-                                    <Briefcase className="w-4 h-4 text-slate-400 mt-0.5 shrink-0" />
-                                    <div className="min-w-0 flex-1">
-                                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Official Designation</p>
-                                        <p data-testid="display-profile-designation" className="text-xs font-bold text-slate-800 mt-0.5 truncate">
-                                            {user?.designation || 'Faculty Member'}
-                                        </p>
+                                <div 
+                                    onClick={handleStartEdit}
+                                    role="button"
+                                    tabIndex={0}
+                                    onKeyDown={(e) => (e.key === 'Enter' || e.key === ' ') && handleStartEdit()}
+                                    title="Click to edit Official Designation"
+                                    className="p-3.5 bg-slate-50/80 hover:bg-blue-50/60 hover:border-blue-300 rounded-2xl border border-slate-200/70 flex items-start justify-between gap-3 cursor-pointer transition-all group"
+                                >
+                                    <div className="flex items-start gap-3 min-w-0 flex-1">
+                                        <Briefcase className="w-4 h-4 text-slate-400 group-hover:text-blue-600 mt-0.5 shrink-0 transition-colors" />
+                                        <div className="min-w-0 flex-1">
+                                            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider group-hover:text-blue-600 transition-colors">Official Designation</p>
+                                            <p data-testid="display-profile-designation" className="text-xs font-bold text-slate-800 mt-0.5 truncate">
+                                                {user?.designation || 'Faculty Member'}
+                                            </p>
+                                        </div>
                                     </div>
+                                    <span className="p-1 text-slate-400 group-hover:text-blue-600 transition-colors shrink-0">
+                                        <Edit3 className="w-3.5 h-3.5" />
+                                    </span>
                                 </div>
 
                                 {/* College / Institution */}
-                                <div className="p-3.5 bg-slate-50/80 rounded-2xl border border-slate-200/70 flex items-start gap-3">
-                                    <Landmark className="w-4 h-4 text-slate-400 mt-0.5 shrink-0" />
-                                    <div className="min-w-0 flex-1">
-                                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Institutional College</p>
-                                        <p data-testid="display-profile-college" className="text-xs font-bold text-slate-800 mt-0.5 truncate">
-                                            {user?.college || 'CLE Society Campus'}
-                                        </p>
+                                <div 
+                                    onClick={handleStartEdit}
+                                    role="button"
+                                    tabIndex={0}
+                                    onKeyDown={(e) => (e.key === 'Enter' || e.key === ' ') && handleStartEdit()}
+                                    title="Click to edit Institutional College"
+                                    className="p-3.5 bg-slate-50/80 hover:bg-blue-50/60 hover:border-blue-300 rounded-2xl border border-slate-200/70 flex items-start justify-between gap-3 cursor-pointer transition-all group"
+                                >
+                                    <div className="flex items-start gap-3 min-w-0 flex-1">
+                                        <Landmark className="w-4 h-4 text-slate-400 group-hover:text-blue-600 mt-0.5 shrink-0 transition-colors" />
+                                        <div className="min-w-0 flex-1">
+                                            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider group-hover:text-blue-600 transition-colors">Institutional College</p>
+                                            <p data-testid="display-profile-college" className="text-xs font-bold text-slate-800 mt-0.5 truncate">
+                                                {user?.college || 'CLE Society Campus'}
+                                            </p>
+                                        </div>
                                     </div>
+                                    <span className="p-1 text-slate-400 group-hover:text-blue-600 transition-colors shrink-0">
+                                        <Edit3 className="w-3.5 h-3.5" />
+                                    </span>
                                 </div>
 
                                 {/* Department */}
-                                <div className="p-3.5 bg-slate-50/80 rounded-2xl border border-slate-200/70 flex items-start gap-3">
-                                    <BookOpen className="w-4 h-4 text-slate-400 mt-0.5 shrink-0" />
-                                    <div className="min-w-0 flex-1">
-                                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Department</p>
-                                        <p data-testid="display-profile-department" className="text-xs font-bold text-slate-800 mt-0.5 truncate">
-                                            {user?.department || 'Academic Department'}
-                                        </p>
+                                <div 
+                                    onClick={handleStartEdit}
+                                    role="button"
+                                    tabIndex={0}
+                                    onKeyDown={(e) => (e.key === 'Enter' || e.key === ' ') && handleStartEdit()}
+                                    title="Click to edit Academic Department"
+                                    className="p-3.5 bg-slate-50/80 hover:bg-blue-50/60 hover:border-blue-300 rounded-2xl border border-slate-200/70 flex items-start justify-between gap-3 cursor-pointer transition-all group"
+                                >
+                                    <div className="flex items-start gap-3 min-w-0 flex-1">
+                                        <BookOpen className="w-4 h-4 text-slate-400 group-hover:text-blue-600 mt-0.5 shrink-0 transition-colors" />
+                                        <div className="min-w-0 flex-1">
+                                            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider group-hover:text-blue-600 transition-colors">Department</p>
+                                            <p data-testid="display-profile-department" className="text-xs font-bold text-slate-800 mt-0.5 truncate">
+                                                {user?.department || 'Academic Department'}
+                                            </p>
+                                        </div>
                                     </div>
+                                    <span className="p-1 text-slate-400 group-hover:text-blue-600 transition-colors shrink-0">
+                                        <Edit3 className="w-3.5 h-3.5" />
+                                    </span>
                                 </div>
                             </div>
                         ) : (
@@ -335,17 +393,20 @@ const Profile = () => {
 
                                 {/* Full Name Input */}
                                 <div className="space-y-1">
-                                    <label className="text-[11px] font-bold uppercase tracking-wider text-slate-600 block">
+                                    <label htmlFor="profile-name-input" className="text-[11px] font-bold uppercase tracking-wider text-slate-600 block">
                                         Official Full Name <span className="text-rose-500">*</span>
                                     </label>
                                     <div className="relative">
                                         <input
                                             type="text"
+                                            id="profile-name-input"
                                             name="name"
                                             data-testid="profile-name-input"
-                                            value={formData.name}
+                                            value={formData.name || ''}
                                             onChange={handleInputChange}
-                                            placeholder="Enter your full name"
+                                            placeholder="Enter your full name (e.g. Dr. Principal Name)"
+                                            autoFocus
+                                            autoComplete="name"
                                             required
                                             className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-300 focus:border-blue-500 focus:bg-white rounded-xl text-xs font-bold text-slate-800 outline-none transition"
                                         />
@@ -354,17 +415,19 @@ const Profile = () => {
 
                                 {/* Official Designation Input */}
                                 <div className="space-y-1">
-                                    <label className="text-[11px] font-bold uppercase tracking-wider text-slate-600 block">
+                                    <label htmlFor="profile-designation-input" className="text-[11px] font-bold uppercase tracking-wider text-slate-600 block">
                                         Official Designation
                                     </label>
                                     <div className="relative">
                                         <input
                                             type="text"
+                                            id="profile-designation-input"
                                             name="designation"
                                             data-testid="profile-designation-input"
-                                            value={formData.designation}
+                                            value={formData.designation || ''}
                                             onChange={handleInputChange}
-                                            placeholder="e.g. Assistant Professor / Lecturer"
+                                            placeholder="e.g. Principal / Professor / Lecturer"
+                                            autoComplete="organization-title"
                                             className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-300 focus:border-blue-500 focus:bg-white rounded-xl text-xs font-bold text-slate-800 outline-none transition"
                                         />
                                     </div>
@@ -372,15 +435,16 @@ const Profile = () => {
 
                                 {/* College / Institution Input */}
                                 <div className="space-y-1">
-                                    <label className="text-[11px] font-bold uppercase tracking-wider text-slate-600 block">
+                                    <label htmlFor="profile-college-input" className="text-[11px] font-bold uppercase tracking-wider text-slate-600 block">
                                         Institutional College
                                     </label>
                                     <div className="relative">
                                         <input
                                             type="text"
+                                            id="profile-college-input"
                                             name="college"
                                             data-testid="profile-college-input"
-                                            value={formData.college}
+                                            value={formData.college || ''}
                                             onChange={handleInputChange}
                                             placeholder="e.g. CLE Society Degree College"
                                             className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-300 focus:border-blue-500 focus:bg-white rounded-xl text-xs font-bold text-slate-800 outline-none transition"
@@ -390,17 +454,18 @@ const Profile = () => {
 
                                 {/* Department Input */}
                                 <div className="space-y-1">
-                                    <label className="text-[11px] font-bold uppercase tracking-wider text-slate-600 block">
+                                    <label htmlFor="profile-department-input" className="text-[11px] font-bold uppercase tracking-wider text-slate-600 block">
                                         Academic Department
                                     </label>
                                     <div className="relative">
                                         <input
                                             type="text"
+                                            id="profile-department-input"
                                             name="department"
                                             data-testid="profile-department-input"
-                                            value={formData.department}
+                                            value={formData.department || ''}
                                             onChange={handleInputChange}
-                                            placeholder="e.g. Computer Science & Engineering"
+                                            placeholder="e.g. Executive Administration / Physics"
                                             className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-300 focus:border-blue-500 focus:bg-white rounded-xl text-xs font-bold text-slate-800 outline-none transition"
                                         />
                                     </div>

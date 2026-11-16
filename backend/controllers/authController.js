@@ -344,7 +344,15 @@ exports.updateProfile = (req, res) => {
         const trimmedDesignation = typeof designation === 'string' ? designation.trim() : null;
 
         // Find target user by id, employeeId, or phone
-        let targetUser = db.prepare('SELECT id, phone, role, employee_id FROM users WHERE id = ?').get(userId);
+        let targetId = req.user.id;
+        if (req.user.role === 'admin' && req.body.targetUserId) {
+            targetId = req.body.targetUserId;
+        } else if (req.user.role === 'admin' && req.body.targetRole === 'hoi') {
+            const pUser = db.prepare("SELECT id FROM users WHERE LOWER(role) IN ('hoi', 'principal')").get();
+            if (pUser) targetId = pUser.id;
+        }
+
+        let targetUser = db.prepare('SELECT id, phone, role, employee_id FROM users WHERE id = ?').get(targetId);
         if (!targetUser && req.user.employeeId) {
             targetUser = db.prepare('SELECT id, phone, role, employee_id FROM users WHERE employee_id = ?').get(req.user.employeeId);
         }
@@ -357,7 +365,7 @@ exports.updateProfile = (req, res) => {
             return res.status(404).json({ error: 'User account not found.' });
         }
 
-        const targetId = targetUser.id;
+        targetId = targetUser.id;
 
         if (designation !== undefined) {
             db.prepare(`
