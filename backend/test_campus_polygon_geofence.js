@@ -44,8 +44,15 @@ async function runGeofenceTests() {
     let passed = 0;
     let failed = 0;
 
-    // Use existing staff user 103 in database.test.sqlite
+    // Ensure test staff user 103 exists in DB
     const testStaffId = 103;
+    const existingStaff = db.prepare('SELECT id FROM users WHERE id = ?').get(testStaffId);
+    if (!existingStaff) {
+        db.prepare(`
+            INSERT INTO users (id, name, phone, role, department, employee_id, status)
+            VALUES (?, 'Geofence Test Staff', '9876543219', 'staff', 'Academic', 'EMP_103', 'active')
+        `).run(testStaffId);
+    }
     const testUser = { id: testStaffId, role: 'staff', employeeId: 'EMP_103' };
     const today = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Kolkata' }).format(new Date());
 

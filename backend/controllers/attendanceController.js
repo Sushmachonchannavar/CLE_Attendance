@@ -259,14 +259,6 @@ exports.sendOTP = async (req, res) => {
             return res.status(404).json({ error: 'User not found. Please register first.' });
         }
 
-        if (user.status === 'pending') {
-            return res.status(403).json({ error: 'Your account is pending Principal approval. Please contact the Principal.' });
-        }
-
-        if (user.status === 'rejected') {
-            return res.status(403).json({ error: 'Your registration request has been rejected by the Principal. Please contact the Principal.' });
-        }
-
         if (user.status !== 'active' && user.status !== 'approved') {
             return res.status(403).json({ error: 'Your account is inactive. Please contact the administrator.' });
         }
@@ -409,14 +401,6 @@ exports.verifyOTP = async (req, res) => {
         if (!user) {
             console.warn('[OTP VERIFY FAILED] User not found:', { phone: maskPhone(phone), empId: employeeId });
             return res.status(404).json({ error: 'User not found. Please register first.' });
-        }
-
-        if (user.status === 'pending') {
-            return res.status(403).json({ error: 'Your account is pending Principal approval. Please contact the Principal.' });
-        }
-
-        if (user.status === 'rejected') {
-            return res.status(403).json({ error: 'Your registration request has been rejected by the Principal. Please contact the Principal.' });
         }
 
         if (user.status !== 'active' && user.status !== 'approved') {

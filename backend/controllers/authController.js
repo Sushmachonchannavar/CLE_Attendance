@@ -68,14 +68,6 @@ exports.login = async (req, res) => {
         return res.status(403).json({ error: 'Mobile number not found. Please register first.' });
     }
 
-    if (existingUser.status === 'pending') {
-        return res.status(403).json({ error: 'Your account is pending Principal approval. Please contact the Principal.' });
-    }
-
-    if (existingUser.status === 'rejected') {
-        return res.status(403).json({ error: 'Your registration request has been rejected by the Principal. Please contact the Principal.' });
-    }
-
     if (existingUser.status !== 'active' && existingUser.status !== 'approved') {
         return res.status(403).json({ error: 'Your account is inactive. Please contact the administrator.' });
     }
@@ -192,17 +184,17 @@ exports.register = (req, res) => {
             });
         }
 
-        // 3. Insert new user strictly with status 'pending'
+        // 3. Insert new user strictly with status 'active' (auto-activated, no approval required)
         db.prepare(`
             INSERT INTO users (phone, name, college, department, designation, role, employee_id, status) 
-            VALUES (?, ?, ?, ?, ?, 'staff', ?, 'pending')
+            VALUES (?, ?, ?, ?, ?, 'staff', ?, 'active')
         `).run(tenDigits, fullName, cleanCollege, cleanDept, cleanDesignation, cleanEmpId);
 
-        console.log(`[AUTH] New user registration submitted: ${fullName} (${tenDigits}, status: pending)`);
+        console.log(`[AUTH] New user registration completed: ${fullName} (${tenDigits}, status: active)`);
 
         return res.status(201).json({
             success: true,
-            message: 'Registration submitted successfully. Your account is pending Principal approval before you can log in.'
+            message: 'Registration completed successfully! You can now log in using your registered mobile number.'
         });
     } catch (err) {
         console.error('Registration error:', err.stack || err.message || err);
@@ -231,14 +223,6 @@ exports.verify = async (req, res) => {
     let user = db.prepare("SELECT * FROM users WHERE (phone = ? OR phone = ? OR phone = ?)").get(rawPhone, tenDigits, withPlus91);
     if (!user) {
         return res.status(403).json({ error: 'User does not exist. Please register first.' });
-    }
-
-    if (user.status === 'pending') {
-        return res.status(403).json({ error: 'Your account is pending Principal approval. Please contact the Principal.' });
-    }
-
-    if (user.status === 'rejected') {
-        return res.status(403).json({ error: 'Your registration request has been rejected by the Principal. Please contact the Principal.' });
     }
 
     if (user.status !== 'active' && user.status !== 'approved') {

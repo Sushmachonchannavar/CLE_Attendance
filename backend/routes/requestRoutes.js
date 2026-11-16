@@ -24,8 +24,5 @@ router.get('/od/download/:id', auth, requestController.downloadODDocument);
 // Audit History
 router.get('/audit-history/:type/:id', auth, requestController.getAuditHistory);
 
-// Staff Registration Requests (Principal Authorization Only - Admin and Staff Forbidden)
-router.get('/staff-registrations', auth, role(['hoi', 'principal']), requestController.getStaffRegistrations);
-router.put('/staff-registrations/:id', auth, role(['hoi', 'principal']), requestController.updateStaffRegistrationStatus);
 
 module.exports = router;

@@ -52,7 +52,7 @@ const Register = () => {
                 mobile: cleanMobile
             });
             if (result.success) {
-                setSuccessMessage(result.message || 'Registration submitted successfully. Your account is pending Principal approval before you can log in.');
+                setSuccessMessage(result.message || 'Registration completed successfully! You can now log in using your registered mobile number.');
             } else {
                 setError(result.error || 'Registration failed. Please try again.');
             }
@@ -92,9 +92,9 @@ const Register = () => {
                             <CheckCircle2 className="w-9 h-9" />
                         </div>
                         <div>
-                            <h2 className="text-xl font-bold text-slate-800">Registration Submitted</h2>
-                            <p className="text-amber-600 font-bold text-xs uppercase tracking-wider mt-1">
-                                Pending Principal Approval
+                            <h2 className="text-xl font-bold text-slate-800">Registration Completed!</h2>
+                            <p className="text-emerald-600 font-bold text-xs uppercase tracking-wider mt-1">
+                                Account Active & Ready for Login
                             </p>
                         </div>
                         <p className="text-sm text-slate-600 font-medium px-2 leading-relaxed">
