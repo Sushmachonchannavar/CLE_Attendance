@@ -69,10 +69,14 @@ exports.login = async (req, res) => {
     }
 
     if (existingUser.status === 'pending') {
-        return res.status(403).json({ error: 'Your account is pending administrator approval. Please contact the administrator.' });
+        return res.status(403).json({ error: 'Your account is pending Principal approval. Please contact the Principal.' });
     }
 
-    if (existingUser.status !== 'active') {
+    if (existingUser.status === 'rejected') {
+        return res.status(403).json({ error: 'Your registration request has been rejected by the Principal. Please contact the Principal.' });
+    }
+
+    if (existingUser.status !== 'active' && existingUser.status !== 'approved') {
         return res.status(403).json({ error: 'Your account is inactive. Please contact the administrator.' });
     }
 
@@ -133,7 +137,7 @@ exports.login = async (req, res) => {
 
 exports.register = (req, res) => {
     try {
-        const { firstName, lastName, mobile, collegeName, departmentName, employeeId } = req.body;
+        const { firstName, lastName, mobile, collegeName, departmentName, designation, employeeId } = req.body;
         
         // 1. Input validation
         if (!firstName || typeof firstName !== 'string' || firstName.trim().length < 2) {
@@ -171,6 +175,9 @@ exports.register = (req, res) => {
 
         const cleanCollege = collegeName && typeof collegeName === 'string' ? collegeName.trim().slice(0, 100) : '';
         const cleanDept = departmentName && typeof departmentName === 'string' ? departmentName.trim().slice(0, 100) : '';
+        const cleanDesignation = designation && typeof designation === 'string' && designation.trim() 
+            ? designation.trim().slice(0, 100) 
+            : 'Faculty Member';
 
         // 2. Conflict check (Never update an existing user; return 409 if exists)
         const withPlus91 = '+91' + tenDigits;
@@ -187,15 +194,15 @@ exports.register = (req, res) => {
 
         // 3. Insert new user strictly with status 'pending'
         db.prepare(`
-            INSERT INTO users (phone, name, college, department, role, employee_id, status) 
-            VALUES (?, ?, ?, ?, 'staff', ?, 'pending')
-        `).run(tenDigits, fullName, cleanCollege, cleanDept, cleanEmpId);
+            INSERT INTO users (phone, name, college, department, designation, role, employee_id, status) 
+            VALUES (?, ?, ?, ?, ?, 'staff', ?, 'pending')
+        `).run(tenDigits, fullName, cleanCollege, cleanDept, cleanDesignation, cleanEmpId);
 
         console.log(`[AUTH] New user registration submitted: ${fullName} (${tenDigits}, status: pending)`);
 
         return res.status(201).json({
             success: true,
-            message: 'Registration submitted successfully. Your account is pending administrator approval before you can log in.'
+            message: 'Registration submitted successfully. Your account is pending Principal approval before you can log in.'
         });
     } catch (err) {
         console.error('Registration error:', err.stack || err.message || err);
@@ -227,10 +234,14 @@ exports.verify = async (req, res) => {
     }
 
     if (user.status === 'pending') {
-        return res.status(403).json({ error: 'Your account is pending administrator approval. Please contact the administrator.' });
+        return res.status(403).json({ error: 'Your account is pending Principal approval. Please contact the Principal.' });
     }
 
-    if (user.status !== 'active') {
+    if (user.status === 'rejected') {
+        return res.status(403).json({ error: 'Your registration request has been rejected by the Principal. Please contact the Principal.' });
+    }
+
+    if (user.status !== 'active' && user.status !== 'approved') {
         return res.status(403).json({ error: 'Your account is inactive. Please contact the administrator.' });
     }
 
@@ -292,11 +303,11 @@ exports.verify = async (req, res) => {
 
 exports.verifyToken = (req, res) => {
     try {
-        const user = db.prepare('SELECT id, name, phone, role, college, department, employee_id, status FROM users WHERE id = ?').get(req.user.id);
+        const user = db.prepare('SELECT id, name, phone, role, college, department, designation, employee_id, status FROM users WHERE id = ?').get(req.user.id);
         if (!user) {
             return res.status(401).json({ error: 'User account no longer exists.' });
         }
-        if (user.status !== 'active') {
+        if (user.status !== 'active' && user.status !== 'approved') {
             return res.status(403).json({ error: 'User account is not active.' });
         }
         res.json({

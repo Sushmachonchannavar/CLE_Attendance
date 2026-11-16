@@ -612,3 +612,128 @@ exports.downloadODDocument = (req, res) => {
         res.status(500).json({ error: 'Failed to download document.' });
     }
 };
+
+// =========================================================================
+// STAFF REGISTRATION REQUESTS (Principal Authorization Only)
+// =========================================================================
+
+/**
+ * Fetch staff registration requests.
+ * Only authenticated Principal (HOI) accounts can view staff registration requests.
+ * Admin and Staff accounts receive HTTP 403 Forbidden.
+ */
+exports.getStaffRegistrations = (req, res) => {
+    try {
+        if (!req.user) {
+            return res.status(401).json({ error: 'Unauthorized' });
+        }
+
+        const userRole = req.user.role?.toLowerCase();
+        if (userRole !== 'hoi' && userRole !== 'principal') {
+            return res.status(403).json({ error: 'Forbidden. Only the Principal has authority to view staff registration requests.' });
+        }
+
+        const { status } = req.query;
+        let query = `
+            SELECT id, name, phone, department, college, designation, employee_id, status, created_at 
+            FROM users 
+            WHERE role = 'staff'
+        `;
+        const params = [];
+
+        if (status && ['pending', 'approved', 'rejected', 'active'].includes(status.toLowerCase())) {
+            query += ` AND status = ?`;
+            params.push(status.toLowerCase());
+        }
+
+        query += ` ORDER BY CASE WHEN status = 'pending' THEN 0 ELSE 1 END, id DESC`;
+
+        const registrations = db.prepare(query).all(...params);
+
+        res.json({
+            success: true,
+            registrations
+        });
+    } catch (err) {
+        console.error('Error fetching staff registrations:', err.stack || err.message || err);
+        res.status(500).json({ error: 'Failed to fetch staff registration requests.' });
+    }
+};
+
+/**
+ * Update staff registration status (Approve or Reject).
+ * Only authenticated Principal (HOI) accounts can approve or reject staff registrations.
+ * Admin and Staff accounts receive HTTP 403 Forbidden.
+ */
+exports.updateStaffRegistrationStatus = (req, res) => {
+    try {
+        if (!req.user) {
+            return res.status(401).json({ error: 'Unauthorized' });
+        }
+
+        const userRole = req.user.role?.toLowerCase();
+        if (userRole !== 'hoi' && userRole !== 'principal') {
+            return res.status(403).json({ error: 'Forbidden. Only the Principal has authority to approve or reject staff registrations.' });
+        }
+
+        const staffId = parseInt(req.params.id, 10);
+        if (Number.isNaN(staffId)) {
+            return res.status(400).json({ error: 'Invalid staff registration ID.' });
+        }
+
+        const { status, reason } = req.body;
+        if (!status || !['approved', 'rejected'].includes(status.toLowerCase())) {
+            return res.status(400).json({ error: "Invalid status. Must be 'approved' or 'rejected'." });
+        }
+
+        const newStatus = status.toLowerCase();
+
+        // Check if user exists and is a staff member
+        const staff = db.prepare('SELECT id, name, phone, role, status FROM users WHERE id = ?').get(staffId);
+        if (!staff) {
+            return res.status(404).json({ error: 'Staff registration record not found.' });
+        }
+
+        if (staff.role?.toLowerCase() !== 'staff') {
+            return res.status(400).json({ error: 'Only staff accounts can be approved or rejected.' });
+        }
+
+        const previousStatus = staff.status;
+
+        // Update staff account status in database
+        db.prepare('UPDATE users SET status = ? WHERE id = ?').run(newStatus, staffId);
+
+        // Record audit log if approval_audit_logs exists
+        try {
+            db.prepare(`
+                INSERT INTO approval_audit_logs (request_type, request_id, reviewer_id, reviewer_role, previous_status, new_status, decision_reason)
+                VALUES ('staff_registration', ?, ?, ?, ?, ?, ?)
+            `).run(
+                staffId,
+                req.user.id,
+                'PRINCIPAL',
+                previousStatus,
+                newStatus,
+                reason || (newStatus === 'approved' ? 'Approved by Principal' : 'Rejected by Principal')
+            );
+        } catch (auditErr) {
+            console.warn('[AUDIT LOG ERROR]', auditErr.message);
+        }
+
+        console.log(`[STAFF REGISTRATION] Principal (ID: ${req.user.id}) updated staff ${staff.name} (ID: ${staffId}) to status '${newStatus}'`);
+
+        const updatedStaff = db.prepare('SELECT id, name, phone, department, college, designation, employee_id, status, created_at FROM users WHERE id = ?').get(staffId);
+
+        return res.json({
+            success: true,
+            message: newStatus === 'approved' 
+                ? `Staff member ${staff.name} has been approved successfully.`
+                : `Staff member ${staff.name} has been rejected.`,
+            staff: updatedStaff
+        });
+    } catch (err) {
+        console.error('Error updating staff registration status:', err.stack || err.message || err);
+        res.status(500).json({ error: 'Failed to update staff registration status.' });
+    }
+};
+

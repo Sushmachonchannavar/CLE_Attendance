@@ -260,10 +260,14 @@ exports.sendOTP = async (req, res) => {
         }
 
         if (user.status === 'pending') {
-            return res.status(403).json({ error: 'Your account is pending administrator approval. Please contact the administrator.' });
+            return res.status(403).json({ error: 'Your account is pending Principal approval. Please contact the Principal.' });
         }
 
-        if (user.status !== 'active') {
+        if (user.status === 'rejected') {
+            return res.status(403).json({ error: 'Your registration request has been rejected by the Principal. Please contact the Principal.' });
+        }
+
+        if (user.status !== 'active' && user.status !== 'approved') {
             return res.status(403).json({ error: 'Your account is inactive. Please contact the administrator.' });
         }
 
@@ -408,10 +412,14 @@ exports.verifyOTP = async (req, res) => {
         }
 
         if (user.status === 'pending') {
-            return res.status(403).json({ error: 'Your account is pending administrator approval. Please contact the administrator.' });
+            return res.status(403).json({ error: 'Your account is pending Principal approval. Please contact the Principal.' });
         }
 
-        if (user.status !== 'active') {
+        if (user.status === 'rejected') {
+            return res.status(403).json({ error: 'Your registration request has been rejected by the Principal. Please contact the Principal.' });
+        }
+
+        if (user.status !== 'active' && user.status !== 'approved') {
             return res.status(403).json({ error: 'Your account is inactive. Please contact the administrator.' });
         }
 

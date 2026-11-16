@@ -6,8 +6,8 @@ exports.getDailyReport = (req, res) => {
         const { date } = req.query; // YYYY-MM-DD
         const queryDate = date || new Date().toISOString().split('T')[0];
 
-        // Get all users
-        const users = db.prepare('SELECT id, name, phone, department, role FROM users').all();
+        // Get all active/approved users
+        const users = db.prepare("SELECT id, name, phone, department, role FROM users WHERE status IN ('active', 'approved')").all();
 
         const report = users.map(user => {
             // Check attendance

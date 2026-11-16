@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import CleLogo from '../components/CleLogo';
-import { User, Phone, Landmark, BookOpen, ArrowRight, ShieldCheck, AlertCircle, RefreshCw, CheckCircle2 } from 'lucide-react';
+import { User, Phone, Landmark, BookOpen, ArrowRight, ShieldCheck, AlertCircle, RefreshCw, CheckCircle2, Briefcase } from 'lucide-react';
 
 const Register = () => {
     const [formData, setFormData] = useState({
@@ -10,6 +10,7 @@ const Register = () => {
         lastName: '',
         collegeName: '',
         departmentName: '',
+        designation: '',
         mobile: ''
     });
     const [isSubmitting, setIsSubmitting] = useState(false);
@@ -51,7 +52,7 @@ const Register = () => {
                 mobile: cleanMobile
             });
             if (result.success) {
-                setSuccessMessage(result.message || 'Registration submitted successfully. Your account is pending administrator approval before you can log in.');
+                setSuccessMessage(result.message || 'Registration submitted successfully. Your account is pending Principal approval before you can log in.');
             } else {
                 setError(result.error || 'Registration failed. Please try again.');
             }
@@ -93,7 +94,7 @@ const Register = () => {
                         <div>
                             <h2 className="text-xl font-bold text-slate-800">Registration Submitted</h2>
                             <p className="text-amber-600 font-bold text-xs uppercase tracking-wider mt-1">
-                                Pending Administrator Approval
+                                Pending Principal Approval
                             </p>
                         </div>
                         <p className="text-sm text-slate-600 font-medium px-2 leading-relaxed">
@@ -199,6 +200,28 @@ const Register = () => {
                                 onChange={handleChange}
                                 placeholder="e.g. Computer Science & Engineering"
                                 required
+                                disabled={isSubmitting}
+                            />
+                        </div>
+                    </div>
+
+                    {/* Designation / Academic Post */}
+                    <div>
+                        <label htmlFor="designation" className="block mb-1.5 text-xs font-bold text-slate-700 uppercase tracking-wider">
+                            Designation / Post
+                        </label>
+                        <div className="relative flex items-center bg-slate-50 border border-slate-200 rounded-xl focus-within:ring-2 focus-within:ring-blue-500/20 focus-within:border-blue-500 focus-within:bg-white transition-all">
+                            <span className="pl-3.5 pr-2 text-slate-400">
+                                <Briefcase className="w-4 h-4" />
+                            </span>
+                            <input
+                                id="designation"
+                                type="text"
+                                name="designation"
+                                className="w-full pr-3 py-3 bg-transparent text-slate-800 text-sm font-medium focus:outline-none placeholder:text-slate-400"
+                                value={formData.designation}
+                                onChange={handleChange}
+                                placeholder="e.g. Assistant Professor / Lecturer"
                                 disabled={isSubmitting}
                             />
                         </div>

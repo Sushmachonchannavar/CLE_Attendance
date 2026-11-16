@@ -21,7 +21,10 @@ import {
     Sparkles,
     X,
     Phone,
-    UserCog
+    UserCog,
+    UserCheck,
+    UserX,
+    UserPlus
 } from 'lucide-react';
 
 const isAdminRole = (role) => {
@@ -35,23 +38,34 @@ const Dashboard = () => {
     const [dailyReport, setDailyReport] = useState([]);
     const [leaves, setLeaves] = useState([]);
     const [ods, setOds] = useState([]);
+    const [staffRegistrations, setStaffRegistrations] = useState([]);
     const [actionLoading, setActionLoading] = useState({});
+    const [regActionLoading, setRegActionLoading] = useState({});
     const [activeCardModal, setActiveCardModal] = useState(null);
     const [activeStaffFilter, setActiveStaffFilter] = useState('all');
+    const [regFilter, setRegFilter] = useState('pending');
 
     const loadDashboardData = React.useCallback(async () => {
         if (!user || !isAdminRole(user.role)) return;
+        const isPrincipal = user.role?.toLowerCase() === 'hoi' || user.role?.toLowerCase() === 'principal';
         try {
-            const [r1, r2, r3] = await Promise.allSettled([
+            const promises = [
                 api.get('/reports/daily'),
                 api.get('/requests/leaves/all'),
                 api.get('/requests/od/all')
-            ]);
-            if (r1.status === 'fulfilled') setDailyReport(r1.value.data.report || []);
-            if (r2.status === 'fulfilled') setLeaves(r2.value.data || []);
-            if (r3.status === 'fulfilled') setOds(r3.value.data || []);
+            ];
+            if (isPrincipal) {
+                promises.push(api.get('/requests/staff-registrations'));
+            }
+            const results = await Promise.allSettled(promises);
+            if (results[0].status === 'fulfilled') setDailyReport(results[0].value.data.report || []);
+            if (results[1].status === 'fulfilled') setLeaves(results[1].value.data || []);
+            if (results[2].status === 'fulfilled') setOds(results[2].value.data || []);
+            if (isPrincipal && results[3] && results[3].status === 'fulfilled') {
+                setStaffRegistrations(results[3].value.data.registrations || []);
+            }
         } catch (err) {
-            console.error('Failed to fetch admin dashboard data', err);
+            console.error('Failed to fetch dashboard data', err);
         }
     }, [user]);
 
@@ -99,6 +113,21 @@ const Dashboard = () => {
         }
     };
 
+    const handleUpdateRegistrationStatus = async (staffId, newStatus) => {
+        setRegActionLoading(prev => ({ ...prev, [staffId]: true }));
+        try {
+            await api.put(`/requests/staff-registrations/${staffId}`, { status: newStatus });
+            setStaffRegistrations(prev => prev.map(s => s.id === staffId ? { ...s, status: newStatus } : s));
+            await loadDashboardData();
+        } catch (err) {
+            const msg = err.response?.data?.error || err.message || 'Failed to update staff registration status';
+            alert(`Error: ${msg}`);
+            console.error('Failed to update registration status', err);
+        } finally {
+            setRegActionLoading(prev => ({ ...prev, [staffId]: false }));
+        }
+    };
+
     const getStatusBadge = (status) => {
         switch (status?.toLowerCase()) {
             case 'approved':
@@ -124,6 +153,9 @@ const Dashboard = () => {
             setActiveCardModal('pending_leaves');
         } else if (cardType === 'pending_ods') {
             setActiveCardModal('pending_ods');
+        } else if (cardType === 'pending_registrations') {
+            const el = document.getElementById('staff-registration-requests-section');
+            if (el) el.scrollIntoView({ behavior: 'smooth' });
         }
     };
 
@@ -146,6 +178,10 @@ const Dashboard = () => {
 
     const pendingLeavesPrincipal = leaves.filter(l => l.role?.toUpperCase() === 'STAFF' && (!l.status || l.status.toLowerCase() === 'pending')).length;
     const pendingODsPrincipal = ods.filter(o => o.role?.toUpperCase() === 'STAFF' && (!o.status || o.status.toLowerCase() === 'pending')).length;
+    const pendingStaffRegistrations = staffRegistrations.filter(s => !s.status || s.status.toLowerCase() === 'pending').length;
+    const displayedRegistrations = regFilter === 'pending'
+        ? staffRegistrations.filter(s => !s.status || s.status.toLowerCase() === 'pending')
+        : staffRegistrations;
 
     const displayedStaffReport = staffReport.filter(staff => {
         if (activeStaffFilter === 'present') return staff.status === 'present' || staff.status === 'late';
@@ -218,7 +254,7 @@ const Dashboard = () => {
                 /* ----------------- PRINCIPAL DASHBOARD ----------------- */
                 <div className="space-y-8">
                     {/* Summary Cards Grid */}
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
                         {/* Total Staff */}
                         <div
                             role="button"
@@ -270,6 +306,24 @@ const Dashboard = () => {
                             <div>
                                 <h4 className="text-2xl font-black text-slate-800">{absentStaffPrincipal}</h4>
                                 <div className="text-xs text-slate-500 font-bold uppercase tracking-wider mt-0.5">Absent Today</div>
+                            </div>
+                        </div>
+
+                        {/* Pending Staff Registrations */}
+                        <div
+                            role="button"
+                            tabIndex={0}
+                            data-testid="card-pending-registrations"
+                            onClick={() => handleCardClick('pending_registrations')}
+                            onKeyDown={(e) => (e.key === 'Enter' || e.key === ' ') && handleCardClick('pending_registrations')}
+                            className="bg-white p-5 rounded-2xl shadow-sm border border-slate-200/80 flex items-center gap-4 hover:shadow-md hover:border-purple-400 active:scale-[0.99] transition-all cursor-pointer"
+                        >
+                            <div className="p-3.5 bg-purple-50 text-purple-700 rounded-2xl border border-purple-100">
+                                <UserCheck className="w-6 h-6" />
+                            </div>
+                            <div>
+                                <h4 className="text-2xl font-black text-slate-800">{pendingStaffRegistrations}</h4>
+                                <div className="text-xs text-slate-500 font-bold uppercase tracking-wider mt-0.5">Registration Requests</div>
                             </div>
                         </div>
 
@@ -436,6 +490,152 @@ const Dashboard = () => {
                                 </div>
                             </div>
                         </div>
+                    </div>
+
+                    {/* Staff Registration Requests Approval Desk (Principal Authority Only) */}
+                    <div id="staff-registration-requests-section" className="bg-white p-6 rounded-3xl shadow-sm border border-slate-200/80">
+                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-5 pb-4 border-b border-slate-100">
+                            <div>
+                                <h4 className="text-base font-bold text-slate-800 flex items-center gap-2">
+                                    <UserCheck className="text-blue-600 w-5 h-5" />
+                                    Staff Registration Requests
+                                </h4>
+                                <p className="text-xs text-slate-500 mt-0.5">Review, authorize or reject new faculty & staff registration accounts</p>
+                            </div>
+                            <div className="flex flex-wrap items-center gap-2">
+                                <div className="inline-flex rounded-xl bg-slate-100 p-1 border border-slate-200 text-xs font-semibold">
+                                    <button
+                                        type="button"
+                                        onClick={() => setRegFilter('pending')}
+                                        className={`px-3 py-1 rounded-lg transition-all ${
+                                            regFilter === 'pending'
+                                                ? 'bg-white text-blue-700 shadow-sm font-bold'
+                                                : 'text-slate-600 hover:text-slate-900'
+                                        }`}
+                                    >
+                                        Pending ({pendingStaffRegistrations})
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={() => setRegFilter('all')}
+                                        className={`px-3 py-1 rounded-lg transition-all ${
+                                            regFilter === 'all'
+                                                ? 'bg-white text-blue-700 shadow-sm font-bold'
+                                                : 'text-slate-600 hover:text-slate-900'
+                                        }`}
+                                    >
+                                        All ({staffRegistrations.length})
+                                    </button>
+                                </div>
+                                <span className="text-xs font-bold text-purple-700 bg-purple-50 border border-purple-200 px-3 py-1 rounded-full self-start sm:self-auto">
+                                    {pendingStaffRegistrations} Pending Principal Approval
+                                </span>
+                            </div>
+                        </div>
+
+                        {displayedRegistrations.length === 0 ? (
+                            <div className="text-center py-10 text-slate-400">
+                                <UserCheck className="w-10 h-10 mx-auto mb-2 opacity-30 text-slate-500" />
+                                <p className="text-xs font-semibold text-slate-600">
+                                    {regFilter === 'pending'
+                                        ? 'No pending staff registration requests.'
+                                        : 'No staff registration records found.'}
+                                </p>
+                            </div>
+                        ) : (
+                            <div className="overflow-x-auto custom-scrollbar">
+                                <table className="min-w-full leading-normal border-collapse">
+                                    <thead>
+                                        <tr>
+                                            <th className="px-4 py-3 text-xs font-bold tracking-wider text-left text-slate-500 uppercase bg-slate-50 rounded-l-xl">Staff Name</th>
+                                            <th className="px-4 py-3 text-xs font-bold tracking-wider text-left text-slate-500 uppercase bg-slate-50">Mobile Number</th>
+                                            <th className="px-4 py-3 text-xs font-bold tracking-wider text-left text-slate-500 uppercase bg-slate-50">Designation</th>
+                                            <th className="px-4 py-3 text-xs font-bold tracking-wider text-left text-slate-500 uppercase bg-slate-50">Department</th>
+                                            <th className="px-4 py-3 text-xs font-bold tracking-wider text-left text-slate-500 uppercase bg-slate-50">Registration Date</th>
+                                            <th className="px-4 py-3 text-xs font-bold tracking-wider text-left text-slate-500 uppercase bg-slate-50">Status</th>
+                                            <th className="px-4 py-3 text-xs font-bold tracking-wider text-right text-slate-500 uppercase bg-slate-50 rounded-r-xl">Decision</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody className="divide-y divide-slate-100">
+                                        {displayedRegistrations.map((staff) => {
+                                            const badge = getStatusBadge(staff.status);
+                                            const isActing = regActionLoading[staff.id];
+                                            const regDate = staff.created_at
+                                                ? new Date(staff.created_at).toLocaleDateString('en-IN', { year: 'numeric', month: 'short', day: 'numeric' })
+                                                : '—';
+                                            return (
+                                                <tr key={staff.id} data-testid={`staff-registration-row-${staff.id}`} className="hover:bg-slate-50/70 transition-colors">
+                                                    <td className="px-4 py-3 text-sm font-semibold text-slate-800">
+                                                        <div className="flex items-center gap-2.5">
+                                                            <div className="w-8 h-8 rounded-full bg-blue-100 text-blue-700 flex items-center justify-center font-bold text-xs uppercase flex-shrink-0">
+                                                                {staff.name ? staff.name.charAt(0) : 'S'}
+                                                            </div>
+                                                            <div>
+                                                                <div className="font-bold text-slate-800">{staff.name || 'Faculty Member'}</div>
+                                                                <div className="text-[11px] text-slate-400 font-normal">{staff.college || 'CLE Society'}</div>
+                                                            </div>
+                                                        </div>
+                                                    </td>
+                                                    <td className="px-4 py-3 text-sm font-semibold text-slate-700 whitespace-nowrap">
+                                                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-slate-100 text-slate-800 rounded-lg text-xs font-mono">
+                                                            <Phone className="w-3 h-3 text-blue-600" />
+                                                            +91 {staff.phone}
+                                                        </span>
+                                                    </td>
+                                                    <td className="px-4 py-3 text-sm text-slate-700 font-medium">
+                                                        {staff.designation || 'Faculty Member'}
+                                                    </td>
+                                                    <td className="px-4 py-3 text-sm text-slate-600">
+                                                        {staff.department || 'Academic'}
+                                                    </td>
+                                                    <td className="px-4 py-3 text-xs text-slate-600 whitespace-nowrap">
+                                                        {regDate}
+                                                    </td>
+                                                    <td className="px-4 py-3 text-sm whitespace-nowrap">
+                                                        <span className={`px-2.5 py-1 rounded-full text-[11px] font-extrabold uppercase border ${badge.className}`}>
+                                                            {badge.label}
+                                                        </span>
+                                                    </td>
+                                                    <td className="px-4 py-3 text-sm text-right whitespace-nowrap">
+                                                        <div className="flex items-center justify-end gap-2">
+                                                            {staff.status !== 'approved' && staff.status !== 'active' && (
+                                                                <button
+                                                                    type="button"
+                                                                    data-testid={`approve-staff-${staff.id}`}
+                                                                    disabled={isActing}
+                                                                    onClick={() => handleUpdateRegistrationStatus(staff.id, 'approved')}
+                                                                    className="px-3 py-1.5 text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700 active:scale-95 rounded-xl shadow-sm transition flex items-center gap-1.5 disabled:opacity-50"
+                                                                    title="Approve Staff Registration"
+                                                                >
+                                                                    <CheckCircle className="w-3.5 h-3.5" />
+                                                                    Approve
+                                                                </button>
+                                                            )}
+                                                            {staff.status !== 'rejected' && (
+                                                                <button
+                                                                    type="button"
+                                                                    data-testid={`reject-staff-${staff.id}`}
+                                                                    disabled={isActing}
+                                                                    onClick={() => handleUpdateRegistrationStatus(staff.id, 'rejected')}
+                                                                    className="px-3 py-1.5 text-xs font-bold text-white bg-rose-600 hover:bg-rose-700 active:scale-95 rounded-xl shadow-sm transition flex items-center gap-1.5 disabled:opacity-50"
+                                                                    title="Reject Staff Registration"
+                                                                >
+                                                                    <XCircle className="w-3.5 h-3.5" />
+                                                                    Reject
+                                                                </button>
+                                                            )}
+                                                            {(staff.status === 'approved' || staff.status === 'active') && (
+                                                                <span className="text-xs font-semibold text-emerald-600">Approved</span>
+                                                            )}
+                                                        </div>
+                                                    </td>
+                                                </tr>
+                                            );
+                                        })}
+                                    </tbody>
+                                </table>
+                            </div>
+                        )}
                     </div>
 
                     {/* Staff Leave Applications Approval Desk */}
