@@ -198,6 +198,8 @@ async function runTestSuite() {
     // Test 7: Staff account attempting to access Admin privileges = Rejected
     // -------------------------------------------------------------
     try {
+        db.prepare("INSERT OR REPLACE INTO users (id, name, phone, role, status) VALUES (999, 'Test Staff', ?, 'staff', 'active')").run(staffPhone);
+
         // Staff user 1234567890 attempts to log in as Admin
         const resLogin = createMockRes();
         await authController.login({ body: { phone: staffPhone, role: 'admin' } }, resLogin);
@@ -299,7 +301,7 @@ async function runTestSuite() {
     // Test 12: Only constant Admin number (9448378417) is authorized
     // -------------------------------------------------------------
     try {
-        const nonAdminPhone = '9876543210'; // A registered staff number
+        const nonAdminPhone = staffPhone; // A registered staff number
         const resLogin = createMockRes();
         await authController.login({ body: { phone: nonAdminPhone, role: 'admin' } }, resLogin);
         assert.strictEqual(resLogin.getStatus(), 403, 'Non-admin constant number must receive 403');
@@ -313,9 +315,11 @@ async function runTestSuite() {
         report('Scenario 12: Exclusive authorization: only 9448378417 is accepted for Admin role', false, e.message);
     } finally {
         // Ensure official constant Admin remains active and clean up temporary test artifacts
+        db.prepare("DELETE FROM users WHERE phone = ?").run(staffPhone);
         db.prepare("UPDATE users SET role = 'admin', status = 'active' WHERE phone LIKE ?").run(`%${adminPhone}%`);
         db.prepare("DELETE FROM otps WHERE phone LIKE ?").run(`%${adminPhone}%`);
         db.prepare("DELETE FROM auth_lockouts WHERE identifier LIKE ?").run(`%${adminPhone}%`);
+        try { db.pragma('wal_checkpoint(TRUNCATE)'); } catch (e) {}
     }
 
     console.log('='.repeat(70));

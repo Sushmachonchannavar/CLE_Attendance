@@ -49,7 +49,7 @@ exports.getDailyReport = (req, res) => {
 
         // Get all active/approved users
         const users = db.prepare(`
-            SELECT id, name, phone, college, department, designation, employee_id, role, status 
+            SELECT id, name, phone, college, department, designation, employee_id, role, status, created_at 
             FROM users 
             WHERE status IN ('active', 'approved')
             ORDER BY id ASC

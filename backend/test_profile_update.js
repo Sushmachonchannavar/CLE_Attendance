@@ -28,13 +28,18 @@ async function runTests() {
     let passed = 0;
     let failed = 0;
 
-    // 1. Verify user exists in database
-    const user = db.prepare("SELECT * FROM users WHERE phone LIKE '%6360670247%'").get();
+    // 1. Ensure test user exists in database for this test
+    const testPhone = '9876599999';
+    db.prepare(`
+        INSERT OR REPLACE INTO users (name, phone, role, college, department, designation, employee_id, status)
+        VALUES ('Test User', ?, 'staff', 'CLE Society Degree Chikodi', 'Bsc', 'Faculty Member', 'EMP-9876599999', 'active')
+    `).run(testPhone);
+    const user = db.prepare("SELECT * FROM users WHERE phone = ?").get(testPhone);
     if (!user) {
-        console.error('FAIL: User 6360670247 not found in DB');
+        console.error('FAIL: Test user not found in DB');
         process.exit(1);
     }
-    console.log(`[PASS] Found staff user: ${user.name} (ID: ${user.id}, phone: ${user.phone})`);
+    console.log(`[PASS] Found test user: ${user.name} (ID: ${user.id}, phone: ${user.phone})`);
     passed++;
 
     // 2. Test updateProfile with valid data
@@ -156,6 +161,10 @@ async function runTests() {
         console.error('FAIL: verifyToken failed:', res5.statusCode, res5.body);
         failed++;
     }
+
+    // Clean up test user
+    db.prepare("DELETE FROM users WHERE phone = ?").run(testPhone);
+    try { db.pragma('wal_checkpoint(TRUNCATE)'); } catch (e) {}
 
     console.log(`\n--- ALL TESTS COMPLETE: ${passed} passed, ${failed} failed ---`);
     if (failed > 0) process.exit(1);

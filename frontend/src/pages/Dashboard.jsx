@@ -641,376 +641,27 @@ const Dashboard = () => {
                             </div>
                         )}
                     </div>
-
-                    {/* Principal Dashboard Card Details Modal */}
-                    {activeCardModal && (
-                        <div
-                            className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-3 sm:p-6"
-                            onClick={() => setActiveCardModal(null)}
-                            data-testid="principal-details-modal"
-                        >
-                            <div
-                                className="bg-white rounded-3xl shadow-2xl border border-slate-100 w-full max-w-5xl max-h-[90vh] flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-150"
-                                onClick={(e) => e.stopPropagation()}
-                            >
-                                {/* Modal Header */}
-                                <div className="p-5 sm:p-6 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
-                                    <div className="flex items-center gap-3">
-                                        <div className="p-2.5 rounded-2xl bg-blue-50 text-blue-600 border border-blue-100">
-                                            {activeCardModal === 'total_staff' && <Users className="w-6 h-6" />}
-                                            {activeCardModal === 'present_today' && <ClipboardCheck className="w-6 h-6 text-emerald-600" />}
-                                            {activeCardModal === 'absent_today' && <ClipboardX className="w-6 h-6 text-rose-600" />}
-                                            {activeCardModal === 'pending_leaves' && <FileClock className="w-6 h-6 text-amber-600" />}
-                                            {activeCardModal === 'pending_ods' && <ShieldAlert className="w-6 h-6 text-indigo-600" />}
-                                        </div>
-                                        <div>
-                                            <h3 className="text-lg sm:text-xl font-black text-slate-800" data-testid="modal-title">
-                                                {activeCardModal === 'total_staff' && 'Total Staff Members'}
-                                                {activeCardModal === 'present_today' && "Today's Present Staff"}
-                                                {activeCardModal === 'absent_today' && "Today's Absent Staff"}
-                                                {activeCardModal === 'pending_leaves' && 'Pending Staff Leave Applications'}
-                                                {activeCardModal === 'pending_ods' && 'Pending Staff OD Requests'}
-                                            </h3>
-                                            <p className="text-xs text-slate-500 mt-0.5">
-                                                {activeCardModal === 'total_staff' && `Full roster of ${totalStaffPrincipal} registered staff members`}
-                                                {activeCardModal === 'present_today' && `${presentStaffPrincipal} staff members reported present today`}
-                                                {activeCardModal === 'absent_today' && `${absentStaffPrincipal} staff members marked absent today`}
-                                                {activeCardModal === 'pending_leaves' && `${pendingLeavesPrincipal} staff leave submissions awaiting your approval`}
-                                                {activeCardModal === 'pending_ods' && `${pendingODsPrincipal} staff official duty submissions awaiting your authorization`}
-                                            </p>
-                                        </div>
-                                    </div>
-                                    <button
-                                        type="button"
-                                        data-testid="modal-close-btn"
-                                        onClick={() => setActiveCardModal(null)}
-                                        className="p-2 rounded-xl text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors"
-                                        title="Close modal"
-                                    >
-                                        <X className="w-5 h-5" />
-                                    </button>
-                                </div>
-
-                                {/* Modal Body */}
-                                <div className="p-5 sm:p-6 overflow-y-auto custom-scrollbar flex-1">
-                                    {/* 1. TOTAL STAFF TABLE */}
-                                    {activeCardModal === 'total_staff' && (
-                                        <div className="overflow-x-auto">
-                                            <table className="min-w-full leading-normal border-collapse" data-testid="modal-total-staff-table">
-                                                <thead>
-                                                    <tr>
-                                                        <th className="px-4 py-3 text-xs font-bold tracking-wider text-left text-slate-500 uppercase bg-slate-50 rounded-l-xl">Staff Member</th>
-                                                        <th className="px-4 py-3 text-xs font-bold tracking-wider text-left text-slate-500 uppercase bg-slate-50">Contact</th>
-                                                        <th className="px-4 py-3 text-xs font-bold tracking-wider text-left text-slate-500 uppercase bg-slate-50">Today's Status</th>
-                                                        <th className="px-4 py-3 text-xs font-bold tracking-wider text-left text-slate-500 uppercase bg-slate-50">Punch In</th>
-                                                        <th className="px-4 py-3 text-xs font-bold tracking-wider text-right text-slate-500 uppercase bg-slate-50 rounded-r-xl">Punch Out</th>
-                                                    </tr>
-                                                </thead>
-                                                <tbody className="divide-y divide-slate-100">
-                                                    {staffReport.map((staff, idx) => (
-                                                        <tr key={idx} className="hover:bg-slate-50/70 transition-colors">
-                                                            <td className="px-4 py-3 text-sm font-semibold text-slate-800">
-                                                                <div>{staff.name}</div>
-                                                                <div className="text-xs text-slate-400 font-normal">{staff.department || 'Academic'}</div>
-                                                            </td>
-                                                            <td className="px-4 py-3 text-xs font-medium text-slate-600">
-                                                                <div className="flex items-center gap-1.5">
-                                                                    <Phone className="w-3.5 h-3.5 text-slate-400" />
-                                                                    {staff.phone || '—'}
-                                                                </div>
-                                                            </td>
-                                                            <td className="px-4 py-3 text-sm">
-                                                                <span className={`px-2.5 py-1 rounded-full text-[11px] font-extrabold uppercase ${
-                                                                    staff.status === 'present' ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' :
-                                                                    staff.status === 'late' ? 'bg-amber-50 text-amber-700 border border-amber-200' :
-                                                                    staff.status === 'leave' ? 'bg-rose-50 text-rose-700 border border-rose-200' :
-                                                                    staff.status === 'od' ? 'bg-blue-50 text-blue-700 border border-blue-200' : 'bg-slate-100 text-slate-700 border border-slate-200'
-                                                                }`}>
-                                                                    {staff.status}
-                                                                </span>
-                                                            </td>
-                                                            <td className="px-4 py-3 text-xs font-medium text-slate-600">{staff.punch_in || '—'}</td>
-                                                            <td className="px-4 py-3 text-xs font-medium text-slate-600 text-right">{staff.punch_out || '—'}</td>
-                                                        </tr>
-                                                    ))}
-                                                    {staffReport.length === 0 && (
-                                                        <tr>
-                                                            <td colSpan="5" className="px-4 py-10 text-center text-slate-400 italic">No staff records found.</td>
-                                                        </tr>
-                                                    )}
-                                                </tbody>
-                                            </table>
-                                        </div>
-                                    )}
-
-                                    {/* 2. PRESENT TODAY TABLE */}
-                                    {activeCardModal === 'present_today' && (
-                                        <div className="overflow-x-auto">
-                                            <table className="min-w-full leading-normal border-collapse" data-testid="modal-present-staff-table">
-                                                <thead>
-                                                    <tr>
-                                                        <th className="px-4 py-3 text-xs font-bold tracking-wider text-left text-slate-500 uppercase bg-slate-50 rounded-l-xl">Staff Member</th>
-                                                        <th className="px-4 py-3 text-xs font-bold tracking-wider text-left text-slate-500 uppercase bg-slate-50">Contact</th>
-                                                        <th className="px-4 py-3 text-xs font-bold tracking-wider text-left text-slate-500 uppercase bg-slate-50">Status</th>
-                                                        <th className="px-4 py-3 text-xs font-bold tracking-wider text-left text-slate-500 uppercase bg-slate-50">Punch In</th>
-                                                        <th className="px-4 py-3 text-xs font-bold tracking-wider text-right text-slate-500 uppercase bg-slate-50 rounded-r-xl">Punch Out</th>
-                                                    </tr>
-                                                </thead>
-                                                <tbody className="divide-y divide-slate-100">
-                                                    {staffReport.filter(u => u.status === 'present' || u.status === 'late').map((staff, idx) => (
-                                                        <tr key={idx} className="hover:bg-slate-50/70 transition-colors">
-                                                            <td className="px-4 py-3 text-sm font-semibold text-slate-800">
-                                                                <div>{staff.name}</div>
-                                                                <div className="text-xs text-slate-400 font-normal">{staff.department || 'Academic'}</div>
-                                                            </td>
-                                                            <td className="px-4 py-3 text-xs font-medium text-slate-600">
-                                                                <div className="flex items-center gap-1.5">
-                                                                    <Phone className="w-3.5 h-3.5 text-slate-400" />
-                                                                    {staff.phone || '—'}
-                                                                </div>
-                                                            </td>
-                                                            <td className="px-4 py-3 text-sm">
-                                                                <span className={`px-2.5 py-1 rounded-full text-[11px] font-extrabold uppercase ${
-                                                                    staff.status === 'present' ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-amber-50 text-amber-700 border border-amber-200'
-                                                                }`}>
-                                                                    {staff.status}
-                                                                </span>
-                                                            </td>
-                                                            <td className="px-4 py-3 text-xs font-bold text-emerald-700">{staff.punch_in || '—'}</td>
-                                                            <td className="px-4 py-3 text-xs font-medium text-slate-600 text-right">{staff.punch_out || '—'}</td>
-                                                        </tr>
-                                                    ))}
-                                                    {staffReport.filter(u => u.status === 'present' || u.status === 'late').length === 0 && (
-                                                        <tr>
-                                                            <td colSpan="5" className="px-4 py-10 text-center text-slate-400 italic">No staff members marked present today.</td>
-                                                        </tr>
-                                                    )}
-                                                </tbody>
-                                            </table>
-                                        </div>
-                                    )}
-
-                                    {/* 3. ABSENT TODAY TABLE */}
-                                    {activeCardModal === 'absent_today' && (
-                                        <div className="overflow-x-auto">
-                                            <table className="min-w-full leading-normal border-collapse" data-testid="modal-absent-staff-table">
-                                                <thead>
-                                                    <tr>
-                                                        <th className="px-4 py-3 text-xs font-bold tracking-wider text-left text-slate-500 uppercase bg-slate-50 rounded-l-xl">Staff Member</th>
-                                                        <th className="px-4 py-3 text-xs font-bold tracking-wider text-left text-slate-500 uppercase bg-slate-50">Department</th>
-                                                        <th className="px-4 py-3 text-xs font-bold tracking-wider text-left text-slate-500 uppercase bg-slate-50">Contact</th>
-                                                        <th className="px-4 py-3 text-xs font-bold tracking-wider text-right text-slate-500 uppercase bg-slate-50 rounded-r-xl">Status</th>
-                                                    </tr>
-                                                </thead>
-                                                <tbody className="divide-y divide-slate-100">
-                                                    {staffReport.filter(u => u.status === 'absent').map((staff, idx) => (
-                                                        <tr key={idx} className="hover:bg-slate-50/70 transition-colors">
-                                                            <td className="px-4 py-3 text-sm font-semibold text-slate-800">
-                                                                <div>{staff.name}</div>
-                                                            </td>
-                                                            <td className="px-4 py-3 text-xs text-slate-500">{staff.department || 'Academic'}</td>
-                                                            <td className="px-4 py-3 text-xs font-medium text-slate-600">
-                                                                <div className="flex items-center gap-1.5">
-                                                                    <Phone className="w-3.5 h-3.5 text-slate-400" />
-                                                                    {staff.phone || '—'}
-                                                                </div>
-                                                            </td>
-                                                            <td className="px-4 py-3 text-sm text-right">
-                                                                <span className="px-2.5 py-1 rounded-full text-[11px] font-extrabold uppercase bg-rose-50 text-rose-700 border border-rose-200">
-                                                                    Absent
-                                                                </span>
-                                                            </td>
-                                                        </tr>
-                                                    ))}
-                                                    {staffReport.filter(u => u.status === 'absent').length === 0 && (
-                                                        <tr>
-                                                            <td colSpan="4" className="px-4 py-10 text-center text-slate-400 italic">No staff members absent today.</td>
-                                                        </tr>
-                                                    )}
-                                                </tbody>
-                                            </table>
-                                        </div>
-                                    )}
-
-                                    {/* 4. PENDING LEAVES TABLE WITH APPROVE / REJECT */}
-                                    {activeCardModal === 'pending_leaves' && (
-                                        <div className="overflow-x-auto">
-                                            <table className="min-w-full leading-normal border-collapse" data-testid="modal-pending-leaves-table">
-                                                <thead>
-                                                    <tr>
-                                                        <th className="px-4 py-3 text-xs font-bold tracking-wider text-left text-slate-500 uppercase bg-slate-50 rounded-l-xl">Staff Member</th>
-                                                        <th className="px-4 py-3 text-xs font-bold tracking-wider text-left text-slate-500 uppercase bg-slate-50">Type</th>
-                                                        <th className="px-4 py-3 text-xs font-bold tracking-wider text-left text-slate-500 uppercase bg-slate-50">Dates</th>
-                                                        <th className="px-4 py-3 text-xs font-bold tracking-wider text-left text-slate-500 uppercase bg-slate-50">Reason</th>
-                                                        <th className="px-4 py-3 text-xs font-bold tracking-wider text-left text-slate-500 uppercase bg-slate-50">Status</th>
-                                                        <th className="px-4 py-3 text-xs font-bold tracking-wider text-right text-slate-500 uppercase bg-slate-50 rounded-r-xl">Decision</th>
-                                                    </tr>
-                                                </thead>
-                                                <tbody className="divide-y divide-slate-100">
-                                                    {leaves.filter(l => l.user_id !== user?.id && (!l.role || l.role.toUpperCase() === 'STAFF') && (!l.status || l.status.toLowerCase() === 'pending')).map((leave) => {
-                                                        const isActing = actionLoading[`leave-${leave.id}`];
-                                                        return (
-                                                            <tr key={leave.id} data-testid={`modal-staff-leave-row-${leave.id}`} className="hover:bg-slate-50/70 transition-colors">
-                                                                <td className="px-4 py-3 text-sm font-semibold text-slate-800">
-                                                                    <div>{leave.name || 'Staff Member'}</div>
-                                                                    <div className="text-xs text-slate-400 font-normal">{leave.department || 'Academic'}</div>
-                                                                </td>
-                                                                <td className="px-4 py-3 text-sm font-medium text-slate-700 capitalize">
-                                                                    {leave.type}
-                                                                </td>
-                                                                <td className="px-4 py-3 text-xs font-semibold text-slate-600">
-                                                                    <span>{leave.start_date}</span>
-                                                                    {leave.start_date !== leave.end_date && (
-                                                                        <span> → {leave.end_date}</span>
-                                                                    )}
-                                                                </td>
-                                                                <td className="px-4 py-3 text-xs text-slate-600 max-w-xs truncate" title={leave.reason}>
-                                                                    {leave.reason || '—'}
-                                                                </td>
-                                                                <td className="px-4 py-3 text-sm">
-                                                                    <span className="px-2.5 py-1 rounded-full text-[11px] font-extrabold uppercase border bg-amber-50 text-amber-700 border-amber-200">
-                                                                        Pending
-                                                                    </span>
-                                                                </td>
-                                                                <td className="px-4 py-3 text-sm text-right">
-                                                                    <div className="flex items-center justify-end gap-2">
-                                                                        <button
-                                                                            type="button"
-                                                                            data-testid={`modal-approve-leave-${leave.id}`}
-                                                                            disabled={isActing}
-                                                                            onClick={() => handleUpdateLeaveStatus(leave.id, 'approved')}
-                                                                            className="px-3 py-1.5 text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700 active:scale-95 rounded-xl shadow-sm transition flex items-center gap-1.5 disabled:opacity-50"
-                                                                            title="Approve Leave"
-                                                                        >
-                                                                            <CheckCircle className="w-3.5 h-3.5" />
-                                                                            Approve
-                                                                        </button>
-                                                                        <button
-                                                                            type="button"
-                                                                            data-testid={`modal-reject-leave-${leave.id}`}
-                                                                            disabled={isActing}
-                                                                            onClick={() => handleUpdateLeaveStatus(leave.id, 'rejected')}
-                                                                            className="px-3 py-1.5 text-xs font-bold text-white bg-rose-600 hover:bg-rose-700 active:scale-95 rounded-xl shadow-sm transition flex items-center gap-1.5 disabled:opacity-50"
-                                                                            title="Reject Leave"
-                                                                        >
-                                                                            <XCircle className="w-3.5 h-3.5" />
-                                                                            Reject
-                                                                        </button>
-                                                                    </div>
-                                                                </td>
-                                                            </tr>
-                                                        );
-                                                    })}
-                                                    {leaves.filter(l => l.user_id !== user?.id && (!l.role || l.role.toUpperCase() === 'STAFF') && (!l.status || l.status.toLowerCase() === 'pending')).length === 0 && (
-                                                        <tr>
-                                                            <td colSpan="6" className="px-4 py-10 text-center text-slate-400 italic">No pending staff leave applications.</td>
-                                                        </tr>
-                                                    )}
-                                                </tbody>
-                                            </table>
-                                        </div>
-                                    )}
-
-                                    {/* 5. PENDING ODS TABLE WITH APPROVE / REJECT */}
-                                    {activeCardModal === 'pending_ods' && (
-                                        <div className="overflow-x-auto">
-                                            <table className="min-w-full leading-normal border-collapse" data-testid="modal-pending-ods-table">
-                                                <thead>
-                                                    <tr>
-                                                        <th className="px-4 py-3 text-xs font-bold tracking-wider text-left text-slate-500 uppercase bg-slate-50 rounded-l-xl">Staff Member</th>
-                                                        <th className="px-4 py-3 text-xs font-bold tracking-wider text-left text-slate-500 uppercase bg-slate-50">Date</th>
-                                                        <th className="px-4 py-3 text-xs font-bold tracking-wider text-left text-slate-500 uppercase bg-slate-50">Place</th>
-                                                        <th className="px-4 py-3 text-xs font-bold tracking-wider text-left text-slate-500 uppercase bg-slate-50">Purpose</th>
-                                                        <th className="px-4 py-3 text-xs font-bold tracking-wider text-left text-slate-500 uppercase bg-slate-50">Status</th>
-                                                        <th className="px-4 py-3 text-xs font-bold tracking-wider text-right text-slate-500 uppercase bg-slate-50 rounded-r-xl">Decision</th>
-                                                    </tr>
-                                                </thead>
-                                                <tbody className="divide-y divide-slate-100">
-                                                    {ods.filter(o => o.user_id !== user?.id && (!o.role || o.role.toUpperCase() === 'STAFF') && (!o.status || o.status.toLowerCase() === 'pending')).map((od) => {
-                                                        const isActing = actionLoading[`od-${od.id}`];
-                                                        return (
-                                                            <tr key={od.id} data-testid={`modal-staff-od-row-${od.id}`} className="hover:bg-slate-50/70 transition-colors">
-                                                                <td className="px-4 py-3 text-sm font-semibold text-slate-800">
-                                                                    <div>{od.name || 'Staff Member'}</div>
-                                                                    <div className="text-xs text-slate-400 font-normal">{od.department || 'Academic'}</div>
-                                                                </td>
-                                                                <td className="px-4 py-3 text-xs font-semibold text-slate-600">{od.date}</td>
-                                                                <td className="px-4 py-3 text-sm font-medium text-slate-700">{od.place}</td>
-                                                                <td className="px-4 py-3 text-xs text-slate-600 max-w-xs truncate" title={od.purpose}>
-                                                                    {od.purpose || '—'}
-                                                                </td>
-                                                                <td className="px-4 py-3 text-sm">
-                                                                    <span className="px-2.5 py-1 rounded-full text-[11px] font-extrabold uppercase border bg-amber-50 text-amber-700 border-amber-200">
-                                                                        Pending
-                                                                    </span>
-                                                                </td>
-                                                                <td className="px-4 py-3 text-sm text-right">
-                                                                    <div className="flex items-center justify-end gap-2">
-                                                                        <button
-                                                                            type="button"
-                                                                            data-testid={`modal-approve-od-${od.id}`}
-                                                                            disabled={isActing}
-                                                                            onClick={() => handleUpdateODStatus(od.id, 'approved')}
-                                                                            className="px-3 py-1.5 text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700 active:scale-95 rounded-xl shadow-sm transition flex items-center gap-1.5 disabled:opacity-50"
-                                                                            title="Approve OD"
-                                                                        >
-                                                                            <CheckCircle className="w-3.5 h-3.5" />
-                                                                            Approve
-                                                                        </button>
-                                                                        <button
-                                                                            type="button"
-                                                                            data-testid={`modal-reject-od-${od.id}`}
-                                                                            disabled={isActing}
-                                                                            onClick={() => handleUpdateODStatus(od.id, 'rejected')}
-                                                                            className="px-3 py-1.5 text-xs font-bold text-white bg-rose-600 hover:bg-rose-700 active:scale-95 rounded-xl shadow-sm transition flex items-center gap-1.5 disabled:opacity-50"
-                                                                            title="Reject OD"
-                                                                        >
-                                                                            <XCircle className="w-3.5 h-3.5" />
-                                                                            Reject
-                                                                        </button>
-                                                                    </div>
-                                                                </td>
-                                                            </tr>
-                                                        );
-                                                    })}
-                                                    {ods.filter(o => o.user_id !== user?.id && (!o.role || o.role.toUpperCase() === 'STAFF') && (!o.status || o.status.toLowerCase() === 'pending')).length === 0 && (
-                                                        <tr>
-                                                            <td colSpan="6" className="px-4 py-10 text-center text-slate-400 italic">No pending staff OD requests.</td>
-                                                        </tr>
-                                                    )}
-                                                </tbody>
-                                            </table>
-                                        </div>
-                                    )}
-                                </div>
-
-                                {/* Modal Footer */}
-                                <div className="p-4 bg-slate-50 border-t border-slate-100 flex items-center justify-end">
-                                    <button
-                                        type="button"
-                                        onClick={() => setActiveCardModal(null)}
-                                        className="px-4 py-2 text-xs font-bold text-slate-700 hover:text-slate-900 bg-white hover:bg-slate-100 border border-slate-200 rounded-xl transition shadow-sm"
-                                    >
-                                        Close
-                                    </button>
-                                </div>
-                            </div>
-                        </div>
-                    )}
                 </div>
             ) : user?.role?.toLowerCase() === 'admin' ? (
                 /* ----------------- ADMIN DASHBOARD ----------------- */
                 <div className="space-y-8">
                     {/* Summary Cards Grid */}
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
-                        {/* Total Users */}
-                        <div className="bg-white p-5 rounded-2xl shadow-sm border border-slate-200/80 flex items-center gap-4 hover:shadow-md transition-shadow">
+                        {/* Total Staff */}
+                        <div
+                            role="button"
+                            tabIndex={0}
+                            data-testid="admin-card-total-staff"
+                            onClick={() => handleCardClick('total_staff')}
+                            onKeyDown={(e) => (e.key === 'Enter' || e.key === ' ') && handleCardClick('total_staff')}
+                            className="bg-white p-5 rounded-2xl shadow-sm border border-slate-200/80 flex items-center gap-4 hover:shadow-md hover:border-blue-400 active:scale-[0.99] transition-all cursor-pointer"
+                        >
                             <div className="p-3.5 bg-blue-50 text-blue-700 rounded-2xl border border-blue-100">
                                 <Users className="w-6 h-6" />
                             </div>
                             <div>
                                 <h4 className="text-2xl font-black text-slate-800">{totalStaffAdmin}</h4>
-                                <div className="text-xs text-slate-500 font-bold uppercase tracking-wider mt-0.5">Total Users</div>
+                                <div className="text-xs text-slate-500 font-bold uppercase tracking-wider mt-0.5">Total Staff</div>
                             </div>
                         </div>
 
@@ -1123,11 +774,447 @@ const Dashboard = () => {
                             </Link>
                         </div>
                     </div>
+
+                    {/* Staff Registration Roster & History */}
+                    <div className="bg-white p-6 rounded-3xl shadow-sm border border-slate-200/80">
+                        <div className="flex items-center justify-between mb-4">
+                            <div>
+                                <h4 className="text-base font-bold text-slate-800 flex items-center gap-2">
+                                    <Users className="text-blue-600 w-5 h-5" />
+                                    Staff Registration Roster & History
+                                    <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 border border-blue-200">
+                                        {totalStaffAdmin} Registered
+                                    </span>
+                                </h4>
+                                <p className="text-xs text-slate-500 mt-0.5">Staff members registered from 16 November 2026 onwards</p>
+                            </div>
+                            <button
+                                type="button"
+                                onClick={() => handleCardClick('total_staff')}
+                                className="text-xs font-bold text-blue-600 hover:text-blue-800 flex items-center gap-1 transition-colors"
+                            >
+                                View Full Roster <ArrowRight className="w-3.5 h-3.5" />
+                            </button>
+                        </div>
+                        <div className="overflow-x-auto">
+                            <table className="min-w-full leading-normal border-collapse">
+                                <thead>
+                                    <tr>
+                                        <th className="px-4 py-3 text-xs font-bold tracking-wider text-left text-slate-500 uppercase bg-slate-50 rounded-l-xl">Staff Member</th>
+                                        <th className="px-4 py-3 text-xs font-bold tracking-wider text-left text-slate-500 uppercase bg-slate-50">Contact</th>
+                                        <th className="px-4 py-3 text-xs font-bold tracking-wider text-left text-slate-500 uppercase bg-slate-50">Department / Role</th>
+                                        <th className="px-4 py-3 text-xs font-bold tracking-wider text-left text-slate-500 uppercase bg-slate-50">Registration Date</th>
+                                        <th className="px-4 py-3 text-xs font-bold tracking-wider text-right text-slate-500 uppercase bg-slate-50 rounded-r-xl">Status</th>
+                                    </tr>
+                                </thead>
+                                <tbody className="divide-y divide-slate-100">
+                                    {staffReport.map((staff, idx) => (
+                                        <tr key={idx} className="hover:bg-slate-50/70 transition-colors">
+                                            <td className="px-4 py-3 text-sm font-semibold text-slate-800">
+                                                <div>{staff.name}</div>
+                                                <div className="text-xs text-slate-400 font-normal">{staff.employee_id || '—'}</div>
+                                            </td>
+                                            <td className="px-4 py-3 text-xs font-medium text-slate-600">
+                                                <div className="flex items-center gap-1.5">
+                                                    <Phone className="w-3.5 h-3.5 text-slate-400" />
+                                                    {staff.phone || '—'}
+                                                </div>
+                                            </td>
+                                            <td className="px-4 py-3 text-xs font-medium text-slate-600">
+                                                <div>{staff.designation || 'Faculty Member'}</div>
+                                                <div className="text-slate-400">{staff.department || 'Academic'}</div>
+                                            </td>
+                                            <td className="px-4 py-3 text-xs font-medium text-slate-600">
+                                                {staff.created_at ? new Date(staff.created_at).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '16 Nov 2026'}
+                                            </td>
+                                            <td className="px-4 py-3 text-xs font-bold text-right">
+                                                <span className="px-2.5 py-1 rounded-full text-[11px] font-extrabold uppercase bg-emerald-50 text-emerald-700 border border-emerald-200">
+                                                    {staff.status || 'Active'}
+                                                </span>
+                                            </td>
+                                        </tr>
+                                    ))}
+                                    {staffReport.length === 0 && (
+                                        <tr>
+                                            <td colSpan="5" className="px-4 py-8 text-center text-slate-400 italic">
+                                                No staff registered yet. New staff registrations will appear here permanently.
+                                            </td>
+                                        </tr>
+                                    )}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
                 </div>
             ) : (
                 /* ----------------- STAFF DASHBOARD ----------------- */
                 <div className="mt-2">
                     <AttendancePanel />
+                </div>
+            )}
+
+            {/* Shared Dashboard Card Details Modal (Admin & Principal) */}
+            {activeCardModal && (
+                <div
+                    className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-3 sm:p-6"
+                    onClick={() => setActiveCardModal(null)}
+                    data-testid="principal-details-modal"
+                >
+                    <div
+                        className="bg-white rounded-3xl shadow-2xl border border-slate-100 w-full max-w-5xl max-h-[90vh] flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-150"
+                        onClick={(e) => e.stopPropagation()}
+                    >
+                        {/* Modal Header */}
+                        <div className="p-5 sm:p-6 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
+                            <div className="flex items-center gap-3">
+                                <div className="p-2.5 rounded-2xl bg-blue-50 text-blue-600 border border-blue-100">
+                                    {activeCardModal === 'total_staff' && <Users className="w-6 h-6" />}
+                                    {activeCardModal === 'present_today' && <ClipboardCheck className="w-6 h-6 text-emerald-600" />}
+                                    {activeCardModal === 'absent_today' && <ClipboardX className="w-6 h-6 text-rose-600" />}
+                                    {activeCardModal === 'pending_leaves' && <FileClock className="w-6 h-6 text-amber-600" />}
+                                    {activeCardModal === 'pending_ods' && <ShieldAlert className="w-6 h-6 text-indigo-600" />}
+                                </div>
+                                <div>
+                                    <h3 className="text-lg sm:text-xl font-black text-slate-800" data-testid="modal-title">
+                                        {activeCardModal === 'total_staff' && 'Total Staff Members'}
+                                        {activeCardModal === 'present_today' && "Today's Present Staff"}
+                                        {activeCardModal === 'absent_today' && "Today's Absent Staff"}
+                                        {activeCardModal === 'pending_leaves' && 'Pending Staff Leave Applications'}
+                                        {activeCardModal === 'pending_ods' && 'Pending Staff OD Requests'}
+                                    </h3>
+                                    <p className="text-xs text-slate-500 mt-0.5">
+                                        {activeCardModal === 'total_staff' && `Full roster of ${dbStaffCount} registered staff members`}
+                                        {activeCardModal === 'present_today' && `${presentStaffPrincipal} staff members reported present today`}
+                                        {activeCardModal === 'absent_today' && `${absentStaffPrincipal} staff members marked absent today`}
+                                        {activeCardModal === 'pending_leaves' && `${pendingLeavesPrincipal} staff leave submissions awaiting approval`}
+                                        {activeCardModal === 'pending_ods' && `${pendingODsPrincipal} staff official duty submissions awaiting authorization`}
+                                    </p>
+                                </div>
+                            </div>
+                            <button
+                                type="button"
+                                data-testid="modal-close-btn"
+                                onClick={() => setActiveCardModal(null)}
+                                className="p-2 rounded-xl text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors"
+                                title="Close modal"
+                            >
+                                <X className="w-5 h-5" />
+                            </button>
+                        </div>
+
+                        {/* Modal Body */}
+                        <div className="p-5 sm:p-6 overflow-y-auto custom-scrollbar flex-1">
+                            {/* 1. TOTAL STAFF TABLE */}
+                            {activeCardModal === 'total_staff' && (
+                                <div className="overflow-x-auto">
+                                    <table className="min-w-full leading-normal border-collapse" data-testid="modal-total-staff-table">
+                                        <thead>
+                                            <tr>
+                                                <th className="px-4 py-3 text-xs font-bold tracking-wider text-left text-slate-500 uppercase bg-slate-50 rounded-l-xl">Staff Member</th>
+                                                <th className="px-4 py-3 text-xs font-bold tracking-wider text-left text-slate-500 uppercase bg-slate-50">Contact</th>
+                                                <th className="px-4 py-3 text-xs font-bold tracking-wider text-left text-slate-500 uppercase bg-slate-50">Department / Role</th>
+                                                <th className="px-4 py-3 text-xs font-bold tracking-wider text-left text-slate-500 uppercase bg-slate-50">Registration Date</th>
+                                                <th className="px-4 py-3 text-xs font-bold tracking-wider text-left text-slate-500 uppercase bg-slate-50">Today's Status</th>
+                                                <th className="px-4 py-3 text-xs font-bold tracking-wider text-left text-slate-500 uppercase bg-slate-50">Punch In</th>
+                                                <th className="px-4 py-3 text-xs font-bold tracking-wider text-right text-slate-500 uppercase bg-slate-50 rounded-r-xl">Punch Out</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody className="divide-y divide-slate-100">
+                                            {staffReport.map((staff, idx) => (
+                                                <tr key={idx} className="hover:bg-slate-50/70 transition-colors">
+                                                    <td className="px-4 py-3 text-sm font-semibold text-slate-800">
+                                                        <div>{staff.name}</div>
+                                                        <div className="text-xs text-slate-400 font-normal">{staff.employee_id || '—'}</div>
+                                                    </td>
+                                                    <td className="px-4 py-3 text-xs font-medium text-slate-600">
+                                                        <div className="flex items-center gap-1.5">
+                                                            <Phone className="w-3.5 h-3.5 text-slate-400" />
+                                                            {staff.phone || '—'}
+                                                        </div>
+                                                    </td>
+                                                    <td className="px-4 py-3 text-xs font-medium text-slate-600">
+                                                        <div>{staff.designation || 'Faculty Member'}</div>
+                                                        <div className="text-slate-400">{staff.department || 'Academic'}</div>
+                                                    </td>
+                                                    <td className="px-4 py-3 text-xs font-medium text-slate-600">
+                                                        {staff.created_at ? new Date(staff.created_at).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '16 Nov 2026'}
+                                                    </td>
+                                                    <td className="px-4 py-3 text-sm">
+                                                        <span className={`px-2.5 py-1 rounded-full text-[11px] font-extrabold uppercase ${
+                                                            staff.status === 'present' ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' :
+                                                            staff.status === 'late' ? 'bg-amber-50 text-amber-700 border border-amber-200' :
+                                                            staff.status === 'leave' ? 'bg-rose-50 text-rose-700 border border-rose-200' :
+                                                            staff.status === 'od' ? 'bg-blue-50 text-blue-700 border border-blue-200' : 'bg-slate-100 text-slate-700 border border-slate-200'
+                                                        }`}>
+                                                            {staff.status}
+                                                        </span>
+                                                    </td>
+                                                    <td className="px-4 py-3 text-xs font-medium text-slate-600">{staff.punch_in || '—'}</td>
+                                                    <td className="px-4 py-3 text-xs font-medium text-slate-600 text-right">{staff.punch_out || '—'}</td>
+                                                </tr>
+                                            ))}
+                                            {staffReport.length === 0 && (
+                                                <tr>
+                                                    <td colSpan="7" className="px-4 py-10 text-center text-slate-400 italic">No staff records found.</td>
+                                                </tr>
+                                            )}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            )}
+
+                            {/* 2. PRESENT TODAY TABLE */}
+                            {activeCardModal === 'present_today' && (
+                                <div className="overflow-x-auto">
+                                    <table className="min-w-full leading-normal border-collapse" data-testid="modal-present-staff-table">
+                                        <thead>
+                                            <tr>
+                                                <th className="px-4 py-3 text-xs font-bold tracking-wider text-left text-slate-500 uppercase bg-slate-50 rounded-l-xl">Staff Member</th>
+                                                <th className="px-4 py-3 text-xs font-bold tracking-wider text-left text-slate-500 uppercase bg-slate-50">Contact</th>
+                                                <th className="px-4 py-3 text-xs font-bold tracking-wider text-left text-slate-500 uppercase bg-slate-50">Status</th>
+                                                <th className="px-4 py-3 text-xs font-bold tracking-wider text-left text-slate-500 uppercase bg-slate-50">Punch In</th>
+                                                <th className="px-4 py-3 text-xs font-bold tracking-wider text-right text-slate-500 uppercase bg-slate-50 rounded-r-xl">Punch Out</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody className="divide-y divide-slate-100">
+                                            {staffReport.filter(u => u.status === 'present' || u.status === 'late').map((staff, idx) => (
+                                                <tr key={idx} className="hover:bg-slate-50/70 transition-colors">
+                                                    <td className="px-4 py-3 text-sm font-semibold text-slate-800">
+                                                        <div>{staff.name}</div>
+                                                        <div className="text-xs text-slate-400 font-normal">{staff.department || 'Academic'}</div>
+                                                    </td>
+                                                    <td className="px-4 py-3 text-xs font-medium text-slate-600">
+                                                        <div className="flex items-center gap-1.5">
+                                                            <Phone className="w-3.5 h-3.5 text-slate-400" />
+                                                            {staff.phone || '—'}
+                                                        </div>
+                                                    </td>
+                                                    <td className="px-4 py-3 text-sm">
+                                                        <span className={`px-2.5 py-1 rounded-full text-[11px] font-extrabold uppercase ${
+                                                            staff.status === 'present' ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-amber-50 text-amber-700 border border-amber-200'
+                                                        }`}>
+                                                            {staff.status}
+                                                        </span>
+                                                    </td>
+                                                    <td className="px-4 py-3 text-xs font-bold text-emerald-700">{staff.punch_in || '—'}</td>
+                                                    <td className="px-4 py-3 text-xs font-medium text-slate-600 text-right">{staff.punch_out || '—'}</td>
+                                                </tr>
+                                            ))}
+                                            {staffReport.filter(u => u.status === 'present' || u.status === 'late').length === 0 && (
+                                                <tr>
+                                                    <td colSpan="5" className="px-4 py-10 text-center text-slate-400 italic">No staff members marked present today.</td>
+                                                </tr>
+                                            )}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            )}
+
+                            {/* 3. ABSENT TODAY TABLE */}
+                            {activeCardModal === 'absent_today' && (
+                                <div className="overflow-x-auto">
+                                    <table className="min-w-full leading-normal border-collapse" data-testid="modal-absent-staff-table">
+                                        <thead>
+                                            <tr>
+                                                <th className="px-4 py-3 text-xs font-bold tracking-wider text-left text-slate-500 uppercase bg-slate-50 rounded-l-xl">Staff Member</th>
+                                                <th className="px-4 py-3 text-xs font-bold tracking-wider text-left text-slate-500 uppercase bg-slate-50">Department</th>
+                                                <th className="px-4 py-3 text-xs font-bold tracking-wider text-left text-slate-500 uppercase bg-slate-50">Contact</th>
+                                                <th className="px-4 py-3 text-xs font-bold tracking-wider text-right text-slate-500 uppercase bg-slate-50 rounded-r-xl">Status</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody className="divide-y divide-slate-100">
+                                            {staffReport.filter(u => u.status === 'absent').map((staff, idx) => (
+                                                <tr key={idx} className="hover:bg-slate-50/70 transition-colors">
+                                                    <td className="px-4 py-3 text-sm font-semibold text-slate-800">
+                                                        <div>{staff.name}</div>
+                                                    </td>
+                                                    <td className="px-4 py-3 text-xs text-slate-500">{staff.department || 'Academic'}</td>
+                                                    <td className="px-4 py-3 text-xs font-medium text-slate-600">
+                                                        <div className="flex items-center gap-1.5">
+                                                            <Phone className="w-3.5 h-3.5 text-slate-400" />
+                                                            {staff.phone || '—'}
+                                                        </div>
+                                                    </td>
+                                                    <td className="px-4 py-3 text-sm text-right">
+                                                        <span className="px-2.5 py-1 rounded-full text-[11px] font-extrabold uppercase bg-rose-50 text-rose-700 border border-rose-200">
+                                                            Absent
+                                                        </span>
+                                                    </td>
+                                                </tr>
+                                            ))}
+                                            {staffReport.filter(u => u.status === 'absent').length === 0 && (
+                                                <tr>
+                                                    <td colSpan="4" className="px-4 py-10 text-center text-slate-400 italic">No staff members absent today.</td>
+                                                </tr>
+                                            )}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            )}
+
+                            {/* 4. PENDING LEAVES TABLE WITH APPROVE / REJECT */}
+                            {activeCardModal === 'pending_leaves' && (
+                                <div className="overflow-x-auto">
+                                    <table className="min-w-full leading-normal border-collapse" data-testid="modal-pending-leaves-table">
+                                        <thead>
+                                            <tr>
+                                                <th className="px-4 py-3 text-xs font-bold tracking-wider text-left text-slate-500 uppercase bg-slate-50 rounded-l-xl">Staff Member</th>
+                                                <th className="px-4 py-3 text-xs font-bold tracking-wider text-left text-slate-500 uppercase bg-slate-50">Type</th>
+                                                <th className="px-4 py-3 text-xs font-bold tracking-wider text-left text-slate-500 uppercase bg-slate-50">Dates</th>
+                                                <th className="px-4 py-3 text-xs font-bold tracking-wider text-left text-slate-500 uppercase bg-slate-50">Reason</th>
+                                                <th className="px-4 py-3 text-xs font-bold tracking-wider text-left text-slate-500 uppercase bg-slate-50">Status</th>
+                                                <th className="px-4 py-3 text-xs font-bold tracking-wider text-right text-slate-500 uppercase bg-slate-50 rounded-r-xl">Decision</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody className="divide-y divide-slate-100">
+                                            {leaves.filter(l => l.user_id !== user?.id && (!l.role || l.role.toUpperCase() === 'STAFF') && (!l.status || l.status.toLowerCase() === 'pending')).map((leave) => {
+                                                const isActing = actionLoading[`leave-${leave.id}`];
+                                                return (
+                                                    <tr key={leave.id} data-testid={`modal-staff-leave-row-${leave.id}`} className="hover:bg-slate-50/70 transition-colors">
+                                                        <td className="px-4 py-3 text-sm font-semibold text-slate-800">
+                                                            <div>{leave.name || 'Staff Member'}</div>
+                                                            <div className="text-xs text-slate-400 font-normal">{leave.department || 'Academic'}</div>
+                                                        </td>
+                                                        <td className="px-4 py-3 text-sm font-medium text-slate-700 capitalize">
+                                                            {leave.type}
+                                                        </td>
+                                                        <td className="px-4 py-3 text-xs font-semibold text-slate-600">
+                                                            <span>{leave.start_date}</span>
+                                                            {leave.start_date !== leave.end_date && (
+                                                                <span> → {leave.end_date}</span>
+                                                            )}
+                                                        </td>
+                                                        <td className="px-4 py-3 text-xs text-slate-600 max-w-xs truncate" title={leave.reason}>
+                                                            {leave.reason || '—'}
+                                                        </td>
+                                                        <td className="px-4 py-3 text-sm">
+                                                            <span className="px-2.5 py-1 rounded-full text-[11px] font-extrabold uppercase border bg-amber-50 text-amber-700 border-amber-200">
+                                                                Pending
+                                                            </span>
+                                                        </td>
+                                                        <td className="px-4 py-3 text-sm text-right">
+                                                            <div className="flex items-center justify-end gap-2">
+                                                                <button
+                                                                    type="button"
+                                                                    data-testid={`modal-approve-leave-${leave.id}`}
+                                                                    disabled={isActing}
+                                                                    onClick={() => handleUpdateLeaveStatus(leave.id, 'approved')}
+                                                                    className="px-3 py-1.5 text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700 active:scale-95 rounded-xl shadow-sm transition flex items-center gap-1.5 disabled:opacity-50"
+                                                                    title="Approve Leave"
+                                                                >
+                                                                    <CheckCircle className="w-3.5 h-3.5" />
+                                                                    Approve
+                                                                </button>
+                                                                <button
+                                                                    type="button"
+                                                                    data-testid={`modal-reject-leave-${leave.id}`}
+                                                                    disabled={isActing}
+                                                                    onClick={() => handleUpdateLeaveStatus(leave.id, 'rejected')}
+                                                                    className="px-3 py-1.5 text-xs font-bold text-white bg-rose-600 hover:bg-rose-700 active:scale-95 rounded-xl shadow-sm transition flex items-center gap-1.5 disabled:opacity-50"
+                                                                    title="Reject Leave"
+                                                                >
+                                                                    <XCircle className="w-3.5 h-3.5" />
+                                                                    Reject
+                                                                </button>
+                                                            </div>
+                                                        </td>
+                                                    </tr>
+                                                );
+                                            })}
+                                            {leaves.filter(l => l.user_id !== user?.id && (!l.role || l.role.toUpperCase() === 'STAFF') && (!l.status || l.status.toLowerCase() === 'pending')).length === 0 && (
+                                                <tr>
+                                                    <td colSpan="6" className="px-4 py-10 text-center text-slate-400 italic">No pending staff leave applications.</td>
+                                                </tr>
+                                            )}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            )}
+
+                            {/* 5. PENDING ODS TABLE WITH APPROVE / REJECT */}
+                            {activeCardModal === 'pending_ods' && (
+                                <div className="overflow-x-auto">
+                                    <table className="min-w-full leading-normal border-collapse" data-testid="modal-pending-ods-table">
+                                        <thead>
+                                            <tr>
+                                                <th className="px-4 py-3 text-xs font-bold tracking-wider text-left text-slate-500 uppercase bg-slate-50 rounded-l-xl">Staff Member</th>
+                                                <th className="px-4 py-3 text-xs font-bold tracking-wider text-left text-slate-500 uppercase bg-slate-50">Date</th>
+                                                <th className="px-4 py-3 text-xs font-bold tracking-wider text-left text-slate-500 uppercase bg-slate-50">Place</th>
+                                                <th className="px-4 py-3 text-xs font-bold tracking-wider text-left text-slate-500 uppercase bg-slate-50">Purpose</th>
+                                                <th className="px-4 py-3 text-xs font-bold tracking-wider text-left text-slate-500 uppercase bg-slate-50">Status</th>
+                                                <th className="px-4 py-3 text-xs font-bold tracking-wider text-right text-slate-500 uppercase bg-slate-50 rounded-r-xl">Decision</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody className="divide-y divide-slate-100">
+                                            {ods.filter(o => o.user_id !== user?.id && (!o.role || o.role.toUpperCase() === 'STAFF') && (!o.status || o.status.toLowerCase() === 'pending')).map((od) => {
+                                                const isActing = actionLoading[`od-${od.id}`];
+                                                return (
+                                                    <tr key={od.id} data-testid={`modal-staff-od-row-${od.id}`} className="hover:bg-slate-50/70 transition-colors">
+                                                        <td className="px-4 py-3 text-sm font-semibold text-slate-800">
+                                                            <div>{od.name || 'Staff Member'}</div>
+                                                            <div className="text-xs text-slate-400 font-normal">{od.department || 'Academic'}</div>
+                                                        </td>
+                                                        <td className="px-4 py-3 text-xs font-semibold text-slate-600">{od.date}</td>
+                                                        <td className="px-4 py-3 text-sm font-medium text-slate-700">{od.place}</td>
+                                                        <td className="px-4 py-3 text-xs text-slate-600 max-w-xs truncate" title={od.purpose}>
+                                                            {od.purpose || '—'}
+                                                        </td>
+                                                        <td className="px-4 py-3 text-sm">
+                                                            <span className="px-2.5 py-1 rounded-full text-[11px] font-extrabold uppercase border bg-amber-50 text-amber-700 border-amber-200">
+                                                                Pending
+                                                            </span>
+                                                        </td>
+                                                        <td className="px-4 py-3 text-sm text-right">
+                                                            <div className="flex items-center justify-end gap-2">
+                                                                <button
+                                                                    type="button"
+                                                                    data-testid={`modal-approve-od-${od.id}`}
+                                                                    disabled={isActing}
+                                                                    onClick={() => handleUpdateODStatus(od.id, 'approved')}
+                                                                    className="px-3 py-1.5 text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700 active:scale-95 rounded-xl shadow-sm transition flex items-center gap-1.5 disabled:opacity-50"
+                                                                    title="Approve OD"
+                                                                >
+                                                                    <CheckCircle className="w-3.5 h-3.5" />
+                                                                    Approve
+                                                                </button>
+                                                                <button
+                                                                    type="button"
+                                                                    data-testid={`modal-reject-od-${od.id}`}
+                                                                    disabled={isActing}
+                                                                    onClick={() => handleUpdateODStatus(od.id, 'rejected')}
+                                                                    className="px-3 py-1.5 text-xs font-bold text-white bg-rose-600 hover:bg-rose-700 active:scale-95 rounded-xl shadow-sm transition flex items-center gap-1.5 disabled:opacity-50"
+                                                                    title="Reject OD"
+                                                                >
+                                                                    <XCircle className="w-3.5 h-3.5" />
+                                                                    Reject
+                                                                </button>
+                                                            </div>
+                                                        </td>
+                                                    </tr>
+                                                );
+                                            })}
+                                            {ods.filter(o => o.user_id !== user?.id && (!o.role || o.role.toUpperCase() === 'STAFF') && (!o.status || o.status.toLowerCase() === 'pending')).length === 0 && (
+                                                <tr>
+                                                    <td colSpan="6" className="px-4 py-10 text-center text-slate-400 italic">No pending staff OD requests.</td>
+                                                </tr>
+                                            )}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            )}
+                        </div>
+
+                        {/* Modal Footer */}
+                        <div className="p-4 bg-slate-50 border-t border-slate-100 flex items-center justify-end">
+                            <button
+                                type="button"
+                                onClick={() => setActiveCardModal(null)}
+                                className="px-4 py-2 text-xs font-bold text-slate-700 hover:text-slate-900 bg-white hover:bg-slate-100 border border-slate-200 rounded-xl transition shadow-sm"
+                            >
+                                Close
+                            </button>
+                        </div>
+                    </div>
                 </div>
             )}
         </Layout>
