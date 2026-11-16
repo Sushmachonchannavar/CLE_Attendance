@@ -5,7 +5,7 @@ const { getAuthCookieOptions, getClearCookieOptions } = require('../utils/cookie
 const { isDemoLogin, handleDemoSendOtp, verifyDemoOtp } = require('../utils/demoAuth');
 
 // Institutional Administrator constant phone number (Only this number is authorized for Admin role)
-const ADMIN_CONSTANT_PHONE = (process.env.ADMIN_PHONE || '9187477277').trim();
+const ADMIN_CONSTANT_PHONE = (process.env.ADMIN_PHONE || '9448378417').trim();
 
 // In-memory rate limiting for login OTP requests (Max 5 requests per 10 minutes)
 const loginAttemptsMap = new Map();
@@ -90,7 +90,7 @@ exports.login = async (req, res) => {
         }
     }
 
-    // Strictly enforce constant Administrator phone number: only 9187477277 can access Admin
+    // Strictly enforce constant Administrator phone number: only 9448378417 can access Admin
     const adminTenDigits = ADMIN_CONSTANT_PHONE.replace(/\D/g, '').slice(-10);
     if ((role && role.toLowerCase() === 'admin') || (existingUser.role && existingUser.role.toLowerCase() === 'admin')) {
         if (tenDigits !== adminTenDigits) {
@@ -248,7 +248,7 @@ exports.verify = async (req, res) => {
         }
     }
 
-    // Strictly enforce constant Administrator phone number: only 9187477277 can access Admin
+    // Strictly enforce constant Administrator phone number: only 9448378417 can access Admin
     const adminTenDigits = ADMIN_CONSTANT_PHONE.replace(/\D/g, '').slice(-10);
     if ((role && role.toLowerCase() === 'admin') || (user.role && user.role.toLowerCase() === 'admin')) {
         if (tenDigits !== adminTenDigits) {

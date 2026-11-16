@@ -48,7 +48,7 @@ async function runTestSuite() {
         }
     }
 
-    const adminPhone = '9187477277';
+    const adminPhone = '9448378417';
     const principalPhone = '8888888888';
     const staffPhone = '1234567890';
     const oldDemoAdminPhone = '9999999999';

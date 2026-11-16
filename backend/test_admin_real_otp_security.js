@@ -52,7 +52,7 @@ async function runTestSuite() {
         }
     }
 
-    const adminPhone = '9187477277';
+    const adminPhone = '9448378417';
     const principalPhone = '8888888888';
     const staffPhone = '1234567890';
     const demoAdminPhone = '9999999999';
@@ -107,8 +107,8 @@ async function runTestSuite() {
         await authController.verify({ body: { phone: '9123456780', otp: '123456', role: 'admin' } }, resVerify);
         assert.strictEqual(resVerify.getStatus(), 403, 'Unregistered phone verify must receive 403');
 
-        // Verify explicitly that removed numbers 6360670247 and 6360670274 are rejected
-        for (const purgedPhone of ['6360670247', '6360670274']) {
+        // Verify explicitly that removed numbers 6360670247, 6360670274 and 9187477277 are rejected
+        for (const purgedPhone of ['6360670247', '6360670274', '9187477277']) {
             const resPurged = createMockRes();
             await authController.login({ body: { phone: purgedPhone, role: 'admin' } }, resPurged);
             assert.strictEqual(resPurged.getStatus(), 403, `Purged phone ${purgedPhone} must be rejected as unregistered`);
@@ -296,7 +296,7 @@ async function runTestSuite() {
     }
 
     // -------------------------------------------------------------
-    // Test 12: Only constant Admin number (9187477277) is authorized
+    // Test 12: Only constant Admin number (9448378417) is authorized
     // -------------------------------------------------------------
     try {
         const nonAdminPhone = '9876543210'; // A registered staff number
@@ -308,9 +308,9 @@ async function runTestSuite() {
         const resVerify = createMockRes();
         await authController.verify({ body: { phone: nonAdminPhone, otp: '123456', role: 'admin' } }, resVerify);
         assert.strictEqual(resVerify.getStatus(), 403, 'Non-admin constant number verify must receive 403');
-        report('Scenario 12: Exclusive authorization: only 9187477277 is accepted for Admin role', true);
+        report('Scenario 12: Exclusive authorization: only 9448378417 is accepted for Admin role', true);
     } catch (e) {
-        report('Scenario 12: Exclusive authorization: only 9187477277 is accepted for Admin role', false, e.message);
+        report('Scenario 12: Exclusive authorization: only 9448378417 is accepted for Admin role', false, e.message);
     } finally {
         // Ensure official constant Admin remains active and clean up temporary test artifacts
         db.prepare("UPDATE users SET role = 'admin', status = 'active' WHERE phone LIKE ?").run(`%${adminPhone}%`);
