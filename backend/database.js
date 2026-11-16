@@ -46,4 +46,15 @@ try {
 // Run deterministic versioned migrations
 runMigrations(db);
 
+// Flush WAL checkpoint on process exit for complete persistence across restarts
+const flushWal = () => {
+    try {
+        db.pragma('wal_checkpoint(TRUNCATE)');
+    } catch (e) {}
+};
+
+process.on('exit', flushWal);
+process.on('SIGINT', () => { flushWal(); process.exit(0); });
+process.on('SIGTERM', () => { flushWal(); process.exit(0); });
+
 module.exports = db;

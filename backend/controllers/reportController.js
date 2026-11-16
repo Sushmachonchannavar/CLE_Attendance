@@ -1,13 +1,59 @@
 const db = require('../database');
 const ExcelJS = require('exceljs');
 
+exports.getStaffCount = (req, res) => {
+    try {
+        const countRow = db.prepare(`
+            SELECT COUNT(*) AS count 
+            FROM users 
+            WHERE LOWER(role) = 'staff' AND status IN ('active', 'approved')
+        `).get();
+        const totalStaff = countRow ? countRow.count : 0;
+
+        return res.json({
+            success: true,
+            totalStaff,
+            count: totalStaff
+        });
+    } catch (err) {
+        console.error('Error fetching staff count:', err.message || err);
+        return res.status(500).json({ error: 'Failed to fetch staff count.' });
+    }
+};
+
+exports.getStaffList = (req, res) => {
+    try {
+        const staffList = db.prepare(`
+            SELECT id, name, phone, college, department, designation, employee_id, role, status, created_at 
+            FROM users 
+            WHERE LOWER(role) = 'staff' AND status IN ('active', 'approved')
+            ORDER BY id ASC
+        `).all();
+
+        return res.json({
+            success: true,
+            totalStaff: staffList.length,
+            count: staffList.length,
+            staff: staffList
+        });
+    } catch (err) {
+        console.error('Error fetching staff list:', err.message || err);
+        return res.status(500).json({ error: 'Failed to fetch staff list.' });
+    }
+};
+
 exports.getDailyReport = (req, res) => {
     try {
         const { date } = req.query; // YYYY-MM-DD
         const queryDate = date || new Date().toISOString().split('T')[0];
 
         // Get all active/approved users
-        const users = db.prepare("SELECT id, name, phone, department, role FROM users WHERE status IN ('active', 'approved')").all();
+        const users = db.prepare(`
+            SELECT id, name, phone, college, department, designation, employee_id, role, status 
+            FROM users 
+            WHERE status IN ('active', 'approved')
+            ORDER BY id ASC
+        `).all();
 
         const report = users.map(user => {
             // Check attendance

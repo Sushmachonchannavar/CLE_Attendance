@@ -35,6 +35,7 @@ const Dashboard = () => {
     const [dailyReport, setDailyReport] = useState([]);
     const [leaves, setLeaves] = useState([]);
     const [ods, setOds] = useState([]);
+    const [staffCount, setStaffCount] = useState(null);
     const [actionLoading, setActionLoading] = useState({});
     const [activeCardModal, setActiveCardModal] = useState(null);
     const [activeStaffFilter, setActiveStaffFilter] = useState('all');
@@ -45,12 +46,16 @@ const Dashboard = () => {
             const promises = [
                 api.get('/reports/daily'),
                 api.get('/requests/leaves/all'),
-                api.get('/requests/od/all')
+                api.get('/requests/od/all'),
+                api.get('/reports/staff-count')
             ];
             const results = await Promise.allSettled(promises);
             if (results[0].status === 'fulfilled') setDailyReport(results[0].value.data.report || []);
             if (results[1].status === 'fulfilled') setLeaves(results[1].value.data || []);
             if (results[2].status === 'fulfilled') setOds(results[2].value.data || []);
+            if (results[3] && results[3].status === 'fulfilled' && typeof results[3].value?.data?.totalStaff === 'number') {
+                setStaffCount(results[3].value.data.totalStaff);
+            }
         } catch (err) {
             console.error('Failed to fetch dashboard data', err);
         }
@@ -128,8 +133,12 @@ const Dashboard = () => {
         }
     };
 
+    // Staff statistics (role: staff)
+    const staffReport = dailyReport.filter(u => u.role?.toLowerCase() === 'staff');
+    const dbStaffCount = staffCount !== null ? staffCount : staffReport.length;
+
     // Admin role calculations
-    const totalStaffAdmin = dailyReport.length;
+    const totalStaffAdmin = dbStaffCount;
     const pendingLeavesAdmin = leaves.filter(l => !l.status || l.status.toLowerCase() === 'pending').length;
     const pendingODsAdmin = ods.filter(o => !o.status || o.status.toLowerCase() === 'pending').length;
     const approvedRequestsAdmin = leaves.filter(l => l.status?.toLowerCase() === 'approved').length +
@@ -138,8 +147,7 @@ const Dashboard = () => {
                              ods.filter(o => o.status?.toLowerCase() === 'rejected').length;
 
     // Principal (hoi) role calculations - STAFF statistics only
-    const staffReport = dailyReport.filter(u => u.role?.toLowerCase() === 'staff');
-    const totalStaffPrincipal = staffReport.length;
+    const totalStaffPrincipal = dbStaffCount;
     const presentStaffPrincipal = staffReport.filter(u => u.status === 'present' || u.status === 'late').length;
     const absentStaffPrincipal = staffReport.filter(u => u.status === 'absent').length;
     const leaveStaffPrincipal = staffReport.filter(u => u.status === 'leave').length;
@@ -215,7 +223,7 @@ const Dashboard = () => {
                 </div>
             </div>
 
-            {user?.role === 'hoi' ? (
+            {(user?.role?.toLowerCase() === 'hoi' || user?.role?.toLowerCase() === 'principal') ? (
                 /* ----------------- PRINCIPAL DASHBOARD ----------------- */
                 <div className="space-y-8">
                     {/* Summary Cards Grid */}
@@ -990,7 +998,7 @@ const Dashboard = () => {
                         </div>
                     )}
                 </div>
-            ) : user?.role === 'admin' ? (
+            ) : user?.role?.toLowerCase() === 'admin' ? (
                 /* ----------------- ADMIN DASHBOARD ----------------- */
                 <div className="space-y-8">
                     {/* Summary Cards Grid */}

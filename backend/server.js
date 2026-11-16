@@ -119,9 +119,13 @@ const auth = require('./middleware/authMiddleware');
 const roleMiddleware = require('./middleware/roleMiddleware');
 const attendanceController = require('./controllers/attendanceController');
 const authController = require('./controllers/authController');
+const reportController = require('./controllers/reportController');
 
 app.put('/api/profile', auth, authController.updateProfile);
 app.post('/api/profile', auth, authController.updateProfile);
+
+app.get('/api/staff-count', auth, roleMiddleware(['admin', 'hoi', 'principal']), reportController.getStaffCount);
+app.get('/api/staff', auth, roleMiddleware(['admin', 'hoi', 'principal']), reportController.getStaffList);
 
 app.post('/api/employee/location', auth, attendanceController.updateLocation);
 app.get('/api/admin/employee-locations', auth, roleMiddleware(['admin']), attendanceController.getEmployeeLocations);
