@@ -374,6 +374,7 @@ exports.sendOTP = async (req, res) => {
 exports.verifyOTP = async (req, res) => {
     try {
         const { employeeId, phone, otp, lat, lng, role } = req.body;
+        const now = new Date();
 
         // 1. Input Validation
         if ((!employeeId || typeof employeeId !== 'string' || employeeId.trim() === '') &&
@@ -480,7 +481,6 @@ exports.verifyOTP = async (req, res) => {
             }
 
             // 5. Check whether it has expired
-            const now = new Date();
             const expiresAt = latestOtpRow ? new Date(latestOtpRow.expires_at) : null;
             if (expiresAt && now > expiresAt) {
                 console.warn(`[OTP VERIFY FAILED] OTP expired for employee ${activeEmpId}`);
@@ -494,7 +494,9 @@ exports.verifyOTP = async (req, res) => {
             const hashedInput = crypto.createHash('sha256').update(cleanOtp).digest('hex');
             if (latestOtpRow.otp !== hashedInput) {
                 const attempts = (latestOtpRow.attempts || 0) + 1;
-                db.prepare('UPDATE attendance_otps SET attempts = ? WHERE id = ?').run(attempts, latestOtpRow.id);
+                if (latestOtpRow.id) {
+                    db.prepare('UPDATE attendance_otps SET attempts = ? WHERE id = ?').run(attempts, latestOtpRow.id);
+                }
 
                 if (attempts >= 5) {
                     const lockUntil = new Date(Date.now() + 15 * 60 * 1000).toISOString();
@@ -523,7 +525,10 @@ exports.verifyOTP = async (req, res) => {
 
             // 7. Successful validation: Mark OTP as used immediately (single-use guarantee)
             if (latestOtpRow) {
-                db.prepare('UPDATE attendance_otps SET is_used = 1 WHERE id = ?').run(latestOtpRow.id);
+                if (latestOtpRow.id) {
+                    db.prepare('UPDATE attendance_otps SET is_used = 1 WHERE id = ?').run(latestOtpRow.id);
+                }
+                db.prepare('DELETE FROM otps WHERE phone = ? OR phone = ?').run(activePhone, activePhone.replace(/\D/g, '').slice(-10));
             }
         }
         console.log(`[OTP VERIFY SUCCESS] OTP verified for employee ID: ${activeEmpId}`);
