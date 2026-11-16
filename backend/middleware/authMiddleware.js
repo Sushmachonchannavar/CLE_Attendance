@@ -40,11 +40,27 @@ module.exports = (req, res, next) => {
         if (!decoded || !decoded.id || !decoded.role) {
             return res.status(401).json({ error: 'Invalid token payload.' });
         }
+
+        // Verify if session has been explicitly revoked in SQLite
+        if (decoded.sessionId) {
+            try {
+                const db = require('../database');
+                const sess = db.prepare('SELECT is_revoked, expires_at FROM user_sessions WHERE id = ?').get(decoded.sessionId);
+                if (sess && (sess.is_revoked === 1 || new Date(sess.expires_at) <= new Date())) {
+                    return res.status(401).json({ error: 'Session has been revoked or expired.' });
+                }
+            } catch (dbErr) {
+                // Table might not exist yet during initial boot
+            }
+        }
+
         req.user = {
             id: decoded.id,
             role: decoded.role.toLowerCase(),
             employeeId: decoded.employeeId,
-            phone: decoded.phone
+            phone: decoded.phone,
+            sessionId: decoded.sessionId || null,
+            deviceId: decoded.deviceId || (req.headers && (req.headers['x-device-id'] || req.headers['X-Device-Id'])) || (req.header ? req.header('x-device-id') : null) || null
         };
         next();
     } catch (ex) {

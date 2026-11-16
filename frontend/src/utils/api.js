@@ -1,5 +1,6 @@
 import axios from 'axios';
 import { Capacitor } from '@capacitor/core';
+import { getDeviceId } from './device';
 
 const LIVE_BACKEND_URL = 'https://cle-attendance-1.onrender.com/api';
 
@@ -91,23 +92,105 @@ api.interceptors.request.use((config) => {
     if (token) {
         config.headers.Authorization = `Bearer ${token}`;
     }
+
+    // Attach trusted device ID and mobile refresh token fallback headers
+    const deviceId = getDeviceId();
+    if (deviceId) {
+        config.headers['x-device-id'] = deviceId;
+    }
+
+    const refreshToken = localStorage.getItem('refreshToken');
+    if (refreshToken) {
+        config.headers['x-refresh-token'] = refreshToken;
+    }
+
     return config;
 });
 
+// Guard against concurrent refresh loops
+let isRefreshing = false;
+let refreshSubscribers = [];
+
+function subscribeTokenRefresh(cb) {
+    refreshSubscribers.push(cb);
+}
+
+function onRefreshed(newToken) {
+    refreshSubscribers.forEach(cb => cb(newToken));
+    refreshSubscribers = [];
+}
+
 api.interceptors.response.use(
     (response) => response,
-    (error) => {
-        // If a protected API route returns 401 Unauthorized, dispatch a session expiration event
-        if (error.response && error.response.status === 401) {
-            const requestUrl = error.config?.url || '';
-            const isAuthAttempt = requestUrl.includes('/auth/login') || requestUrl.includes('/auth/verify');
-            if (!isAuthAttempt && typeof window !== 'undefined' && window.dispatchEvent) {
-                window.dispatchEvent(new CustomEvent('auth:session_expired'));
+    async (error) => {
+        const originalRequest = error.config;
+
+        // If a protected API route returns 401 Unauthorized, attempt silent refresh token rotation
+        if (error.response && error.response.status === 401 && originalRequest && !originalRequest._retry) {
+            const requestUrl = originalRequest.url || '';
+            const isAuthRoute = requestUrl.includes('/auth/login') || 
+                                requestUrl.includes('/auth/verify') || 
+                                requestUrl.includes('/auth/refresh-token');
+
+            if (!isAuthRoute) {
+                originalRequest._retry = true;
+
+                if (!isRefreshing) {
+                    isRefreshing = true;
+
+                    try {
+                        const deviceId = getDeviceId();
+                        const storedRefresh = localStorage.getItem('refreshToken') || '';
+                        const refreshRes = await axios.post(`${resolvedBaseURL}/auth/refresh-token`, {
+                            deviceId,
+                            refreshToken: storedRefresh
+                        }, {
+                            withCredentials: true,
+                            headers: {
+                                'x-device-id': deviceId,
+                                ...(storedRefresh ? { 'x-refresh-token': storedRefresh } : {})
+                            }
+                        });
+
+                        if (refreshRes.data && refreshRes.data.token) {
+                            const newToken = refreshRes.data.token;
+                            localStorage.setItem('token', newToken);
+                            if (refreshRes.data.refreshToken) {
+                                localStorage.setItem('refreshToken', refreshRes.data.refreshToken);
+                            }
+                            if (refreshRes.data.user) {
+                                localStorage.setItem('user', JSON.stringify(refreshRes.data.user));
+                            }
+                            isRefreshing = false;
+                            onRefreshed(newToken);
+                            originalRequest.headers.Authorization = `Bearer ${newToken}`;
+                            return api(originalRequest);
+                        }
+                    } catch (refreshErr) {
+                        isRefreshing = false;
+                        refreshSubscribers = [];
+                        console.warn('[AUTH SESSION] Refresh failed, session expired or revoked.');
+                        localStorage.removeItem('token');
+                        localStorage.removeItem('refreshToken');
+                        localStorage.removeItem('user');
+                        if (typeof window !== 'undefined' && window.dispatchEvent) {
+                            window.dispatchEvent(new CustomEvent('auth:session_expired'));
+                        }
+                        return Promise.reject(error);
+                    }
+                }
+
+                // If already refreshing, wait for the token and replay
+                return new Promise((resolve) => {
+                    subscribeTokenRefresh((newToken) => {
+                        originalRequest.headers.Authorization = `Bearer ${newToken}`;
+                        resolve(api(originalRequest));
+                    });
+                });
             }
         }
 
-        // Log actionable diagnostic information in browser console for production debugging.
-        // Open DevTools → Console to see exact HTTP status, URL, and error body.
+        // Log actionable diagnostic information in browser console for production debugging
         if (error.response) {
             console.error(
                 `[API Error] ${error.config?.method?.toUpperCase()} ${error.config?.url} → HTTP ${error.response.status}:`,

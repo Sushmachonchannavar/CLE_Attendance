@@ -1,8 +1,14 @@
 const db = require('../database');
 const jwt = require('jsonwebtoken');
 const { sendVerification, checkVerification, maskPhone } = require('../utils/sms');
-const { getAuthCookieOptions, getClearCookieOptions } = require('../utils/cookies');
+const { 
+    getAuthCookieOptions, 
+    getClearCookieOptions, 
+    getRefreshCookieOptions, 
+    getClearRefreshCookieOptions 
+} = require('../utils/cookies');
 const { isDemoLogin, handleDemoSendOtp, verifyDemoOtp } = require('../utils/demoAuth');
+const sessionManager = require('../utils/sessionManager');
 
 // Institutional Administrator constant phone number (Only this number is authorized for Admin role)
 const ADMIN_CONSTANT_PHONE = (process.env.ADMIN_PHONE || '9448378417').trim();
@@ -270,21 +276,119 @@ exports.verify = async (req, res) => {
 
     console.log(`[AUTH] Login successful for user ID: ${user.id} (${maskPhone(user.phone)})`);
 
-    // Generate JWT
-    const token = jwt.sign(
-        { id: user.id, role: user.role, employeeId: user.employee_id, phone: user.phone }, 
-        getJwtSecret(), 
-        { expiresIn: '7d' }
-    );
+    // Extract device metadata for multi-device session management
+    const clientDeviceId = req.body?.deviceId || (req.headers && (req.headers['x-device-id'] || req.headers['X-Device-Id'])) || null;
+    const deviceInfo = req.body?.deviceInfo || {};
+    const ip = req.ip || (req.headers && (req.headers['x-forwarded-for'] || req.headers['X-Forwarded-For'])) || req.socket?.remoteAddress || '';
+    const userAgent = (req.headers && (req.headers['user-agent'] || req.headers['User-Agent'])) || '';
 
-    // Set secure HTTP-only session cookie
+    // Create a new persistent session and trusted device record in SQLite
+    let sessionRecord;
     try {
-        res.cookie('token', token, getAuthCookieOptions());
-    } catch (cookieErr) {
-        console.warn('[AUTH] Could not set cookie header:', cookieErr.message);
+        sessionRecord = sessionManager.createSession(db, {
+            userId: user.id,
+            deviceId: clientDeviceId,
+            deviceInfo,
+            ip,
+            userAgent
+        });
+    } catch (sessionErr) {
+        console.error('[AUTH] Could not create session record:', sessionErr.message);
     }
 
-    res.json({ token, user, success: true, otpVerified: true, message: 'Login successful' });
+    // Generate JWT access token with session and device metadata
+    const token = jwt.sign(
+        { 
+            id: user.id, 
+            role: user.role, 
+            employeeId: user.employee_id, 
+            phone: user.phone,
+            sessionId: sessionRecord ? sessionRecord.sessionId : null,
+            deviceId: sessionRecord ? sessionRecord.deviceId : clientDeviceId
+        }, 
+        getJwtSecret(), 
+        { expiresIn: '1d' } // Access token valid for 1 day, seamlessly refreshed via 30-day refresh token
+    );
+
+    // Set secure HTTP-only session cookies
+    try {
+        res.cookie('token', token, getAuthCookieOptions());
+        if (sessionRecord?.refreshToken) {
+            res.cookie('refreshToken', sessionRecord.refreshToken, getRefreshCookieOptions());
+        }
+    } catch (cookieErr) {
+        console.warn('[AUTH] Could not set cookie headers:', cookieErr.message);
+    }
+
+    res.json({ 
+        token, 
+        refreshToken: sessionRecord?.refreshToken || null,
+        deviceId: sessionRecord?.deviceId || clientDeviceId,
+        user, 
+        success: true, 
+        otpVerified: true, 
+        message: 'Login successful' 
+    });
+};
+
+exports.refreshToken = async (req, res) => {
+    try {
+        const rawRefreshToken = req.cookies?.refreshToken || (req.headers && (req.headers['x-refresh-token'] || req.headers['X-Refresh-Token'])) || req.body?.refreshToken;
+        const deviceId = (req.headers && (req.headers['x-device-id'] || req.headers['X-Device-Id'])) || req.cookies?.deviceId || req.body?.deviceId;
+        const ip = req.ip || (req.headers && (req.headers['x-forwarded-for'] || req.headers['X-Forwarded-For'])) || req.socket?.remoteAddress || '';
+        const userAgent = (req.headers && (req.headers['user-agent'] || req.headers['User-Agent'])) || '';
+
+        if (!rawRefreshToken) {
+            return res.status(401).json({ error: 'No refresh token provided.' });
+        }
+
+        const result = sessionManager.verifyAndRotateSession(db, {
+            rawRefreshToken,
+            deviceId,
+            ip,
+            userAgent
+        });
+
+        if (!result.valid) {
+            res.clearCookie('token', getClearCookieOptions());
+            res.clearCookie('refreshToken', getClearRefreshCookieOptions());
+            return res.status(401).json({ error: result.error || 'Session expired or revoked.' });
+        }
+
+        // Generate newly refreshed JWT access token
+        const token = jwt.sign(
+            { 
+                id: result.user.id, 
+                role: result.user.role, 
+                employeeId: result.user.employee_id, 
+                phone: result.user.phone,
+                sessionId: result.sessionId,
+                deviceId: result.deviceId
+            },
+            getJwtSecret(),
+            { expiresIn: '1d' }
+        );
+
+        try {
+            res.cookie('token', token, getAuthCookieOptions());
+            res.cookie('refreshToken', result.newRefreshToken, getRefreshCookieOptions());
+        } catch (cookieErr) {
+            console.warn('[AUTH REFRESH] Could not set cookies:', cookieErr.message);
+        }
+
+        console.log(`[AUTH REFRESH] Session rotated successfully for user ID ${result.user.id} on device ${result.deviceId}`);
+
+        return res.json({
+            success: true,
+            token,
+            refreshToken: result.newRefreshToken,
+            deviceId: result.deviceId,
+            user: result.user
+        });
+    } catch (err) {
+        console.error('[AUTH REFRESH] Error refreshing session:', err.stack || err.message || err);
+        return res.status(500).json({ error: 'Failed to refresh authentication session.' });
+    }
 };
 
 exports.verifyToken = (req, res) => {
@@ -300,9 +404,16 @@ exports.verifyToken = (req, res) => {
             return res.status(403).json({ error: 'User account is not active.' });
         }
         const token = jwt.sign(
-            { id: user.id, role: user.role, employeeId: user.employee_id, phone: user.phone },
+            { 
+                id: user.id, 
+                role: user.role, 
+                employeeId: user.employee_id, 
+                phone: user.phone,
+                sessionId: req.user.sessionId || null,
+                deviceId: req.user.deviceId || null
+            },
             getJwtSecret(),
-            { expiresIn: '7d' }
+            { expiresIn: '1d' }
         );
         res.json({
             message: 'Token is valid',
@@ -317,11 +428,98 @@ exports.verifyToken = (req, res) => {
 
 exports.logout = (req, res) => {
     try {
+        const userId = req.user?.id;
+        const deviceId = req.user?.deviceId || (req.headers && (req.headers['x-device-id'] || req.headers['X-Device-Id'])) || req.body?.deviceId;
+        const sessionId = req.user?.sessionId;
+
+        // Revoke ONLY the current device's session in SQLite so other devices stay safely logged in
+        if (sessionId && userId) {
+            sessionManager.revokeSession(db, userId, sessionId);
+        } else if (deviceId && userId) {
+            sessionManager.revokeDeviceSession(db, userId, deviceId);
+        }
+
         res.clearCookie('token', getClearCookieOptions());
-        res.json({ success: true, message: 'Logged out successfully' });
+        res.clearCookie('refreshToken', getClearRefreshCookieOptions());
+        res.json({ success: true, message: 'Logged out successfully from this device.' });
     } catch (err) {
         console.error('Logout error:', err.stack || err.message || err);
         res.status(500).json({ error: 'Logout failed.' });
+    }
+};
+
+exports.logoutAll = (req, res) => {
+    try {
+        const userId = req.user?.id;
+        if (!userId) {
+            return res.status(401).json({ error: 'Unauthorized' });
+        }
+
+        sessionManager.revokeAllSessions(db, userId);
+
+        res.clearCookie('token', getClearCookieOptions());
+        res.clearCookie('refreshToken', getClearRefreshCookieOptions());
+        res.json({ success: true, message: 'Logged out from all devices successfully.' });
+    } catch (err) {
+        console.error('Logout all error:', err.stack || err.message || err);
+        res.status(500).json({ error: 'Logout all failed.' });
+    }
+};
+
+exports.getSessions = (req, res) => {
+    try {
+        const userId = req.user?.id;
+        if (!userId) {
+            return res.status(401).json({ error: 'Unauthorized' });
+        }
+
+        const currentDeviceId = req.user?.deviceId || (req.headers && (req.headers['x-device-id'] || req.headers['X-Device-Id'])) || '';
+        const currentSessionId = req.user?.sessionId || null;
+        const sessions = sessionManager.getUserSessions(db, userId, currentDeviceId, currentSessionId);
+
+        res.json({ success: true, sessions });
+    } catch (err) {
+        console.error('Get sessions error:', err.stack || err.message || err);
+        res.status(500).json({ error: 'Failed to retrieve active sessions.' });
+    }
+};
+
+exports.revokeSession = (req, res) => {
+    try {
+        const userId = req.user?.id;
+        const sessionId = req.params.id;
+        if (!userId || !sessionId) {
+            return res.status(400).json({ error: 'Session ID is required.' });
+        }
+
+        const success = sessionManager.revokeSession(db, userId, sessionId);
+        res.json({ 
+            success, 
+            message: success ? 'Device session revoked successfully.' : 'Session not found or already revoked.' 
+        });
+    } catch (err) {
+        console.error('Revoke session error:', err.stack || err.message || err);
+        res.status(500).json({ error: 'Failed to revoke session.' });
+    }
+};
+
+exports.revokeOtherSessions = (req, res) => {
+    try {
+        const userId = req.user?.id;
+        const currentDeviceId = req.user?.deviceId || req.headers['x-device-id'] || '';
+        if (!userId) {
+            return res.status(401).json({ error: 'Unauthorized' });
+        }
+
+        const count = sessionManager.revokeOtherSessions(db, userId, currentDeviceId);
+        res.json({ 
+            success: true, 
+            count, 
+            message: `Logged out from ${count} other device(s).` 
+        });
+    } catch (err) {
+        console.error('Revoke other sessions error:', err.stack || err.message || err);
+        res.status(500).json({ error: 'Failed to revoke other sessions.' });
     }
 };
 

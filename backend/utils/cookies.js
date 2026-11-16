@@ -24,8 +24,31 @@ function getClearCookieOptions() {
     };
 }
 
+function getRefreshCookieOptions() {
+    const isProd = process.env.NODE_ENV === 'production';
+    return {
+        httpOnly: true,
+        secure: isProd,
+        sameSite: isProd ? 'none' : 'lax',
+        maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days persistent trusted device session
+        path: '/'
+    };
+}
+
+function getClearRefreshCookieOptions() {
+    const isProd = process.env.NODE_ENV === 'production';
+    return {
+        httpOnly: true,
+        secure: isProd,
+        sameSite: isProd ? 'none' : 'lax',
+        path: '/'
+    };
+}
+
 module.exports = {
     getAuthCookieOptions,
-    getClearCookieOptions
+    getClearCookieOptions,
+    getRefreshCookieOptions,
+    getClearRefreshCookieOptions
 };
 

@@ -16,11 +16,19 @@ import {
     X, 
     Loader2, 
     Lock,
-    Check
+    Check,
+    Laptop,
+    Smartphone,
+    Tablet,
+    Trash2,
+    RefreshCw,
+    Globe,
+    Clock,
+    ShieldCheck
 } from 'lucide-react';
 
 const Profile = () => {
-    const { user, updateUser } = useAuth();
+    const { user, updateUser, getSessions, revokeSession, revokeOtherSessions } = useAuth();
     const [isEditing, setIsEditing] = useState(false);
     const [isSaving, setIsSaving] = useState(false);
     const [formData, setFormData] = useState({
@@ -31,6 +39,86 @@ const Profile = () => {
     });
     const [errorMsg, setErrorMsg] = useState('');
     const [successMsg, setSuccessMsg] = useState('');
+
+    // Trusted Devices & Active Sessions State
+    const [sessions, setSessions] = useState([]);
+    const [loadingSessions, setLoadingSessions] = useState(false);
+    const [sessionFeedback, setSessionFeedback] = useState(null);
+    const [revokingId, setRevokingId] = useState(null);
+
+    const loadSessions = async () => {
+        if (!getSessions) return;
+        setLoadingSessions(true);
+        try {
+            const list = await getSessions();
+            setSessions(Array.isArray(list) ? list : []);
+        } catch (err) {
+            console.error('Failed to load sessions:', err);
+        } finally {
+            setLoadingSessions(false);
+        }
+    };
+
+    useEffect(() => {
+        loadSessions();
+    }, []);
+
+    const handleRevokeSession = async (sessionId) => {
+        if (!sessionId) return;
+        setRevokingId(sessionId);
+        setSessionFeedback(null);
+        try {
+            await revokeSession(sessionId);
+            setSessionFeedback({ type: 'success', text: 'Device session revoked successfully.' });
+            await loadSessions();
+        } catch (err) {
+            const msg = err.response?.data?.error || err.message || 'Failed to revoke device session.';
+            setSessionFeedback({ type: 'error', text: msg });
+        } finally {
+            setRevokingId(null);
+            setTimeout(() => setSessionFeedback(null), 5000);
+        }
+    };
+
+    const handleRevokeOtherSessions = async () => {
+        const otherCount = sessions.filter(s => !s.isCurrent).length;
+        if (otherCount === 0) return;
+        if (!window.confirm(`Are you sure you want to log out from all other ${otherCount} device(s)?`)) {
+            return;
+        }
+
+        setRevokingId('all');
+        setSessionFeedback(null);
+        try {
+            await revokeOtherSessions();
+            setSessionFeedback({ type: 'success', text: 'Logged out of all other devices successfully.' });
+            await loadSessions();
+        } catch (err) {
+            const msg = err.response?.data?.error || err.message || 'Failed to log out of other devices.';
+            setSessionFeedback({ type: 'error', text: msg });
+        } finally {
+            setRevokingId(null);
+            setTimeout(() => setSessionFeedback(null), 5000);
+        }
+    };
+
+    const formatSessionTime = (isoString) => {
+        if (!isoString) return 'Active now';
+        try {
+            const normalized = isoString.includes('T') ? isoString : isoString.replace(' ', 'T');
+            const d = new Date(normalized.endsWith('Z') ? normalized : normalized + 'Z');
+            if (isNaN(d.getTime())) return isoString;
+            return d.toLocaleString(undefined, {
+                month: 'short',
+                day: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit',
+                hour12: true
+            });
+        } catch {
+            return isoString;
+        }
+    };
 
     // Ref tracks real-time editing state across asynchronous promises and effects
     const isEditingRef = useRef(false);
@@ -540,6 +628,186 @@ const Profile = () => {
                 {/* Attendance Geofence Panel */}
                 <div className="lg:col-span-2">
                     <AttendancePanel />
+                </div>
+            </div>
+
+            {/* Trusted Devices & Active Sessions Section */}
+            <div className="mt-8 bg-white p-6 sm:p-7 rounded-3xl shadow-sm border border-slate-200/80">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-5 border-b border-slate-100">
+                    <div className="flex items-center gap-3">
+                        <div className="w-11 h-11 rounded-2xl bg-blue-50 border border-blue-100 flex items-center justify-center text-blue-600 shadow-sm shrink-0">
+                            <ShieldCheck className="w-6 h-6" />
+                        </div>
+                        <div>
+                            <h3 className="text-base sm:text-lg font-bold text-slate-900 flex items-center gap-2">
+                                Trusted Devices & Active Sessions
+                                {sessions.length > 0 && (
+                                    <span className="px-2 py-0.5 text-xs font-bold rounded-full bg-blue-100 text-blue-700">
+                                        {sessions.length}
+                                    </span>
+                                )}
+                            </h3>
+                            <p className="text-xs text-slate-500 mt-0.5">
+                                Cross-device session authorization. Devices stay authenticated with secure refresh token rotation until revoked or logged out.
+                            </p>
+                        </div>
+                    </div>
+
+                    <div className="flex items-center gap-2.5 self-start sm:self-auto">
+                        <button
+                            type="button"
+                            onClick={loadSessions}
+                            disabled={loadingSessions}
+                            className="p-2 text-slate-500 hover:text-blue-600 hover:bg-blue-50 active:scale-95 rounded-xl border border-slate-200/70 transition cursor-pointer"
+                            title="Refresh sessions list"
+                        >
+                            <RefreshCw className={`w-4 h-4 ${loadingSessions ? 'animate-spin text-blue-600' : ''}`} />
+                        </button>
+
+                        {sessions.filter(s => !s.isCurrent).length > 0 && (
+                            <button
+                                type="button"
+                                onClick={handleRevokeOtherSessions}
+                                disabled={revokingId === 'all'}
+                                className="px-3.5 py-2 bg-rose-50 hover:bg-rose-100 active:scale-95 text-rose-700 border border-rose-200 text-xs font-bold rounded-xl transition flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+                            >
+                                {revokingId === 'all' ? (
+                                    <>
+                                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                                        <span>Logging out others...</span>
+                                    </>
+                                ) : (
+                                    <>
+                                        <Trash2 className="w-3.5 h-3.5" />
+                                        <span>Log Out All Other Devices</span>
+                                    </>
+                                )}
+                            </button>
+                        )}
+                    </div>
+                </div>
+
+                {/* Feedback Banner */}
+                {sessionFeedback && (
+                    <div
+                        className={`mt-4 p-3.5 rounded-2xl flex items-center gap-2.5 text-xs font-bold animate-fadeIn ${
+                            sessionFeedback.type === 'success'
+                                ? 'bg-emerald-50 border border-emerald-200 text-emerald-800'
+                                : 'bg-rose-50 border border-rose-200 text-rose-800'
+                        }`}
+                    >
+                        {sessionFeedback.type === 'success' ? (
+                            <Check className="w-4 h-4 text-emerald-600 shrink-0" />
+                        ) : (
+                            <X className="w-4 h-4 text-rose-600 shrink-0" />
+                        )}
+                        <span>{sessionFeedback.text}</span>
+                    </div>
+                )}
+
+                {/* Devices List */}
+                <div className="mt-5 space-y-3">
+                    {loadingSessions && sessions.length === 0 ? (
+                        <div className="p-8 text-center text-slate-400 text-xs flex flex-col items-center justify-center gap-2">
+                            <Loader2 className="w-6 h-6 animate-spin text-blue-600" />
+                            <span>Loading registered device sessions...</span>
+                        </div>
+                    ) : sessions.length === 0 ? (
+                        <div className="p-6 text-center text-slate-400 text-xs bg-slate-50 rounded-2xl border border-dashed border-slate-200">
+                            No active sessions found.
+                        </div>
+                    ) : (
+                        sessions.map((sess) => {
+                            const isCurrent = sess.isCurrent;
+                            const isMobile = sess.deviceType === 'mobile';
+                            const isTablet = sess.deviceType === 'tablet';
+
+                            return (
+                                <div
+                                    key={sess.id}
+                                    className={`p-4 rounded-2xl border transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-3 ${
+                                        isCurrent
+                                            ? 'bg-blue-50/40 border-blue-200/80 shadow-xs'
+                                            : 'bg-slate-50/70 hover:bg-slate-50 border-slate-200/80'
+                                    }`}
+                                >
+                                    <div className="flex items-start gap-3.5 min-w-0">
+                                        <div
+                                            className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${
+                                                isCurrent
+                                                    ? 'bg-blue-600 text-white shadow-md shadow-blue-500/20'
+                                                    : 'bg-slate-200/80 text-slate-600'
+                                            }`}
+                                        >
+                                            {isMobile ? (
+                                                <Smartphone className="w-5 h-5" />
+                                            ) : isTablet ? (
+                                                <Tablet className="w-5 h-5" />
+                                            ) : (
+                                                <Laptop className="w-5 h-5" />
+                                            )}
+                                        </div>
+
+                                        <div className="min-w-0">
+                                            <div className="flex items-center gap-2 flex-wrap">
+                                                <h4 className="text-xs sm:text-sm font-bold text-slate-900 truncate">
+                                                    {sess.deviceName || 'Authorized Device'}
+                                                </h4>
+                                                {isCurrent && (
+                                                    <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-emerald-100 text-emerald-800 border border-emerald-300">
+                                                        This Device (Current Session)
+                                                    </span>
+                                                )}
+                                            </div>
+
+                                            <div className="flex items-center gap-3 mt-1 text-[11px] text-slate-500 flex-wrap">
+                                                <span className="capitalize font-semibold text-slate-600">
+                                                    {sess.platform || 'Web'} • {sess.browser || 'Browser'}
+                                                </span>
+                                                {sess.ipAddress && sess.ipAddress !== '—' && (
+                                                    <span className="flex items-center gap-1 text-slate-400">
+                                                        <Globe className="w-3 h-3" />
+                                                        {sess.ipAddress}
+                                                    </span>
+                                                )}
+                                                <span className="flex items-center gap-1 text-slate-400">
+                                                    <Clock className="w-3 h-3" />
+                                                    Active: {formatSessionTime(sess.lastActiveAt)}
+                                                </span>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div className="flex items-center justify-end gap-2 self-end sm:self-auto shrink-0">
+                                        {isCurrent ? (
+                                            <span className="text-[11px] font-bold text-emerald-600 bg-emerald-50 px-2.5 py-1 rounded-lg border border-emerald-200">
+                                                Active Now
+                                            </span>
+                                        ) : (
+                                            <button
+                                                type="button"
+                                                onClick={() => handleRevokeSession(sess.id)}
+                                                disabled={revokingId === sess.id}
+                                                className="px-3 py-1.5 bg-white hover:bg-rose-50 active:scale-95 text-rose-600 border border-slate-200 hover:border-rose-200 rounded-xl text-xs font-bold flex items-center gap-1.5 transition cursor-pointer disabled:opacity-50"
+                                            >
+                                                {revokingId === sess.id ? (
+                                                    <>
+                                                        <Loader2 className="w-3 h-3 animate-spin" />
+                                                        <span>Revoking...</span>
+                                                    </>
+                                                ) : (
+                                                    <>
+                                                        <Trash2 className="w-3 h-3 text-rose-500" />
+                                                        <span>Revoke Access</span>
+                                                    </>
+                                                )}
+                                            </button>
+                                        )}
+                                    </div>
+                                </div>
+                            );
+                        })
+                    )}
                 </div>
             </div>
         </Layout>
