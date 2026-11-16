@@ -24,6 +24,9 @@ export const AuthProvider = ({ children }) => {
             const res = await api.get('/auth/verify-token');
             if (res.data && res.data.user) {
                 const verifiedUser = res.data.user;
+                if (res.data.token) {
+                    localStorage.setItem('token', res.data.token);
+                }
                 setUser(verifiedUser);
                 localStorage.setItem('user', JSON.stringify(verifiedUser));
                 return { authenticated: true, user: verifiedUser };
@@ -127,10 +130,13 @@ export const AuthProvider = ({ children }) => {
         }
     };
 
-    const updateUser = (updatedUserData) => {
+    const updateUser = (updatedUserData, newToken) => {
         if (updatedUserData) {
             setUser(updatedUserData);
             localStorage.setItem('user', JSON.stringify(updatedUserData));
+        }
+        if (newToken) {
+            localStorage.setItem('token', newToken);
         }
     };
 

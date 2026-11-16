@@ -12,5 +12,6 @@ router.post('/verify-otp', otpVerifyLimiter, authController.verify);
 router.get('/verify-token', authMiddleware, authController.verifyToken);
 router.post('/logout', authController.logout);
 router.put('/profile', authMiddleware, authController.updateProfile);
+router.post('/profile', authMiddleware, authController.updateProfile);
 
 module.exports = router;

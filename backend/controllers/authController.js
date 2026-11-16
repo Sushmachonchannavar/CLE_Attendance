@@ -7,6 +7,8 @@ const { isDemoLogin, handleDemoSendOtp, verifyDemoOtp } = require('../utils/demo
 // Institutional Administrator constant phone number (Only this number is authorized for Admin role)
 const ADMIN_CONSTANT_PHONE = (process.env.ADMIN_PHONE || '9448378417').trim();
 
+const getJwtSecret = () => process.env.JWT_SECRET || 'cle_secret_key_minimum_32_characters_prod_fallback';
+
 // In-memory rate limiting for login OTP requests (Max 5 requests per 10 minutes)
 const loginAttemptsMap = new Map();
 function checkLoginRateLimit(identifier) {
@@ -270,8 +272,8 @@ exports.verify = async (req, res) => {
 
     // Generate JWT
     const token = jwt.sign(
-        { id: user.id, role: user.role, employeeId: user.employee_id }, 
-        process.env.JWT_SECRET, 
+        { id: user.id, role: user.role, employeeId: user.employee_id, phone: user.phone }, 
+        getJwtSecret(), 
         { expiresIn: '7d' }
     );
 
@@ -287,16 +289,25 @@ exports.verify = async (req, res) => {
 
 exports.verifyToken = (req, res) => {
     try {
-        const user = db.prepare('SELECT id, name, phone, role, college, department, designation, employee_id, status FROM users WHERE id = ?').get(req.user.id);
+        let user = db.prepare('SELECT id, name, phone, role, college, department, designation, employee_id, status FROM users WHERE id = ?').get(req.user.id);
+        if (!user && req.user.employeeId) {
+            user = db.prepare('SELECT id, name, phone, role, college, department, designation, employee_id, status FROM users WHERE employee_id = ?').get(req.user.employeeId);
+        }
         if (!user) {
             return res.status(401).json({ error: 'User account no longer exists.' });
         }
         if (user.status !== 'active' && user.status !== 'approved') {
             return res.status(403).json({ error: 'User account is not active.' });
         }
+        const token = jwt.sign(
+            { id: user.id, role: user.role, employeeId: user.employee_id, phone: user.phone },
+            getJwtSecret(),
+            { expiresIn: '7d' }
+        );
         res.json({
             message: 'Token is valid',
-            user: user
+            user: user,
+            token: token
         });
     } catch (err) {
         console.error('Token verification error:', err.stack || err.message || err);
@@ -317,35 +328,81 @@ exports.logout = (req, res) => {
 exports.updateProfile = (req, res) => {
     try {
         if (!req.user || !req.user.id) {
-            return res.status(401).json({ error: 'Unauthorized' });
+            return res.status(401).json({ error: 'Unauthorized: Authentication required.' });
         }
 
         const userId = req.user.id;
-        const { name, department, college } = req.body;
+        const { name, department, college, designation } = req.body;
 
         if (!name || typeof name !== 'string' || !name.trim()) {
-            return res.status(400).json({ error: 'Full name is required' });
+            return res.status(400).json({ error: 'Official Full Name is required.' });
         }
 
         const trimmedName = name.trim();
         const trimmedDepartment = typeof department === 'string' ? department.trim() : '';
         const trimmedCollege = typeof college === 'string' ? college.trim() : '';
+        const trimmedDesignation = typeof designation === 'string' && designation.trim() ? designation.trim() : null;
 
-        db.prepare(`
-            UPDATE users 
-            SET name = ?, department = ?, college = ?
+        // Find target user by id, employeeId, or phone
+        let targetUser = db.prepare('SELECT id, phone, role, employee_id FROM users WHERE id = ?').get(userId);
+        if (!targetUser && req.user.employeeId) {
+            targetUser = db.prepare('SELECT id, phone, role, employee_id FROM users WHERE employee_id = ?').get(req.user.employeeId);
+        }
+        if (!targetUser && req.user.phone) {
+            const cleanPhone = req.user.phone.replace(/\D/g, '').slice(-10);
+            targetUser = db.prepare('SELECT id, phone, role, employee_id FROM users WHERE phone LIKE ?').get(`%${cleanPhone}%`);
+        }
+
+        if (!targetUser) {
+            return res.status(404).json({ error: 'User account not found.' });
+        }
+
+        const targetId = targetUser.id;
+
+        if (trimmedDesignation !== null) {
+            db.prepare(`
+                UPDATE users 
+                SET name = ?, department = ?, college = ?, designation = ?
+                WHERE id = ?
+            `).run(trimmedName, trimmedDepartment, trimmedCollege, trimmedDesignation, targetId);
+        } else {
+            db.prepare(`
+                UPDATE users 
+                SET name = ?, department = ?, college = ?
+                WHERE id = ?
+            `).run(trimmedName, trimmedDepartment, trimmedCollege, targetId);
+        }
+
+        const updatedUser = db.prepare(`
+            SELECT id, name, phone, role, college, department, designation, employee_id, status 
+            FROM users 
             WHERE id = ?
-        `).run(trimmedName, trimmedDepartment, trimmedCollege, userId);
+        `).get(targetId);
 
-        const updatedUser = db.prepare('SELECT id, name, phone, role, college, department, employee_id, status FROM users WHERE id = ?').get(userId);
+        // Generate refreshed JWT token to keep client session fresh
+        const token = jwt.sign(
+            { id: updatedUser.id, role: updatedUser.role, employeeId: updatedUser.employee_id, phone: updatedUser.phone },
+            getJwtSecret(),
+            { expiresIn: '7d' }
+        );
 
-        res.json({
+        try {
+            res.cookie('token', token, getAuthCookieOptions());
+        } catch (cookieErr) {
+            console.warn('[AUTH] Could not set cookie header:', cookieErr.message);
+        }
+
+        console.log(`[PROFILE UPDATE] Successfully updated profile for user ID ${targetId} (${updatedUser.name})`);
+
+        return res.json({
+            success: true,
             message: 'Profile updated successfully',
-            user: updatedUser
+            user: updatedUser,
+            token
         });
     } catch (err) {
         console.error('Error updating profile:', err.stack || err.message || err);
-        res.status(500).json({ error: 'Failed to update profile.' });
+        return res.status(500).json({ error: 'Failed to update profile.' });
     }
 };
 

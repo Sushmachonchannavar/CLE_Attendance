@@ -118,6 +118,10 @@ app.use('/api/reports', require('./routes/reportRoutes'));
 const auth = require('./middleware/authMiddleware');
 const roleMiddleware = require('./middleware/roleMiddleware');
 const attendanceController = require('./controllers/attendanceController');
+const authController = require('./controllers/authController');
+
+app.put('/api/profile', auth, authController.updateProfile);
+app.post('/api/profile', auth, authController.updateProfile);
 
 app.post('/api/employee/location', auth, attendanceController.updateLocation);
 app.get('/api/admin/employee-locations', auth, roleMiddleware(['admin']), attendanceController.getEmployeeLocations);

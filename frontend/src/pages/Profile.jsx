@@ -9,6 +9,7 @@ import {
     Shield, 
     Landmark, 
     BookOpen, 
+    Briefcase,
     CheckCircle2, 
     Edit3, 
     Save, 
@@ -25,7 +26,8 @@ const Profile = () => {
     const [formData, setFormData] = useState({
         name: '',
         college: '',
-        department: ''
+        department: '',
+        designation: ''
     });
     const [errorMsg, setErrorMsg] = useState('');
     const [successMsg, setSuccessMsg] = useState('');
@@ -35,7 +37,8 @@ const Profile = () => {
             setFormData({
                 name: user.name || '',
                 college: user.college || '',
-                department: user.department || ''
+                department: user.department || '',
+                designation: user.designation || ''
             });
         }
     }, [user]);
@@ -56,7 +59,8 @@ const Profile = () => {
         setFormData({
             name: user?.name || '',
             college: user?.college || '',
-            department: user?.department || ''
+            department: user?.department || '',
+            designation: user?.designation || ''
         });
         setErrorMsg('');
         setSuccessMsg('');
@@ -67,7 +71,8 @@ const Profile = () => {
         setFormData({
             name: user?.name || '',
             college: user?.college || '',
-            department: user?.department || ''
+            department: user?.department || '',
+            designation: user?.designation || ''
         });
         setErrorMsg('');
         setIsEditing(false);
@@ -86,11 +91,16 @@ const Profile = () => {
             const res = await api.put('/auth/profile', {
                 name: formData.name.trim(),
                 college: formData.college.trim(),
-                department: formData.department.trim()
+                department: formData.department.trim(),
+                designation: formData.designation ? formData.designation.trim() : ''
             });
 
+            if (res.data?.token) {
+                localStorage.setItem('token', res.data.token);
+            }
+
             if (res.data?.user && updateUser) {
-                updateUser(res.data.user);
+                updateUser(res.data.user, res.data.token);
             }
 
             setSuccessMsg('Profile updated successfully!');
@@ -244,6 +254,17 @@ const Profile = () => {
                                     </div>
                                 </div>
 
+                                {/* Official Designation */}
+                                <div className="p-3.5 bg-slate-50/80 rounded-2xl border border-slate-200/70 flex items-start gap-3">
+                                    <Briefcase className="w-4 h-4 text-slate-400 mt-0.5 shrink-0" />
+                                    <div className="min-w-0 flex-1">
+                                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Official Designation</p>
+                                        <p data-testid="display-profile-designation" className="text-xs font-bold text-slate-800 mt-0.5 truncate">
+                                            {user?.designation || 'Faculty Member'}
+                                        </p>
+                                    </div>
+                                </div>
+
                                 {/* College / Institution */}
                                 <div className="p-3.5 bg-slate-50/80 rounded-2xl border border-slate-200/70 flex items-start gap-3">
                                     <Landmark className="w-4 h-4 text-slate-400 mt-0.5 shrink-0" />
@@ -291,6 +312,24 @@ const Profile = () => {
                                             onChange={handleInputChange}
                                             placeholder="Enter your full name"
                                             required
+                                            className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-300 focus:border-blue-500 focus:bg-white rounded-xl text-xs font-bold text-slate-800 outline-none transition"
+                                        />
+                                    </div>
+                                </div>
+
+                                {/* Official Designation Input */}
+                                <div className="space-y-1">
+                                    <label className="text-[11px] font-bold uppercase tracking-wider text-slate-600 block">
+                                        Official Designation
+                                    </label>
+                                    <div className="relative">
+                                        <input
+                                            type="text"
+                                            name="designation"
+                                            data-testid="profile-designation-input"
+                                            value={formData.designation}
+                                            onChange={handleInputChange}
+                                            placeholder="e.g. Assistant Professor / Lecturer"
                                             className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-300 focus:border-blue-500 focus:bg-white rounded-xl text-xs font-bold text-slate-800 outline-none transition"
                                         />
                                     </div>
@@ -346,6 +385,17 @@ const Profile = () => {
                                         Phone number and role permissions are managed by institutional administrative control.
                                     </p>
                                 </div>
+
+                                {/* Inline Error Display */}
+                                {errorMsg && (
+                                    <div 
+                                        data-testid="profile-form-error-alert"
+                                        className="p-3 bg-rose-50 border border-rose-200 rounded-xl flex items-center gap-2 text-rose-700 text-xs font-semibold animate-fadeIn"
+                                    >
+                                        <X className="w-4 h-4 shrink-0 text-rose-600" />
+                                        <span>{errorMsg}</span>
+                                    </div>
+                                )}
 
                                 {/* Form Actions */}
                                 <div className="flex items-center gap-2 pt-2">

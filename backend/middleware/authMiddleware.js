@@ -43,7 +43,8 @@ module.exports = (req, res, next) => {
         req.user = {
             id: decoded.id,
             role: decoded.role.toLowerCase(),
-            employeeId: decoded.employeeId
+            employeeId: decoded.employeeId,
+            phone: decoded.phone
         };
         next();
     } catch (ex) {
