@@ -167,6 +167,7 @@ exports.punch = (req, res) => {
             `).run(latitude, longitude, utcString, userId);
 
             const updatedRecord = db.prepare('SELECT * FROM attendance WHERE id = ?').get(record.id);
+            if (typeof db.checkpoint === 'function') db.checkpoint();
             console.log(`[PUNCH-IN RESUME] User ${userId} returned inside campus and resumed duty.`);
             return res.json({
                 message: 'Punched In successfully (Resumed Duty)',
@@ -201,6 +202,7 @@ exports.punch = (req, res) => {
         `).run(isInside ? 1 : 0, latitude, longitude, utcString, userId);
 
         const updatedRecord = db.prepare('SELECT * FROM attendance WHERE id = ?').get(record.id);
+        if (typeof db.checkpoint === 'function') db.checkpoint();
         const isAuto = req.body.isAutoExit || !isInside;
         console.log(`[PUNCH-OUT SUCCESS] User ${userId} punched out ${isAuto ? '(Automatic GPS Exit)' : '(Manual)'}.`);
 
@@ -253,6 +255,7 @@ exports.punch = (req, res) => {
     `).run(userId, latitude, longitude, null, utcString, 1);
 
     const newRecord = db.prepare('SELECT * FROM attendance WHERE user_id = ? AND date = ?').get(userId, today);
+    if (typeof db.checkpoint === 'function') db.checkpoint();
 
     return res.json({
         message: `Punched In successfully ${isLate ? '(Late)' : '(On Time)'}`,
@@ -629,6 +632,7 @@ exports.verifyOTP = async (req, res) => {
                     `).run(latitude, longitude, utcString, user.id);
 
                     const updatedRecord = db.prepare('SELECT * FROM attendance WHERE id = ?').get(record.id);
+                    if (typeof db.checkpoint === 'function') db.checkpoint();
                     console.log(`[OTP PUNCH-IN RESUME] User ${user.id} returned inside campus and resumed duty.`);
                     return res.json({
                         success: true,
@@ -665,6 +669,7 @@ exports.verifyOTP = async (req, res) => {
                 `).run(isInside ? 1 : 0, latitude, longitude, utcString, user.id);
 
                 const updatedRecord = db.prepare('SELECT * FROM attendance WHERE id = ?').get(record.id);
+                if (typeof db.checkpoint === 'function') db.checkpoint();
                 console.log(`[OTP PUNCH-OUT SUCCESS] Punched Out successfully for user ${user.id}`);
                 return res.json({
                     success: true,
@@ -716,6 +721,7 @@ exports.verifyOTP = async (req, res) => {
                 `).run(user.id, latitude, longitude, null, utcString, 1);
 
                 const newRecord = db.prepare('SELECT * FROM attendance WHERE id = ?').get(runResult.lastInsertRowid);
+                if (typeof db.checkpoint === 'function') db.checkpoint();
                 console.log(`[OTP PUNCH-IN SUCCESS] Punched In successfully for user ${user.id} ${isLate ? '(Late)' : '(On Time)'}`);
                 
                 return res.json({

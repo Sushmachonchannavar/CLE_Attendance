@@ -115,7 +115,8 @@ exports.login = async (req, res) => {
         if (result.success) {
             return res.json({ 
                 success: true, 
-                message: 'OTP request submitted. Please check your registered mobile phone.'
+                message: 'OTP request submitted. Please check your registered mobile phone.',
+                ...(process.env.NODE_ENV === 'test' && result.testOtp ? { testOtp: result.testOtp } : {})
             });
         } else {
             console.error(`[AUTH SMS Gateway Unavailable] Delivery failed for ${maskPhone(phone)}:`, result.error);
@@ -197,6 +198,12 @@ exports.register = (req, res) => {
             INSERT INTO users (phone, name, college, department, designation, role, employee_id, status) 
             VALUES (?, ?, ?, ?, ?, 'staff', ?, 'active')
         `).run(tenDigits, fullName, cleanCollege, cleanDept, cleanDesignation, cleanEmpId);
+
+        // Commit immediately to disk and update recovery snapshot
+        if (typeof db.checkpoint === 'function') db.checkpoint();
+        if (typeof db.createBackup === 'function') {
+            db.createBackup('registration').catch(() => {});
+        }
 
         console.log(`[AUTH] New user registration completed: ${fullName} (${tenDigits}, status: active)`);
 
@@ -396,6 +403,10 @@ exports.verifyToken = (req, res) => {
         let user = db.prepare('SELECT id, name, phone, role, college, department, designation, employee_id, status FROM users WHERE id = ?').get(req.user.id);
         if (!user && req.user.employeeId) {
             user = db.prepare('SELECT id, name, phone, role, college, department, designation, employee_id, status FROM users WHERE employee_id = ?').get(req.user.employeeId);
+        }
+        if (!user && req.user.phone) {
+            const cleanPhone = req.user.phone.replace(/\D/g, '').slice(-10);
+            user = db.prepare('SELECT id, name, phone, role, college, department, designation, employee_id, status FROM users WHERE phone LIKE ?').get(`%${cleanPhone}%`);
         }
         if (!user) {
             return res.status(401).json({ error: 'User account no longer exists.' });

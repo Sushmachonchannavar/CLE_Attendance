@@ -248,3 +248,47 @@ exports.downloadMonthlyReport = async (req, res) => {
         res.status(500).json({ error: 'Failed to download monthly report.' });
     }
 };
+
+exports.downloadDatabaseBackup = async (req, res) => {
+    try {
+        const { createDatabaseBackup } = require('../utils/backup');
+        const backupResult = await createDatabaseBackup(db, 'admin_export');
+        if (!backupResult || !backupResult.path) {
+            return res.status(500).json({ error: 'Failed to generate database backup snapshot.' });
+        }
+        res.download(backupResult.path, backupResult.filename, (err) => {
+            if (err) {
+                console.error('Error streaming backup file:', err);
+            }
+        });
+    } catch (err) {
+        console.error('Error generating database backup:', err);
+        res.status(500).json({ error: 'Failed to create database backup.' });
+    }
+};
+
+exports.getDatabaseHealth = (req, res) => {
+    try {
+        const fs = require('fs');
+        const totalStaff = db.prepare("SELECT COUNT(*) AS count FROM users WHERE LOWER(role) = 'staff' AND status IN ('active', 'approved')").get()?.count || 0;
+        const totalAttendance = db.prepare("SELECT COUNT(*) AS count FROM attendance").get()?.count || 0;
+        const totalLeaves = db.prepare("SELECT COUNT(*) AS count FROM leaves").get()?.count || 0;
+        const totalODs = db.prepare("SELECT COUNT(*) AS count FROM od_requests").get()?.count || 0;
+        const totalUsers = db.prepare("SELECT COUNT(*) AS count FROM users").get()?.count || 0;
+        const totalSessions = db.prepare("SELECT COUNT(*) AS count FROM user_sessions WHERE is_revoked = 0").get()?.count || 0;
+
+        res.json({
+            status: 'healthy',
+            totalStaff,
+            totalAttendance,
+            totalLeaves,
+            totalODs,
+            totalUsers,
+            activeSessions: totalSessions,
+            timestamp: new Date().toISOString()
+        });
+    } catch (err) {
+        console.error('Error retrieving database health:', err);
+        res.status(500).json({ error: 'Failed to retrieve database health.' });
+    }
+};

@@ -48,10 +48,24 @@ const Dashboard = () => {
     const todayDate = React.useMemo(() => getInitialDate(), []);
     const [selectedDate, setSelectedDate] = useState(todayDate);
     const [dailyReport, setDailyReport] = useState([]);
-    const [dbSummary, setDbSummary] = useState(null);
+    const [dbSummary, setDbSummary] = useState(() => {
+        try {
+            const cached = sessionStorage.getItem('cle_db_summary');
+            return cached ? JSON.parse(cached) : null;
+        } catch {
+            return null;
+        }
+    });
     const [leaves, setLeaves] = useState([]);
     const [ods, setOds] = useState([]);
-    const [staffCount, setStaffCount] = useState(null);
+    const [staffCount, setStaffCount] = useState(() => {
+        try {
+            const cached = sessionStorage.getItem('cle_staff_count');
+            return cached ? parseInt(cached, 10) : null;
+        } catch {
+            return null;
+        }
+    });
     const [actionLoading, setActionLoading] = useState({});
     const [activeCardModal, setActiveCardModal] = useState(null);
     const [activeStaffFilter, setActiveStaffFilter] = useState('all');
@@ -69,15 +83,25 @@ const Dashboard = () => {
             const results = await Promise.allSettled(promises);
             if (results[0].status === 'fulfilled') {
                 const resData = results[0].value.data;
-                setDailyReport(resData.report || []);
+                const reportList = resData.report || [];
+                // Only academic/teaching staff (exclude non-staff accounts)
+                const staffOnly = reportList.filter(u => !u.role || u.role.toLowerCase() === 'staff');
+                setDailyReport(staffOnly);
                 if (resData.summary) {
                     setDbSummary(resData.summary);
+                    try {
+                        sessionStorage.setItem('cle_db_summary', JSON.stringify(resData.summary));
+                    } catch {}
                 }
             }
             if (results[1].status === 'fulfilled') setLeaves(results[1].value.data || []);
             if (results[2].status === 'fulfilled') setOds(results[2].value.data || []);
             if (results[3] && results[3].status === 'fulfilled' && typeof results[3].value?.data?.totalStaff === 'number') {
-                setStaffCount(results[3].value.data.totalStaff);
+                const liveCount = results[3].value.data.totalStaff;
+                setStaffCount(liveCount);
+                try {
+                    sessionStorage.setItem('cle_staff_count', String(liveCount));
+                } catch {}
             }
         } catch (err) {
             console.error('Failed to fetch dashboard data', err);

@@ -133,6 +133,15 @@ const sendVerification = async (phone) => {
     const rawApiKey = process.env.SMS_AUTH_KEY || process.env.SMS_API_KEY;
     const apiKey = rawApiKey ? rawApiKey.trim().replace(/^["']|["']$/g, '') : '';
     if (!isGatewayConfigured(apiKey)) {
+        if (process.env.NODE_ENV === 'test' || process.env.MOCK_SMS === 'true') {
+            const otp = generateOTP();
+            const expiresAt = new Date(Date.now() + 5 * 60 * 1000).toISOString();
+            const hashedOtp = crypto.createHash('sha256').update(otp).digest('hex');
+            db.prepare('DELETE FROM otps WHERE phone = ? OR phone = ?').run(formattedPhone, cleanPhone);
+            db.prepare('INSERT INTO otps (phone, otp, expires_at, attempts) VALUES (?, ?, ?, 0)').run(formattedPhone, hashedOtp, expiresAt);
+            console.log(`[SMS TEST SIMULATION] Test environment generated OTP for ${maskPhone(formattedPhone)}: ${otp}`);
+            return { success: true, provider: 'test_simulation', testOtp: otp };
+        }
         console.error(`[SMS ERROR] SMS gateway credentials (SMS_AUTH_KEY or SMS_API_KEY) are missing or invalid.`);
         return { success: false, error: 'SMS service unavailable: SMS_AUTH_KEY or SMS_API_KEY environment variable is missing.' };
     }
