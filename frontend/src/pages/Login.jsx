@@ -245,9 +245,22 @@ const Login = () => {
                     </div>
 
                     {otpError && step === 1 && (
-                        <div className="p-3 bg-rose-50 border border-rose-200 rounded-xl flex items-center gap-2.5 text-rose-700 text-xs font-semibold animate-in fade-in">
-                            <AlertCircle className="w-4 h-4 shrink-0 text-rose-600" />
-                            <span>{otpError}</span>
+                        <div className="p-3 bg-rose-50 border border-rose-200 rounded-xl space-y-2 text-rose-700 text-xs font-semibold animate-in fade-in">
+                            <div className="flex items-center gap-2.5">
+                                <AlertCircle className="w-4 h-4 shrink-0 text-rose-600" />
+                                <span>{otpError}</span>
+                            </div>
+                            {otpError.toLowerCase().includes('register') && (
+                                <div className="pt-1">
+                                    <Link
+                                        to="/register"
+                                        className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-bold transition-all shadow-sm"
+                                    >
+                                        <span>Register New Staff Account</span>
+                                        <ArrowRight className="w-3.5 h-3.5" />
+                                    </Link>
+                                </div>
+                            )}
                         </div>
                     )}
 

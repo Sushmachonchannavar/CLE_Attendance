@@ -258,9 +258,22 @@ const Register = () => {
                     </div>
 
                     {error && (
-                        <div className="p-3 bg-rose-50 border border-rose-200 rounded-xl flex items-center gap-2 text-rose-600 text-xs font-semibold animate-in fade-in">
-                            <AlertCircle className="w-4 h-4 shrink-0" />
-                            <span>{error}</span>
+                        <div className="p-3 bg-rose-50 border border-rose-200 rounded-xl space-y-2 text-rose-700 text-xs font-semibold animate-in fade-in">
+                            <div className="flex items-center gap-2">
+                                <AlertCircle className="w-4 h-4 shrink-0 text-rose-600" />
+                                <span>{error}</span>
+                            </div>
+                            {(error.toLowerCase().includes('already exists') || error.toLowerCase().includes('log in')) && (
+                                <div className="pt-1">
+                                    <Link
+                                        to="/login"
+                                        className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-bold transition-all shadow-sm"
+                                    >
+                                        <span>Proceed to Login</span>
+                                        <ArrowRight className="w-3.5 h-3.5" />
+                                    </Link>
+                                </div>
+                            )}
                         </div>
                     )}
 

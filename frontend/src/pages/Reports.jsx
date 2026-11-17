@@ -30,7 +30,10 @@ const Reports = () => {
         if (activeTab === 'daily') {
             api.get(`/reports/daily?date=${date}`)
                 .then(res => {
-                    setReportData(res.data.report || []);
+                    const rawReport = res.data?.report || [];
+                    // Ensure only actual staff members appear in attendance audits (never admin or hoi)
+                    const staffOnly = rawReport.filter(u => !u.role || u.role.toLowerCase() === 'staff');
+                    setReportData(staffOnly);
                 })
                 .catch(err => {
                     console.error("Failed to fetch report", err);
@@ -40,7 +43,9 @@ const Reports = () => {
         } else {
             api.get(`/reports/monthly?month=${month}&year=${year}`)
                 .then(res => {
-                    setReportData(res.data || []);
+                    const rawReport = res.data || [];
+                    const staffOnly = rawReport.filter(u => !u.role || u.role.toLowerCase() === 'staff');
+                    setReportData(staffOnly);
                 })
                 .catch(err => {
                     console.error("Failed to fetch report", err);

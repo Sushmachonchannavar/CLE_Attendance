@@ -126,8 +126,9 @@ const DUTY_START_HOUR = 9;   // 9:00 AM
 const LATE_THRESHOLD_MINUTE = 20; // After 9:20 AM is late
 
 const AttendancePanel = () => {
-    const { user, logout } = useAuth();
+    const { user } = useAuth();
     const outsideCountRef = useRef(0);
+    const autoPunchOutInProgressRef = useRef(false);
     const [status, setStatus] = useState(null);
     const [location, setLocation] = useState(null);
     const [distance, setDistance] = useState(null);
@@ -225,31 +226,52 @@ const AttendancePanel = () => {
         };
     }, [acquireLocation, applyLocationFix]);
 
-    const handleAutoLogoutAndPunchOut = useCallback(async () => {
-        if (loading) return;
+    const handleAutoPunchOut = useCallback(async () => {
+        if (loading || autoPunchOutInProgressRef.current) return;
+        autoPunchOutInProgressRef.current = true;
         setLoading(true);
-        setError('Auto-logout: Outside geofence boundary.');
         try {
-            console.log("Auto-logout: Attempting automatic punch-out...");
+            console.log("[Auto-Punch-Out] Confirmed outside geofence. Recording automatic punch-out...");
             if (location) {
-                await api.post('/attendance/punch', {
+                const res = await api.post('/attendance/punch', {
                     lat: location.lat,
-                    lng: location.lng
+                    lng: location.lng,
+                    isAutoExit: true
                 });
+
+                // Update local status to reflect punched out
+                setStatus(prev => ({
+                    ...(prev || {}),
+                    punchedIn: true,
+                    punchedOut: true,
+                    record: res.data?.record || {
+                        ...(prev?.record || {}),
+                        punch_out_time: res.data?.time || new Date().toLocaleTimeString('en-US', { hour12: false })
+                    }
+                }));
+
+                // Notify background location tracker to pause tracking without ending session
+                window.dispatchEvent(new CustomEvent('punch-status-change', {
+                    detail: { punchedIn: false }
+                }));
+
+                setMsg("Campus boundary exit detected. Automatic Punch-Out has been recorded in SQLite. You remain securely logged in.");
+                setError('');
             }
         } catch (err) {
-            console.error("Auto punch-out API call failed:", err);
+            console.error("[Auto-Punch-Out] API call failed:", err);
+            // Refresh latest status to maintain synchronization
+            fetchStatus();
         } finally {
             setLoading(false);
-            console.log("Auto-logout: Clearing session and logging out...");
-            logout();
-            alert("You are outside the authorized campus area. You have been automatically logged out.");
+            // NEVER log out or clear session - user session remains completely active
         }
-    }, [loading, location, logout]);
+    }, [loading, location]);
 
     useEffect(() => {
         if (!location || !status || !status.punchedIn || status.punchedOut) {
             outsideCountRef.current = 0;
+            autoPunchOutInProgressRef.current = false;
             return;
         }
 
@@ -257,21 +279,23 @@ const AttendancePanel = () => {
         const isInsideGeo = isPointInPolygon(location.lat, location.lng, CAMPUS_GEOFENCE) || (dist !== null && Math.round(dist) <= GEOFENCE_RADIUS_METERS);
         if (isInsideGeo) {
             outsideCountRef.current = 0;
+            autoPunchOutInProgressRef.current = false;
         } else {
+            // Anti-jitter: Ignore inaccurate or fluctuating GPS readings
             if (location.accuracy && location.accuracy > 40) {
-                console.log("GPS accuracy is poor, ignoring outside reading:", location.accuracy);
+                console.log("[Auto-Punch-Out] GPS accuracy loose (>40m), ignoring outside reading:", location.accuracy);
                 return;
             }
 
             outsideCountRef.current += 1;
-            console.log(`User is outside geofence polygon. Consecutive outside count: ${outsideCountRef.current}`);
+            console.log(`[Auto-Punch-Out] Consecutive confirmed outside readings: ${outsideCountRef.current}/3`);
 
-            if (outsideCountRef.current >= 3) {
-                console.log("User outside polygon for 3 consecutive updates. Triggering auto punch-out and logout...");
-                handleAutoLogoutAndPunchOut();
+            if (outsideCountRef.current >= 3 && !autoPunchOutInProgressRef.current) {
+                console.log("[Auto-Punch-Out] 3 consecutive confirmed outside readings. Recording automatic punch-out without logout...");
+                handleAutoPunchOut();
             }
         }
-    }, [location, status, handleAutoLogoutAndPunchOut]);
+    }, [location, status, handleAutoPunchOut]);
 
     const fetchStatus = async () => {
         try {

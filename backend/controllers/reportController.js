@@ -98,11 +98,11 @@ exports.getDailyReport = (req, res) => {
 
         const absentCount = Math.max(0, totalStaff - presentCount - leaveCount - odCount);
 
-        // Get all active/approved users
+        // Get all active/approved staff users
         const users = db.prepare(`
             SELECT id, name, phone, college, department, designation, employee_id, role, status, created_at 
             FROM users 
-            WHERE status IN ('active', 'approved')
+            WHERE LOWER(role) = 'staff' AND status IN ('active', 'approved')
             ORDER BY id ASC
         `).all();
 
@@ -184,7 +184,7 @@ exports.getMonthlyReport = (req, res) => {
             SELECT a.*, u.name 
             FROM attendance a
             JOIN users u ON a.user_id = u.id
-            WHERE date BETWEEN ? AND ?
+            WHERE LOWER(u.role) = 'staff' AND date BETWEEN ? AND ?
             ORDER BY date ASC
         `).all(startDate, endDate);
 
@@ -213,7 +213,7 @@ exports.downloadMonthlyReport = async (req, res) => {
             SELECT a.*, u.name 
             FROM attendance a
             JOIN users u ON a.user_id = u.id
-            WHERE date BETWEEN ? AND ?
+            WHERE LOWER(u.role) = 'staff' AND date BETWEEN ? AND ?
             ORDER BY date ASC
         `).all(startDate, endDate);
 

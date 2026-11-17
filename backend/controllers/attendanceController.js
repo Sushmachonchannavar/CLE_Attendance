@@ -146,27 +146,46 @@ exports.punch = (req, res) => {
     // Check if already exist for today
     let record = db.prepare('SELECT * FROM attendance WHERE user_id = ? AND date = ?').get(userId, today);
 
-    // Duplicate punch check: already completed today
-    if (record && record.punch_out_time) {
-        return res.status(400).json({ error: 'Already completed attendance for today.' });
-    }
-
     // Check Geofence
     const distance = getDistanceFromLatLonInMeters(latitude, longitude, CAMPUS_LAT, CAMPUS_LNG);
     const isInside = isPointInPolygon(latitude, longitude, CAMPUS_GEOFENCE) || Math.round(distance) <= GEOFENCE_RADIUS_METERS;
 
-    // Both punch-in and punch-out strictly require staff member to be inside assigned campus geofence
-    if (!isInside) {
-        const actionType = record ? 'Punch-out' : 'Punch-in';
-        console.log(`${actionType} rejected for user ${userId}: Outside geofence (${Math.round(distance)}m away)`);
-        return res.status(400).json({
-            error: `You are outside the campus geofence. Distance: ${Math.round(distance)}m.`,
-            distance: Math.round(distance)
-        });
+    // Case 1: User has already completed punch-out today
+    if (record && record.punch_out_time) {
+        // If staff returns to campus (isInside === true), allow another punch-in according to attendance rules!
+        if (isInside) {
+            db.prepare(`
+                UPDATE attendance 
+                SET punch_out_time = NULL, punch_out_utc = NULL, location_lat_out = NULL, location_lng_out = NULL, distance_out = NULL 
+                WHERE id = ?
+            `).run(record.id);
+
+            db.prepare(`
+                UPDATE employee_locations 
+                SET is_tracking = 1, is_inside_campus = 1, latitude = ?, longitude = ?, timestamp = ? 
+                WHERE user_id = ?
+            `).run(latitude, longitude, utcString, userId);
+
+            const updatedRecord = db.prepare('SELECT * FROM attendance WHERE id = ?').get(record.id);
+            console.log(`[PUNCH-IN RESUME] User ${userId} returned inside campus and resumed duty.`);
+            return res.json({
+                message: 'Punched In successfully (Resumed Duty)',
+                time: timeString,
+                utcTime: utcString,
+                isResumed: true,
+                record: updatedRecord
+            });
+        } else {
+            return res.status(400).json({
+                error: `You are outside the campus geofence. Distance: ${Math.round(distance)}m.`,
+                distance: Math.round(distance)
+            });
+        }
     }
 
+    // Case 2: User is currently punched in -> Performing Punch-Out!
     if (record) {
-        // Punch Out - Staff can punch out at any time provided they have an active session and are inside campus geofence
+        // Punch-Out can occur inside or upon exiting the campus boundary (automatic GPS boundary exit or manual)
         const distanceOut = distance;
         db.prepare(`
             UPDATE attendance 
@@ -175,48 +194,73 @@ exports.punch = (req, res) => {
         `).run(timeString, utcString, latitude, longitude, distanceOut, record.id);
         
         // Stop location tracking
-        db.prepare('UPDATE employee_locations SET is_tracking = 0 WHERE user_id = ?').run(userId);
-
-        res.json({ message: 'Punched Out successfully', time: timeString, utcTime: utcString });
-    } else {
-        // Punch In - Staff can punch in at any time of day provided they are inside campus geofence
-        const { hour, minute } = getKolkataHourAndMinute(now);
-        const isLate = (hour > DUTY_START_HOUR || (hour === DUTY_START_HOUR && minute > LATE_THRESHOLD_MINUTE)) ? 1 : 0;
-        const roleVal = (req.user.role === 'hoi' || req.user.role === 'principal') ? 'PRINCIPAL' : 'STAFF';
-        const statusVal = isLate ? 'late' : 'present';
-
-        try {
-            db.prepare(`
-                INSERT INTO attendance (user_id, date, punch_in_time, punch_in_utc, location_lat, location_lng, is_late, role, distance, status) 
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            `).run(userId, today, timeString, utcString, latitude, longitude, isLate, roleVal, distance, statusVal);
-        } catch (err) {
-            if (err.code === 'SQLITE_CONSTRAINT_UNIQUE' || (err.message && err.message.includes('UNIQUE constraint failed'))) {
-                return res.status(400).json({ error: 'Already punched in for today.' });
-            }
-            throw err;
-        }
-
-        // Seed location tracking as active
         db.prepare(`
-            INSERT INTO employee_locations (user_id, latitude, longitude, accuracy, timestamp, is_inside_campus, is_tracking)
-            VALUES (?, ?, ?, ?, ?, ?, 1)
-            ON CONFLICT(user_id) DO UPDATE SET
-                latitude = excluded.latitude,
-                longitude = excluded.longitude,
-                accuracy = excluded.accuracy,
-                timestamp = excluded.timestamp,
-                is_inside_campus = excluded.is_inside_campus,
-                is_tracking = 1
-        `).run(userId, latitude, longitude, null, utcString, 1);
+            UPDATE employee_locations 
+            SET is_tracking = 0, is_inside_campus = ?, latitude = ?, longitude = ?, timestamp = ? 
+            WHERE user_id = ?
+        `).run(isInside ? 1 : 0, latitude, longitude, utcString, userId);
 
-        res.json({
-            message: `Punched In successfully ${isLate ? '(Late)' : '(On Time)'}`,
+        const updatedRecord = db.prepare('SELECT * FROM attendance WHERE id = ?').get(record.id);
+        const isAuto = req.body.isAutoExit || !isInside;
+        console.log(`[PUNCH-OUT SUCCESS] User ${userId} punched out ${isAuto ? '(Automatic GPS Exit)' : '(Manual)'}.`);
+
+        return res.json({
+            message: isAuto ? 'Automatic Punch-Out recorded on campus exit' : 'Punched Out successfully',
             time: timeString,
             utcTime: utcString,
-            isLate: !!isLate
+            record: updatedRecord
         });
     }
+
+    // Case 3: Initial Punch In -> Strictly requires staff member to be inside assigned campus geofence
+    if (!isInside) {
+        console.log(`Punch-in rejected for user ${userId}: Outside geofence (${Math.round(distance)}m away)`);
+        return res.status(400).json({
+            error: `You are outside the campus geofence. Distance: ${Math.round(distance)}m.`,
+            distance: Math.round(distance)
+        });
+    }
+
+    // Initial Punch In
+    const { hour, minute } = getKolkataHourAndMinute(now);
+    const isLate = (hour > DUTY_START_HOUR || (hour === DUTY_START_HOUR && minute > LATE_THRESHOLD_MINUTE)) ? 1 : 0;
+    const roleVal = (req.user.role === 'hoi' || req.user.role === 'principal') ? 'PRINCIPAL' : 'STAFF';
+    const statusVal = isLate ? 'late' : 'present';
+
+    try {
+        db.prepare(`
+            INSERT INTO attendance (user_id, date, punch_in_time, punch_in_utc, location_lat, location_lng, is_late, role, distance, status) 
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        `).run(userId, today, timeString, utcString, latitude, longitude, isLate, roleVal, distance, statusVal);
+    } catch (err) {
+        if (err.code === 'SQLITE_CONSTRAINT_UNIQUE' || (err.message && err.message.includes('UNIQUE constraint failed'))) {
+            return res.status(400).json({ error: 'Already punched in for today.' });
+        }
+        throw err;
+    }
+
+    // Seed location tracking as active
+    db.prepare(`
+        INSERT INTO employee_locations (user_id, latitude, longitude, accuracy, timestamp, is_inside_campus, is_tracking)
+        VALUES (?, ?, ?, ?, ?, ?, 1)
+        ON CONFLICT(user_id) DO UPDATE SET
+            latitude = excluded.latitude,
+            longitude = excluded.longitude,
+            accuracy = excluded.accuracy,
+            timestamp = excluded.timestamp,
+            is_inside_campus = excluded.is_inside_campus,
+            is_tracking = 1
+    `).run(userId, latitude, longitude, null, utcString, 1);
+
+    const newRecord = db.prepare('SELECT * FROM attendance WHERE user_id = ? AND date = ?').get(userId, today);
+
+    return res.json({
+        message: `Punched In successfully ${isLate ? '(Late)' : '(On Time)'}`,
+        time: timeString,
+        utcTime: utcString,
+        isLate: !!isLate,
+        record: newRecord
+    });
 };
 
 exports.getHistory = (req, res) => {
@@ -565,27 +609,47 @@ exports.verifyOTP = async (req, res) => {
             // Check if already exist for today
             let record = db.prepare('SELECT * FROM attendance WHERE user_id = ? AND date = ?').get(user.id, today);
             
-            // Duplicate punch check: already completed today
-            if (record && record.punch_out_time) {
-                return res.status(400).json({ error: 'Already completed attendance for today.' });
-            }
-
             // Check Geofence
             const distance = getDistanceFromLatLonInMeters(latitude, longitude, CAMPUS_LAT, CAMPUS_LNG);
             const isInside = isPointInPolygon(latitude, longitude, CAMPUS_GEOFENCE) || Math.round(distance) <= GEOFENCE_RADIUS_METERS;
 
-            // Both punch-in and punch-out strictly require staff member to be inside assigned campus geofence
-            if (!isInside) {
-                const actionType = record ? 'Punch-out' : 'Punch-in';
-                console.log(`[OTP ${actionType.toUpperCase()} REJECTED] Outside geofence for user ID ${user.id} (${Math.round(distance)}m away)`);
-                return res.status(400).json({
-                    error: `You are outside the campus geofence. Distance: ${Math.round(distance)}m.`,
-                    distance: Math.round(distance)
-                });
+            // Case 1: User has already completed punch-out today
+            if (record && record.punch_out_time) {
+                if (isInside) {
+                    db.prepare(`
+                        UPDATE attendance 
+                        SET punch_out_time = NULL, punch_out_utc = NULL, location_lat_out = NULL, location_lng_out = NULL, distance_out = NULL 
+                        WHERE id = ?
+                    `).run(record.id);
+
+                    db.prepare(`
+                        UPDATE employee_locations 
+                        SET is_tracking = 1, is_inside_campus = 1, latitude = ?, longitude = ?, timestamp = ? 
+                        WHERE user_id = ?
+                    `).run(latitude, longitude, utcString, user.id);
+
+                    const updatedRecord = db.prepare('SELECT * FROM attendance WHERE id = ?').get(record.id);
+                    console.log(`[OTP PUNCH-IN RESUME] User ${user.id} returned inside campus and resumed duty.`);
+                    return res.json({
+                        success: true,
+                        otpVerified: true,
+                        token,
+                        user,
+                        message: 'Punched In successfully (Resumed Duty)',
+                        isResumed: true,
+                        punchRecord: updatedRecord
+                    });
+                } else {
+                    return res.status(400).json({
+                        error: `You are outside the campus geofence. Distance: ${Math.round(distance)}m.`,
+                        distance: Math.round(distance)
+                    });
+                }
             }
 
+            // Case 2: Currently punched in -> Performing punch-out
             if (record) {
-                // Punch Out - Staff can punch out at any time provided they have an active session and are inside campus geofence
+                // Punch Out - Can occur inside or upon exiting campus geofence
                 const distanceOut = distance;
                 db.prepare(`
                     UPDATE attendance 
@@ -594,7 +658,11 @@ exports.verifyOTP = async (req, res) => {
                 `).run(timeString, utcString, latitude, longitude, distanceOut, record.id);
                 
                 // Stop location tracking
-                db.prepare('UPDATE employee_locations SET is_tracking = 0 WHERE user_id = ?').run(user.id);
+                db.prepare(`
+                    UPDATE employee_locations 
+                    SET is_tracking = 0, is_inside_campus = ?, latitude = ?, longitude = ?, timestamp = ? 
+                    WHERE user_id = ?
+                `).run(isInside ? 1 : 0, latitude, longitude, utcString, user.id);
 
                 const updatedRecord = db.prepare('SELECT * FROM attendance WHERE id = ?').get(record.id);
                 console.log(`[OTP PUNCH-OUT SUCCESS] Punched Out successfully for user ${user.id}`);
@@ -607,7 +675,15 @@ exports.verifyOTP = async (req, res) => {
                     punchRecord: updatedRecord
                 });
             } else {
-                // Punch In - Staff can punch in at any time of day provided they are inside campus geofence
+                // Case 3: Initial Punch In strictly requires staff member to be inside assigned campus geofence
+                if (!isInside) {
+                    console.log(`[OTP PUNCH-IN REJECTED] Outside geofence for user ID ${user.id} (${Math.round(distance)}m away)`);
+                    return res.status(400).json({
+                        error: `You are outside the campus geofence. Distance: ${Math.round(distance)}m.`,
+                        distance: Math.round(distance)
+                    });
+                }
+
                 const { hour, minute } = getKolkataHourAndMinute(now);
                 const isLate = (hour > DUTY_START_HOUR || (hour === DUTY_START_HOUR && minute > LATE_THRESHOLD_MINUTE)) ? 1 : 0;
                 const roleVal = (user.role === 'hoi' || user.role === 'principal') ? 'PRINCIPAL' : 'STAFF';
@@ -796,4 +872,9 @@ exports.getEmployeeLocations = (req, res) => {
         console.error('Error fetching employee locations:', err);
         res.status(500).json({ error: 'Internal server error' });
     }
+};
+
+exports.autoPunchOut = (req, res) => {
+    req.body = { ...(req.body || {}), isAutoExit: true };
+    return exports.punch(req, res);
 };

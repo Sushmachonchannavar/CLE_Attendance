@@ -9,6 +9,7 @@ router.post('/login', otpSendLimiter, attendanceController.sendOTP);
 router.post('/verify-otp', otpVerifyLimiter, attendanceController.verifyOTP);
 router.post('/verify', otpVerifyLimiter, attendanceController.verifyOTP);
 router.post('/punch', auth, attendanceController.punch);
+router.post('/auto-punch-out', auth, attendanceController.autoPunchOut);
 router.get('/history', auth, attendanceController.getHistory);
 router.get('/status', auth, attendanceController.getStatus);
 
