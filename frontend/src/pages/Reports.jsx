@@ -3,10 +3,23 @@ import Layout from '../components/Layout';
 import api from '../utils/api';
 import { BarChart, Calendar, Download, FileSpreadsheet, Clock, User, CheckCircle } from 'lucide-react';
 
+const getInitialDate = () => {
+    try {
+        return new Intl.DateTimeFormat('en-CA', {
+            timeZone: 'Asia/Kolkata',
+            year: 'numeric',
+            month: '2-digit',
+            day: '2-digit'
+        }).format(new Date());
+    } catch {
+        return new Date().toISOString().split('T')[0];
+    }
+};
+
 const Reports = () => {
     const [activeTab, setActiveTab] = useState('daily');
     const [reportData, setReportData] = useState([]);
-    const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
+    const [date, setDate] = useState(getInitialDate);
     const [month, setMonth] = useState(new Date().getMonth() + 1);
     const [year, setYear] = useState(new Date().getFullYear());
     const [loading, setLoading] = useState(false);

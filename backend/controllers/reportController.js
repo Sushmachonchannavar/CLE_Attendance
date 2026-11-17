@@ -1,5 +1,6 @@
 const db = require('../database');
 const ExcelJS = require('exceljs');
+const { getKolkataDate, isValidDateString } = require('../utils/time');
 
 exports.getStaffCount = (req, res) => {
     try {
@@ -45,7 +46,57 @@ exports.getStaffList = (req, res) => {
 exports.getDailyReport = (req, res) => {
     try {
         const { date } = req.query; // YYYY-MM-DD
-        const queryDate = date || new Date().toISOString().split('T')[0];
+        const queryDate = isValidDateString(date) ? date : getKolkataDate(new Date());
+
+        // Calculate counts directly from permanent SQLite database
+        const totalStaffRow = db.prepare(`
+            SELECT COUNT(*) AS count 
+            FROM users 
+            WHERE LOWER(role) = 'staff' AND status IN ('active', 'approved')
+        `).get();
+        const totalStaff = totalStaffRow ? totalStaffRow.count : 0;
+
+        const presentRow = db.prepare(`
+            SELECT COUNT(DISTINCT a.user_id) AS count 
+            FROM attendance a
+            JOIN users u ON a.user_id = u.id
+            WHERE a.date = ? AND LOWER(u.role) = 'staff' AND u.status IN ('active', 'approved')
+        `).get(queryDate);
+        const presentCount = presentRow ? presentRow.count : 0;
+
+        const lateRow = db.prepare(`
+            SELECT COUNT(DISTINCT a.user_id) AS count 
+            FROM attendance a
+            JOIN users u ON a.user_id = u.id
+            WHERE a.date = ? AND LOWER(u.role) = 'staff' AND u.status IN ('active', 'approved')
+              AND (a.is_late = 1 OR LOWER(a.status) = 'late')
+        `).get(queryDate);
+        const lateCount = lateRow ? lateRow.count : 0;
+        const onTimeCount = Math.max(0, presentCount - lateCount);
+
+        const leaveRow = db.prepare(`
+            SELECT COUNT(DISTINCT l.user_id) AS count 
+            FROM leaves l
+            JOIN users u ON l.user_id = u.id
+            WHERE ? BETWEEN l.start_date AND l.end_date 
+              AND l.status = 'approved' 
+              AND LOWER(u.role) = 'staff' AND u.status IN ('active', 'approved')
+              AND l.user_id NOT IN (SELECT user_id FROM attendance WHERE date = ?)
+        `).get(queryDate, queryDate);
+        const leaveCount = leaveRow ? leaveRow.count : 0;
+
+        const odRow = db.prepare(`
+            SELECT COUNT(DISTINCT o.user_id) AS count 
+            FROM od_requests o
+            JOIN users u ON o.user_id = u.id
+            WHERE o.date = ? 
+              AND o.status = 'approved' 
+              AND LOWER(u.role) = 'staff' AND u.status IN ('active', 'approved')
+              AND o.user_id NOT IN (SELECT user_id FROM attendance WHERE date = ?)
+        `).get(queryDate, queryDate);
+        const odCount = odRow ? odRow.count : 0;
+
+        const absentCount = Math.max(0, totalStaff - presentCount - leaveCount - odCount);
 
         // Get all active/approved users
         const users = db.prepare(`
@@ -56,21 +107,26 @@ exports.getDailyReport = (req, res) => {
         `).all();
 
         const report = users.map(user => {
-            // Check attendance
+            // Check attendance for this specific date
             const attendance = db.prepare('SELECT * FROM attendance WHERE user_id = ? AND date = ?').get(user.id, queryDate);
 
-            // Check leave
+            // Check approved leave covering this date
             const leave = db.prepare('SELECT * FROM leaves WHERE user_id = ? AND ? BETWEEN start_date AND end_date AND status = ?')
                 .get(user.id, queryDate, 'approved');
 
-            // Check OD
+            // Check approved OD for this date
             const od = db.prepare('SELECT * FROM od_requests WHERE user_id = ? AND date = ? AND status = ?')
                 .get(user.id, queryDate, 'approved');
 
             let status = 'absent';
-            if (attendance) status = attendance.is_late ? 'late' : 'present';
-            else if (leave) status = 'leave';
-            else if (od) status = 'od';
+            if (attendance) {
+                const s = attendance.status ? attendance.status.toLowerCase() : null;
+                status = (s && s !== 'absent') ? s : (attendance.is_late ? 'late' : 'present');
+            } else if (leave) {
+                status = 'leave';
+            } else if (od) {
+                status = 'od';
+            }
 
             let locationStr = '-';
             if (attendance && attendance.location_lat != null && attendance.location_lng != null) {
@@ -91,7 +147,19 @@ exports.getDailyReport = (req, res) => {
             };
         });
 
-        res.json({ date: queryDate, report });
+        res.json({
+            date: queryDate,
+            summary: {
+                totalStaff,
+                present: presentCount,
+                absent: absentCount,
+                late: lateCount,
+                onTime: onTimeCount,
+                onLeave: leaveCount,
+                onOD: odCount
+            },
+            report
+        });
     } catch (err) {
         console.error('Error generating daily report:', err.message || err);
         res.status(500).json({ error: 'Failed to generate daily report.' });

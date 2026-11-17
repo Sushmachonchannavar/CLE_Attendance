@@ -30,9 +30,25 @@ const isAdminRole = (role) => {
     return r === 'admin' || r === 'hoi' || r === 'principal';
 };
 
+const getInitialDate = () => {
+    try {
+        return new Intl.DateTimeFormat('en-CA', {
+            timeZone: 'Asia/Kolkata',
+            year: 'numeric',
+            month: '2-digit',
+            day: '2-digit'
+        }).format(new Date());
+    } catch {
+        return new Date().toISOString().split('T')[0];
+    }
+};
+
 const Dashboard = () => {
     const { user } = useAuth();
+    const todayDate = React.useMemo(() => getInitialDate(), []);
+    const [selectedDate, setSelectedDate] = useState(todayDate);
     const [dailyReport, setDailyReport] = useState([]);
+    const [dbSummary, setDbSummary] = useState(null);
     const [leaves, setLeaves] = useState([]);
     const [ods, setOds] = useState([]);
     const [staffCount, setStaffCount] = useState(null);
@@ -40,17 +56,24 @@ const Dashboard = () => {
     const [activeCardModal, setActiveCardModal] = useState(null);
     const [activeStaffFilter, setActiveStaffFilter] = useState('all');
 
-    const loadDashboardData = React.useCallback(async () => {
+    const loadDashboardData = React.useCallback(async (targetDate = selectedDate) => {
         if (!user || !isAdminRole(user.role)) return;
         try {
+            const dateToQuery = targetDate || selectedDate || todayDate;
             const promises = [
-                api.get('/reports/daily'),
+                api.get(`/reports/daily?date=${dateToQuery}`),
                 api.get('/requests/leaves/all'),
                 api.get('/requests/od/all'),
                 api.get('/reports/staff-count')
             ];
             const results = await Promise.allSettled(promises);
-            if (results[0].status === 'fulfilled') setDailyReport(results[0].value.data.report || []);
+            if (results[0].status === 'fulfilled') {
+                const resData = results[0].value.data;
+                setDailyReport(resData.report || []);
+                if (resData.summary) {
+                    setDbSummary(resData.summary);
+                }
+            }
             if (results[1].status === 'fulfilled') setLeaves(results[1].value.data || []);
             if (results[2].status === 'fulfilled') setOds(results[2].value.data || []);
             if (results[3] && results[3].status === 'fulfilled' && typeof results[3].value?.data?.totalStaff === 'number') {
@@ -59,13 +82,18 @@ const Dashboard = () => {
         } catch (err) {
             console.error('Failed to fetch dashboard data', err);
         }
-    }, [user]);
+    }, [user, selectedDate, todayDate]);
 
     useEffect(() => {
-        loadDashboardData();
-        const interval = setInterval(loadDashboardData, 10000);
+        loadDashboardData(selectedDate);
+    }, [selectedDate, loadDashboardData]);
+
+    useEffect(() => {
+        const interval = setInterval(() => {
+            loadDashboardData(selectedDate);
+        }, 10000);
         return () => clearInterval(interval);
-    }, [loadDashboardData]);
+    }, [loadDashboardData, selectedDate]);
 
     useEffect(() => {
         const handleKeyDown = (e) => {
@@ -133,9 +161,11 @@ const Dashboard = () => {
         }
     };
 
+    const isSelectedDateToday = selectedDate === todayDate;
+
     // Staff statistics (role: staff)
     const staffReport = dailyReport.filter(u => u.role?.toLowerCase() === 'staff');
-    const dbStaffCount = staffCount !== null ? staffCount : staffReport.length;
+    const dbStaffCount = staffCount !== null ? staffCount : (dbSummary?.totalStaff ?? staffReport.length);
 
     // Admin role calculations
     const totalStaffAdmin = dbStaffCount;
@@ -146,12 +176,20 @@ const Dashboard = () => {
     const rejectedRequestsAdmin = leaves.filter(l => l.status?.toLowerCase() === 'rejected').length +
                              ods.filter(o => o.status?.toLowerCase() === 'rejected').length;
 
-    // Principal (hoi) role calculations - STAFF statistics only
+    // Principal (hoi) role calculations - Direct DB calculations with fallback to filtered report
     const totalStaffPrincipal = dbStaffCount;
-    const presentStaffPrincipal = staffReport.filter(u => u.status === 'present' || u.status === 'late').length;
-    const absentStaffPrincipal = staffReport.filter(u => u.status === 'absent').length;
-    const leaveStaffPrincipal = staffReport.filter(u => u.status === 'leave').length;
-    const odStaffPrincipal = staffReport.filter(u => u.status === 'od').length;
+    const presentStaffPrincipal = dbSummary?.present !== undefined 
+        ? dbSummary.present 
+        : staffReport.filter(u => u.status === 'present' || u.status === 'late').length;
+    const absentStaffPrincipal = dbSummary?.absent !== undefined 
+        ? dbSummary.absent 
+        : staffReport.filter(u => u.status === 'absent').length;
+    const leaveStaffPrincipal = dbSummary?.onLeave !== undefined 
+        ? dbSummary.onLeave 
+        : staffReport.filter(u => u.status === 'leave').length;
+    const odStaffPrincipal = dbSummary?.onOD !== undefined 
+        ? dbSummary.onOD 
+        : staffReport.filter(u => u.status === 'od').length;
 
     const pendingLeavesPrincipal = leaves.filter(l => l.role?.toUpperCase() === 'STAFF' && (!l.status || l.status.toLowerCase() === 'pending')).length;
     const pendingODsPrincipal = ods.filter(o => o.role?.toUpperCase() === 'STAFF' && (!o.status || o.status.toLowerCase() === 'pending')).length;
@@ -215,12 +253,50 @@ const Dashboard = () => {
                 </div>
             </div>
 
-            {/* Dashboard Heading (Must be visible for automated test expectations) */}
-            <div className="flex items-center justify-between mb-6">
+            {/* Dashboard Heading & Date Selection Control */}
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
                 <div>
                     <h3 className="text-2xl sm:text-3xl font-extrabold text-slate-800 tracking-tight">Dashboard</h3>
-                    <p className="text-xs sm:text-sm text-slate-500 mt-0.5">Overview of real-time attendance and administrative activity</p>
+                    <p className="text-xs sm:text-sm text-slate-500 mt-0.5">
+                        {isSelectedDateToday 
+                            ? 'Overview of real-time attendance and administrative activity' 
+                            : `Viewing historical attendance ledger for ${selectedDate}`}
+                    </p>
                 </div>
+
+                {/* Date-Wise Attendance Selector for Principal */}
+                {(user?.role?.toLowerCase() === 'hoi' || user?.role?.toLowerCase() === 'principal') && (
+                    <div className="flex items-center gap-2 self-start sm:self-auto bg-white p-2 rounded-2xl shadow-sm border border-slate-200/80 flex-wrap">
+                        <div className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-50 text-blue-700 rounded-xl text-xs font-bold">
+                            <Calendar className="w-4 h-4 text-blue-600" />
+                            <span className="hidden sm:inline">Attendance Date:</span>
+                        </div>
+                        <input
+                            type="date"
+                            data-testid="principal-attendance-date-picker"
+                            aria-label="Attendance Date"
+                            value={selectedDate}
+                            onChange={(e) => {
+                                if (e.target.value) {
+                                    setSelectedDate(e.target.value);
+                                }
+                            }}
+                            max={todayDate}
+                            className="px-3 py-1.5 text-xs font-bold text-slate-800 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-xl outline-none focus:border-blue-500 cursor-pointer transition"
+                        />
+                        {!isSelectedDateToday && (
+                            <button
+                                type="button"
+                                data-testid="principal-date-today-btn"
+                                onClick={() => setSelectedDate(todayDate)}
+                                className="px-3 py-1.5 text-xs font-bold text-blue-600 hover:text-blue-800 bg-blue-50 hover:bg-blue-100 rounded-xl transition cursor-pointer"
+                                title="Reset to today's date"
+                            >
+                                Today
+                            </button>
+                        )}
+                    </div>
+                )}
             </div>
 
             {(user?.role?.toLowerCase() === 'hoi' || user?.role?.toLowerCase() === 'principal') ? (
@@ -260,7 +336,9 @@ const Dashboard = () => {
                             </div>
                             <div>
                                 <h4 className="text-2xl font-black text-slate-800">{presentStaffPrincipal}</h4>
-                                <div className="text-xs text-slate-500 font-bold uppercase tracking-wider mt-0.5">Present Today</div>
+                                <div className="text-xs text-slate-500 font-bold uppercase tracking-wider mt-0.5">
+                                    {isSelectedDateToday ? 'Present Today' : `Present (${selectedDate})`}
+                                </div>
                             </div>
                         </div>
 
@@ -278,7 +356,9 @@ const Dashboard = () => {
                             </div>
                             <div>
                                 <h4 className="text-2xl font-black text-slate-800">{absentStaffPrincipal}</h4>
-                                <div className="text-xs text-slate-500 font-bold uppercase tracking-wider mt-0.5">Absent Today</div>
+                                <div className="text-xs text-slate-500 font-bold uppercase tracking-wider mt-0.5">
+                                    {isSelectedDateToday ? 'Absent Today' : `Absent (${selectedDate})`}
+                                </div>
                             </div>
                         </div>
 
@@ -388,7 +468,7 @@ const Dashboard = () => {
                                 <div className="flex items-center justify-between mb-4">
                                     <h4 className="text-base font-bold text-slate-800 flex items-center gap-2">
                                         <BookOpen className="text-blue-600 w-5 h-5" />
-                                        Today's Staff Status
+                                        {isSelectedDateToday ? "Today's Staff Status" : `Staff Attendance Status (${selectedDate})`}
                                         {activeStaffFilter !== 'all' && (
                                             <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 border border-blue-200">
                                                 Filtered: {activeStaffFilter === 'present' ? 'Present Only' : 'Absent Only'}
@@ -884,8 +964,8 @@ const Dashboard = () => {
                                     </h3>
                                     <p className="text-xs text-slate-500 mt-0.5">
                                         {activeCardModal === 'total_staff' && `Full roster of ${dbStaffCount} registered staff members`}
-                                        {activeCardModal === 'present_today' && `${presentStaffPrincipal} staff members reported present today`}
-                                        {activeCardModal === 'absent_today' && `${absentStaffPrincipal} staff members marked absent today`}
+                                        {activeCardModal === 'present_today' && `${presentStaffPrincipal} staff members reported present for ${selectedDate}`}
+                                        {activeCardModal === 'absent_today' && `${absentStaffPrincipal} staff members marked absent for ${selectedDate}`}
                                         {activeCardModal === 'pending_leaves' && `${pendingLeavesPrincipal} staff leave submissions awaiting approval`}
                                         {activeCardModal === 'pending_ods' && `${pendingODsPrincipal} staff official duty submissions awaiting authorization`}
                                     </p>
