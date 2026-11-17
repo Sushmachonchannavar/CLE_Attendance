@@ -366,3 +366,4 @@ module.exports = {
     revokeOtherSessions,
     revokeAllSessions
 };
+

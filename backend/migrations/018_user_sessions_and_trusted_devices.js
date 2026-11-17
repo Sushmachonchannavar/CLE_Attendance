@@ -35,3 +35,4 @@ module.exports = {
         console.log('[MIGRATION 018] user_sessions table and indexes created successfully.');
     }
 };
+
