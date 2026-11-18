@@ -9,7 +9,8 @@ const LocationTracking = () => {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
     const [searchQuery, setSearchQuery] = useState('');
-    const [selectedCoords, setSelectedCoords] = useState(null);
+    const [selectedEmployeeId, setSelectedEmployeeId] = useState(null);
+    const [focusTrigger, setFocusTrigger] = useState(0);
 
     const fetchLocations = async (showLoading = false) => {
         if (showLoading) setLoading(true);
@@ -29,7 +30,7 @@ const LocationTracking = () => {
 
     useEffect(() => {
         fetchLocations(true);
-        // Poll every 10 seconds
+        // Poll every 10 seconds without full-page reloads
         const interval = setInterval(() => {
             fetchLocations(false);
         }, 10000);
@@ -63,8 +64,8 @@ const LocationTracking = () => {
 
     // Filter employees by search query
     const filteredEmployees = employees.filter(emp =>
-        emp.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        emp.employeeId.toLowerCase().includes(searchQuery.toLowerCase())
+        (emp.name || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+        (emp.employeeId || '').toLowerCase().includes(searchQuery.toLowerCase())
     );
 
     // Compute status counts
@@ -80,11 +81,8 @@ const LocationTracking = () => {
     }));
 
     const handleEmployeeClick = (emp) => {
-        const lat = parseFloat(emp.latitude);
-        const lng = parseFloat(emp.longitude);
-        if (!isNaN(lat) && !isNaN(lng)) {
-            setSelectedCoords([lat, lng]);
-        }
+        setSelectedEmployeeId(emp.userId);
+        setFocusTrigger(prev => prev + 1);
     };
 
     return (
@@ -158,9 +156,10 @@ const LocationTracking = () => {
                             <button
                                 onClick={() => fetchLocations(true)}
                                 aria-label="Refresh locations"
-                                className="p-1.5 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg transition-colors"
+                                title="Sync live coordinates"
+                                className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors cursor-pointer"
                             >
-                                <RefreshCw className="w-4 h-4" />
+                                <RefreshCw className={`w-4 h-4 ${loading && employees.length > 0 ? 'animate-spin text-blue-600' : ''}`} />
                             </button>
                         </div>
 
@@ -179,7 +178,7 @@ const LocationTracking = () => {
 
                     {/* Scrollable list */}
                     <div className="flex-1 overflow-y-auto space-y-2.5 pr-1 custom-scrollbar">
-                        {loading ? (
+                        {loading && employees.length === 0 ? (
                             <div className="flex flex-col justify-center items-center py-16 h-full text-slate-400">
                                 <div className="animate-spin rounded-full h-8 w-8 border-3 border-blue-600 border-t-transparent mb-3" />
                                 <span className="text-xs font-semibold text-slate-600">Syncing live coordinates...</span>
@@ -189,37 +188,65 @@ const LocationTracking = () => {
                                 {searchQuery ? 'No staff matching filter.' : 'No active punched-in personnel.'}
                             </div>
                         ) : (
-                            processedEmployees.map((emp) => (
-                                <button
-                                    key={emp.userId}
-                                    onClick={() => handleEmployeeClick(emp)}
-                                    className="w-full text-left p-3.5 bg-slate-50 hover:bg-blue-50/50 border border-slate-200/80 hover:border-blue-300 rounded-2xl transition-all duration-150 focus:outline-none focus:ring-2 focus:ring-blue-500/20 group"
-                                >
-                                    <div className="flex justify-between items-start mb-1">
-                                        <h5 className="font-bold text-xs text-slate-800 group-hover:text-blue-700 transition-colors">
-                                            {emp.name}
-                                        </h5>
-                                        <span className={`px-2 py-0.5 rounded-full text-[10px] font-extrabold uppercase border ${
-                                            emp.isInsideCampus
-                                                ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
-                                                : 'bg-rose-50 text-rose-700 border-rose-200 animate-pulse'
-                                        }`}>
-                                            {emp.isInsideCampus ? 'Inside' : 'Outside'}
-                                        </span>
-                                    </div>
-                                    <p className="text-[11px] text-slate-500 font-mono mb-2">ID: {emp.employeeId}</p>
-
-                                    <div className="flex justify-between items-center text-[10px] text-slate-400 font-medium pt-1 border-t border-slate-200/50">
-                                        <div className="flex items-center gap-1">
-                                            <Clock className="w-3 h-3" />
-                                            <span className={emp.stale ? 'text-amber-600 font-bold' : 'text-slate-500'}>
-                                                {emp.stale ? `Stale: ${emp.lastUpdatedText}` : emp.lastUpdatedText}
+                            processedEmployees.map((emp) => {
+                                const isSelected = emp.userId === selectedEmployeeId;
+                                return (
+                                    <button
+                                        key={emp.userId}
+                                        ref={el => {
+                                            if (el && isSelected) {
+                                                el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                                            }
+                                        }}
+                                        onClick={() => handleEmployeeClick(emp)}
+                                        className={`w-full text-left p-3.5 rounded-2xl transition-all duration-150 border group cursor-pointer ${
+                                            isSelected
+                                                ? 'bg-blue-50/95 border-blue-500 ring-2 ring-blue-500/30 shadow-md'
+                                                : 'bg-slate-50 hover:bg-blue-50/50 border-slate-200/80 hover:border-blue-300'
+                                        }`}
+                                    >
+                                        <div className="flex justify-between items-start mb-1">
+                                            <div className="flex items-center gap-1.5 flex-1 min-w-0 pr-1">
+                                                <h5 className={`font-bold text-xs truncate transition-colors ${
+                                                    isSelected ? 'text-blue-900 font-extrabold' : 'text-slate-800 group-hover:text-blue-700'
+                                                }`}>
+                                                    {emp.name}
+                                                </h5>
+                                                {isSelected && (
+                                                    <span className="shrink-0 px-1.5 py-0.2 rounded text-[9px] font-black uppercase bg-blue-600 text-white tracking-wider">
+                                                        TARGET
+                                                    </span>
+                                                )}
+                                            </div>
+                                            <span className={`shrink-0 px-2 py-0.5 rounded-full text-[10px] font-extrabold uppercase border ${
+                                                emp.isInsideCampus
+                                                    ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                                                    : 'bg-rose-50 text-rose-700 border-rose-200 animate-pulse'
+                                            }`}>
+                                                {emp.isInsideCampus ? 'Inside' : 'Outside'}
                                             </span>
                                         </div>
-                                        <span>In: {emp.punchInTime}</span>
-                                    </div>
-                                </button>
-                            ))
+                                        <div className="flex justify-between items-center text-[11px] text-slate-500 font-mono mb-2">
+                                            <span>ID: {emp.employeeId}</span>
+                                            {emp.latitude && emp.longitude && (
+                                                <span className="text-[10px] text-slate-400">
+                                                    {parseFloat(emp.latitude).toFixed(4)}, {parseFloat(emp.longitude).toFixed(4)}
+                                                </span>
+                                            )}
+                                        </div>
+
+                                        <div className="flex justify-between items-center text-[10px] text-slate-400 font-medium pt-1 border-t border-slate-200/50">
+                                            <div className="flex items-center gap-1">
+                                                <Clock className="w-3 h-3" />
+                                                <span className={emp.stale ? 'text-amber-600 font-bold' : 'text-slate-500'}>
+                                                    {emp.stale ? `Stale: ${emp.lastUpdatedText}` : emp.lastUpdatedText}
+                                                </span>
+                                            </div>
+                                            <span>In: {emp.punchInTime || 'N/A'}</span>
+                                        </div>
+                                    </button>
+                                );
+                            })
                         )}
                     </div>
                 </div>
@@ -231,15 +258,25 @@ const LocationTracking = () => {
                             <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-ping" />
                             <span>Campus Area Geofence Monitor</span>
                         </div>
-                        <span className="text-[10px] text-slate-400 uppercase font-semibold">Select staff member to locate</span>
+                        <span className="text-[10px] text-slate-400 uppercase font-semibold">
+                            {selectedEmployeeId ? 'Staff Focused • Click marker or card' : 'Select staff member to locate'}
+                        </span>
                     </div>
                     <div className="flex-1 relative">
-                        {loading ? (
+                        {loading && employees.length === 0 ? (
                             <div className="absolute inset-0 flex items-center justify-center bg-slate-50 z-10">
                                 <div className="animate-spin rounded-full h-8 w-8 border-3 border-blue-600 border-t-transparent" />
                             </div>
                         ) : (
-                            <AdminMapDashboard staffList={processedEmployees} centralCoordinate={selectedCoords || undefined} />
+                            <AdminMapDashboard
+                                staffList={processedEmployees}
+                                selectedEmployeeId={selectedEmployeeId}
+                                onSelectEmployee={(userId) => {
+                                    setSelectedEmployeeId(userId);
+                                    setFocusTrigger(prev => prev + 1);
+                                }}
+                                focusTrigger={focusTrigger}
+                            />
                         )}
                     </div>
                 </div>
