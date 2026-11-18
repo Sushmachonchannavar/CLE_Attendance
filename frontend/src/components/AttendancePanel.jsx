@@ -127,6 +127,9 @@ const LATE_THRESHOLD_MINUTE = 20; // After 9:20 AM is late
 
 const AttendancePanel = () => {
     const { user } = useAuth();
+    const userRole = (user?.role || '').toString().toLowerCase().trim();
+    const isAdmin = userRole === 'admin' || userRole === 'administrator';
+
     const outsideCountRef = useRef(0);
     const autoPunchOutInProgressRef = useRef(false);
     const [status, setStatus] = useState(null);
@@ -196,6 +199,7 @@ const AttendancePanel = () => {
     }, [applyLocationFix]);
 
     useEffect(() => {
+        if (isAdmin) return;
         fetchStatus();
         acquireLocation(true);
 
@@ -269,7 +273,7 @@ const AttendancePanel = () => {
     }, [loading, location]);
 
     useEffect(() => {
-        if (!location || !status || !status.punchedIn || status.punchedOut) {
+        if (isAdmin || !location || !status || !status.punchedIn || status.punchedOut) {
             outsideCountRef.current = 0;
             autoPunchOutInProgressRef.current = false;
             return;
@@ -454,6 +458,10 @@ const AttendancePanel = () => {
         'Location Tracking',
         'Punch Out'
     ];
+
+    if (isAdmin) {
+        return null;
+    }
 
     return (
         <div className="p-6 sm:p-8 bg-white rounded-3xl shadow-sm border border-slate-200/80 overflow-hidden relative">

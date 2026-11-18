@@ -625,10 +625,12 @@ const Profile = () => {
                     </div>
                 </div>
 
-                {/* Attendance Geofence Panel */}
-                <div className="lg:col-span-2">
-                    <AttendancePanel />
-                </div>
+                {/* Attendance Geofence Panel (Only for Staff & Principal, hidden for Admin) */}
+                {user?.role?.toLowerCase() !== 'admin' && (
+                    <div className="lg:col-span-2">
+                        <AttendancePanel />
+                    </div>
+                )}
             </div>
 
             {/* Trusted Devices & Active Sessions Section */}

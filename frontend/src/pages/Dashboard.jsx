@@ -234,7 +234,12 @@ const Dashboard = () => {
         day: 'numeric'
     });
 
-    const roleName = user?.role === 'hoi' ? 'Principal' : user?.role === 'admin' ? 'Administrator' : 'Faculty Member';
+    const userRole = (user?.role || '').toString().toLowerCase().trim();
+    const isPrincipal = userRole === 'hoi' || userRole === 'principal';
+    const isAdmin = userRole === 'admin' || userRole === 'administrator';
+    const isStaff = !isPrincipal && !isAdmin;
+
+    const roleName = isPrincipal ? 'Principal' : isAdmin ? 'Administrator' : 'Faculty Member';
 
     return (
         <Layout>
@@ -325,7 +330,7 @@ const Dashboard = () => {
                 )}
             </div>
 
-            {(user?.role?.toLowerCase() === 'hoi' || user?.role?.toLowerCase() === 'principal') ? (
+            {isPrincipal ? (
                 /* ----------------- PRINCIPAL DASHBOARD ----------------- */
                 <div className="space-y-8">
                     {/* Summary Cards Grid */}
@@ -748,7 +753,7 @@ const Dashboard = () => {
                         )}
                     </div>
                 </div>
-            ) : user?.role?.toLowerCase() === 'admin' ? (
+            ) : isAdmin ? (
                 /* ----------------- ADMIN DASHBOARD ----------------- */
                 <div className="space-y-8">
                     {/* Summary Cards Grid */}
@@ -951,12 +956,12 @@ const Dashboard = () => {
                         </div>
                     </div>
                 </div>
-            ) : (
+            ) : isStaff ? (
                 /* ----------------- STAFF DASHBOARD ----------------- */
                 <div className="mt-2">
                     <AttendancePanel />
                 </div>
-            )}
+            ) : null}
 
             {/* Shared Dashboard Card Details Modal (Admin & Principal) */}
             {activeCardModal && (
