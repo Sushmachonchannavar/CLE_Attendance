@@ -4,6 +4,7 @@ import { useAuth } from '../context/AuthContext';
 import Layout from '../components/Layout';
 import AttendancePanel from '../components/AttendancePanel';
 import api from '../utils/api';
+import { getTodayDate } from '../utils/date';
 import {
     Users,
     FileClock,
@@ -30,18 +31,7 @@ const isAdminRole = (role) => {
     return r === 'admin' || r === 'hoi' || r === 'principal';
 };
 
-const getInitialDate = () => {
-    try {
-        return new Intl.DateTimeFormat('en-CA', {
-            timeZone: 'Asia/Kolkata',
-            year: 'numeric',
-            month: '2-digit',
-            day: '2-digit'
-        }).format(new Date());
-    } catch {
-        return new Date().toISOString().split('T')[0];
-    }
-};
+const getInitialDate = () => getTodayDate();
 
 const Dashboard = () => {
     const { user } = useAuth();

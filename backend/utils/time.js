@@ -5,12 +5,13 @@
 
 function getKolkataDate(date = new Date()) {
     const d = (date instanceof Date) ? date : new Date(date);
-    return new Intl.DateTimeFormat('en-CA', {
-        timeZone: 'Asia/Kolkata',
-        year: 'numeric',
-        month: '2-digit',
-        day: '2-digit'
-    }).format(d);
+    // Explicitly compute YYYY-MM-DD in Asia/Kolkata (UTC + 5:30)
+    const utcMs = d.getTime() + (d.getTimezoneOffset() * 60000);
+    const istDate = new Date(utcMs + (5.5 * 60 * 60 * 1000));
+    const year = istDate.getFullYear();
+    const month = String(istDate.getMonth() + 1).padStart(2, '0');
+    const day = String(istDate.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
 }
 
 function getKolkataTimeString(date = new Date()) {

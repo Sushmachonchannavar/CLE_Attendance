@@ -1,23 +1,11 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import Layout from '../components/Layout';
 import api from '../utils/api';
+import { getTodayDate } from '../utils/date';
 import { Plus, X, Trash2, UploadCloud, FileText, Eye, Download, Calendar, MapPin, Clock } from 'lucide-react';
 
-const getTodayDate = () => {
-    try {
-        return new Intl.DateTimeFormat('en-CA', {
-            timeZone: 'Asia/Kolkata',
-            year: 'numeric',
-            month: '2-digit',
-            day: '2-digit'
-        }).format(new Date());
-    } catch {
-        return new Date().toISOString().split('T')[0];
-    }
-};
-
 const OD = () => {
-    const todayDate = getTodayDate();
+    const [todayDate, setTodayDate] = useState(() => getTodayDate());
     const [ods, setOds] = useState([]);
     const [showModal, setShowModal] = useState(false);
     const [loading, setLoading] = useState(false);
@@ -53,6 +41,11 @@ const OD = () => {
 
     useEffect(() => {
         fetchOds();
+        setTodayDate(getTodayDate());
+        const timer = setInterval(() => {
+            setTodayDate(getTodayDate());
+        }, 60000);
+        return () => clearInterval(timer);
     }, [fetchOds]);
 
     const handleFileChange = (file) => {
@@ -102,7 +95,7 @@ const OD = () => {
         e.preventDefault();
 
         const today = getTodayDate();
-        if (formData.date < today) {
+        if (!formData.date || formData.date < today) {
             alert('OD date cannot be in the past. Please select today or a future date.');
             return;
         }
@@ -407,11 +400,23 @@ const OD = () => {
                                         value={formData.date}
                                         onChange={(e) => {
                                             const val = e.target.value;
-                                            if (val && val < todayDate) {
+                                            const currentToday = getTodayDate();
+                                            if (val && val < currentToday) {
+                                                e.target.value = '';
+                                                setFormData(prev => ({ ...prev, date: '' }));
                                                 alert('Past dates are not allowed. Please select today or a future date.');
                                                 return;
                                             }
                                             setFormData(prev => ({ ...prev, date: val }));
+                                        }}
+                                        onBlur={(e) => {
+                                            const val = e.target.value;
+                                            const currentToday = getTodayDate();
+                                            if (val && val < currentToday) {
+                                                e.target.value = '';
+                                                setFormData(prev => ({ ...prev, date: '' }));
+                                                alert('Past dates are not allowed. Please select today or a future date.');
+                                            }
                                         }}
                                         required
                                         disabled={isUploading}

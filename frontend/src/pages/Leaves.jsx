@@ -1,23 +1,11 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import Layout from '../components/Layout';
 import api from '../utils/api';
+import { getTodayDate } from '../utils/date';
 import { Plus, X, Trash2, Calendar, FileText, CheckCircle2, Clock } from 'lucide-react';
 
-const getTodayDate = () => {
-    try {
-        return new Intl.DateTimeFormat('en-CA', {
-            timeZone: 'Asia/Kolkata',
-            year: 'numeric',
-            month: '2-digit',
-            day: '2-digit'
-        }).format(new Date());
-    } catch {
-        return new Date().toISOString().split('T')[0];
-    }
-};
-
 const Leaves = () => {
-    const todayDate = getTodayDate();
+    const [todayDate, setTodayDate] = useState(() => getTodayDate());
     const [leaves, setLeaves] = useState([]);
     const [showModal, setShowModal] = useState(false);
     const [loading, setLoading] = useState(false);
@@ -45,16 +33,21 @@ const Leaves = () => {
 
     useEffect(() => {
         fetchLeaves();
+        setTodayDate(getTodayDate());
+        const timer = setInterval(() => {
+            setTodayDate(getTodayDate());
+        }, 60000);
+        return () => clearInterval(timer);
     }, [fetchLeaves]);
 
     const handleSubmit = async (e) => {
         e.preventDefault();
         const today = getTodayDate();
-        if (formData.start_date < today) {
+        if (!formData.start_date || formData.start_date < today) {
             alert('Leave start date cannot be in the past. Please select today or a future date.');
             return;
         }
-        if (formData.end_date < today) {
+        if (!formData.end_date || formData.end_date < today) {
             alert('Leave end date cannot be in the past. Please select today or a future date.');
             return;
         }
@@ -285,7 +278,10 @@ const Leaves = () => {
                                         value={formData.start_date}
                                         onChange={(e) => {
                                             const val = e.target.value;
-                                            if (val && val < todayDate) {
+                                            const currentToday = getTodayDate();
+                                            if (val && val < currentToday) {
+                                                e.target.value = '';
+                                                setFormData(prev => ({ ...prev, start_date: '' }));
                                                 alert('Past dates are not allowed. Please select today or a future date.');
                                                 return;
                                             }
@@ -294,6 +290,15 @@ const Leaves = () => {
                                                 start_date: val,
                                                 end_date: prev.end_date && prev.end_date < val ? val : prev.end_date
                                             }));
+                                        }}
+                                        onBlur={(e) => {
+                                            const val = e.target.value;
+                                            const currentToday = getTodayDate();
+                                            if (val && val < currentToday) {
+                                                e.target.value = '';
+                                                setFormData(prev => ({ ...prev, start_date: '' }));
+                                                alert('Past dates are not allowed. Please select today or a future date.');
+                                            }
                                         }}
                                         required
                                     />
@@ -310,14 +315,29 @@ const Leaves = () => {
                                         value={formData.end_date}
                                         onChange={(e) => {
                                             const val = e.target.value;
-                                            const minAllowed = formData.start_date || todayDate;
+                                            const currentToday = getTodayDate();
+                                            const minAllowed = formData.start_date || currentToday;
                                             if (val && val < minAllowed) {
-                                                alert(val < todayDate 
+                                                e.target.value = '';
+                                                setFormData(prev => ({ ...prev, end_date: '' }));
+                                                alert(val < currentToday 
                                                     ? 'Past dates are not allowed. Please select today or a future date.' 
                                                     : 'End date cannot be earlier than start date.');
                                                 return;
                                             }
                                             setFormData(prev => ({ ...prev, end_date: val }));
+                                        }}
+                                        onBlur={(e) => {
+                                            const val = e.target.value;
+                                            const currentToday = getTodayDate();
+                                            const minAllowed = formData.start_date || currentToday;
+                                            if (val && val < minAllowed) {
+                                                e.target.value = '';
+                                                setFormData(prev => ({ ...prev, end_date: '' }));
+                                                alert(val < currentToday 
+                                                    ? 'Past dates are not allowed. Please select today or a future date.' 
+                                                    : 'End date cannot be earlier than start date.');
+                                            }
                                         }}
                                         required
                                     />
