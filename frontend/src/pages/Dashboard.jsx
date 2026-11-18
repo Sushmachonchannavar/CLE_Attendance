@@ -84,8 +84,14 @@ const Dashboard = () => {
             if (results[0].status === 'fulfilled') {
                 const resData = results[0].value.data;
                 const reportList = resData.report || [];
-                // Only academic/teaching staff (exclude non-staff accounts)
-                const staffOnly = reportList.filter(u => !u.role || u.role.toLowerCase() === 'staff');
+                // Only academic/teaching staff (strictly exclude admin and principal accounts)
+                const staffOnly = reportList.filter(u => {
+                    const r = (u.role || '').toLowerCase();
+                    const n = (u.name || '').toLowerCase();
+                    if (r === 'admin' || r === 'hoi' || r === 'principal') return false;
+                    if (n.includes('administrator') || n.includes('principal')) return false;
+                    return r === 'staff' || !r;
+                });
                 setDailyReport(staffOnly);
                 if (resData.summary) {
                     setDbSummary(resData.summary);
@@ -187,8 +193,14 @@ const Dashboard = () => {
 
     const isSelectedDateToday = selectedDate === todayDate;
 
-    // Staff statistics (role: staff)
-    const staffReport = dailyReport.filter(u => u.role?.toLowerCase() === 'staff');
+    // Staff statistics (strictly role: staff, exclude administrative accounts)
+    const staffReport = dailyReport.filter(u => {
+        const r = (u.role || '').toLowerCase();
+        const n = (u.name || '').toLowerCase();
+        if (r === 'admin' || r === 'hoi' || r === 'principal') return false;
+        if (n.includes('administrator') || n.includes('principal')) return false;
+        return r === 'staff';
+    });
     const dbStaffCount = staffCount !== null ? staffCount : (dbSummary?.totalStaff ?? staffReport.length);
 
     // Admin role calculations
@@ -820,59 +832,59 @@ const Dashboard = () => {
                             <CheckCircle2 className="w-5 h-5 text-blue-600" />
                             Quick Management Modules
                         </h4>
-                        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 sm:gap-6">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 items-stretch">
                             {/* Leave Requests Quick Nav */}
-                            <Link to="/leave-requests" className="group bg-white p-6 rounded-3xl shadow-sm border border-slate-200/80 hover:shadow-lg hover:border-blue-300 transition-all duration-200 flex flex-col justify-between h-44">
-                                <div>
+                            <Link to="/leave-requests" className="group bg-white p-6 rounded-3xl shadow-sm border border-slate-200/80 hover:shadow-lg hover:border-blue-300 transition-all duration-200 flex flex-col h-full min-h-[175px]">
+                                <div className="flex-1">
                                     <div className="w-10 h-10 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center mb-3">
                                         <Calendar className="w-5 h-5" />
                                     </div>
                                     <h5 className="font-bold text-base text-slate-800 group-hover:text-blue-600 transition-colors">Leave Requests</h5>
                                     <p className="text-xs text-slate-500 mt-1 leading-relaxed">Review and manage staff leave applications.</p>
                                 </div>
-                                <div className="flex items-center text-xs font-bold text-blue-600 gap-1 self-end group-hover:gap-2 transition-all">
+                                <div className="mt-auto pt-3 flex items-center text-xs font-bold text-blue-600 gap-1 self-end group-hover:gap-2 transition-all">
                                     Manage <ArrowRight className="w-4 h-4" />
                                 </div>
                             </Link>
 
                             {/* OD Requests Quick Nav */}
-                            <Link to="/od-requests" className="group bg-white p-6 rounded-3xl shadow-sm border border-slate-200/80 hover:shadow-lg hover:border-blue-300 transition-all duration-200 flex flex-col justify-between h-44">
-                                <div>
+                            <Link to="/od-requests" className="group bg-white p-6 rounded-3xl shadow-sm border border-slate-200/80 hover:shadow-lg hover:border-blue-300 transition-all duration-200 flex flex-col h-full min-h-[175px]">
+                                <div className="flex-1">
                                     <div className="w-10 h-10 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center mb-3">
                                         <BookOpen className="w-5 h-5" />
                                     </div>
                                     <h5 className="font-bold text-base text-slate-800 group-hover:text-blue-600 transition-colors">OD Requests</h5>
                                     <p className="text-xs text-slate-500 mt-1 leading-relaxed">Review and authorize on-duty request submissions.</p>
                                 </div>
-                                <div className="flex items-center text-xs font-bold text-blue-600 gap-1 self-end group-hover:gap-2 transition-all">
+                                <div className="mt-auto pt-3 flex items-center text-xs font-bold text-blue-600 gap-1 self-end group-hover:gap-2 transition-all">
                                     Manage <ArrowRight className="w-4 h-4" />
                                 </div>
                             </Link>
 
                             {/* Location Tracking Quick Nav */}
-                            <Link to="/admin/tracking" className="group bg-white p-6 rounded-3xl shadow-sm border border-slate-200/80 hover:shadow-lg hover:border-blue-300 transition-all duration-200 flex flex-col justify-between h-44">
-                                <div>
+                            <Link to="/admin/tracking" className="group bg-white p-6 rounded-3xl shadow-sm border border-slate-200/80 hover:shadow-lg hover:border-blue-300 transition-all duration-200 flex flex-col h-full min-h-[175px]">
+                                <div className="flex-1">
                                     <div className="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center mb-3">
                                         <Clock className="w-5 h-5" />
                                     </div>
                                     <h5 className="font-bold text-base text-slate-800 group-hover:text-blue-600 transition-colors">Location Tracking</h5>
                                     <p className="text-xs text-slate-500 mt-1 leading-relaxed">Track punched-in staff live positions in real time.</p>
                                 </div>
-                                <div className="flex items-center text-xs font-bold text-blue-600 gap-1 self-end group-hover:gap-2 transition-all">
+                                <div className="mt-auto pt-3 flex items-center text-xs font-bold text-blue-600 gap-1 self-end group-hover:gap-2 transition-all">
                                     Track Live <ArrowRight className="w-4 h-4" />
                                 </div>
                             </Link>
 
                             {/* Reports Quick Nav */}
-                            <Link to="/reports" className="group bg-white p-6 rounded-3xl shadow-sm border border-slate-200/80 hover:shadow-lg hover:border-blue-300 transition-all duration-200 flex flex-col justify-between h-44">
-                                <div>
+                            <Link to="/reports" className="group bg-white p-6 rounded-3xl shadow-sm border border-slate-200/80 hover:shadow-lg hover:border-blue-300 transition-all duration-200 flex flex-col h-full min-h-[175px]">
+                                <div className="flex-1">
                                     <div className="w-10 h-10 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center mb-3">
                                         <Users className="w-5 h-5" />
                                     </div>
                                     <h5 className="font-bold text-base text-slate-800 group-hover:text-blue-600 transition-colors">Reports & Logs</h5>
                                     <p className="text-xs text-slate-500 mt-1 leading-relaxed">Access daily/monthly analytics and export Excel sheets.</p>
                                 </div>
-                                <div className="flex items-center text-xs font-bold text-blue-600 gap-1 self-end group-hover:gap-2 transition-all">
+                                <div className="mt-auto pt-3 flex items-center text-xs font-bold text-blue-600 gap-1 self-end group-hover:gap-2 transition-all">
                                     View Reports <ArrowRight className="w-4 h-4" />
                                 </div>
                             </Link>
@@ -890,7 +902,6 @@ const Dashboard = () => {
                                         {totalStaffAdmin} Registered
                                     </span>
                                 </h4>
-                                <p className="text-xs text-slate-500 mt-0.5">Staff members registered from 16 November 2026 onwards</p>
                             </div>
                             <button
                                 type="button"

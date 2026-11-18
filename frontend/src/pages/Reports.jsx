@@ -31,8 +31,14 @@ const Reports = () => {
             api.get(`/reports/daily?date=${date}`)
                 .then(res => {
                     const rawReport = res.data?.report || [];
-                    // Ensure only actual staff members appear in attendance audits (never admin or hoi)
-                    const staffOnly = rawReport.filter(u => !u.role || u.role.toLowerCase() === 'staff');
+                    // Ensure only actual staff members appear in attendance audits (never admin or principal/hoi)
+                    const staffOnly = rawReport.filter(u => {
+                        const r = (u.role || '').toLowerCase();
+                        const n = (u.name || '').toLowerCase();
+                        if (r === 'admin' || r === 'hoi' || r === 'principal') return false;
+                        if (n.includes('administrator') || n.includes('principal')) return false;
+                        return r === 'staff' || !r;
+                    });
                     setReportData(staffOnly);
                 })
                 .catch(err => {
@@ -44,7 +50,13 @@ const Reports = () => {
             api.get(`/reports/monthly?month=${month}&year=${year}`)
                 .then(res => {
                     const rawReport = res.data || [];
-                    const staffOnly = rawReport.filter(u => !u.role || u.role.toLowerCase() === 'staff');
+                    const staffOnly = rawReport.filter(u => {
+                        const r = (u.role || '').toLowerCase();
+                        const n = (u.name || '').toLowerCase();
+                        if (r === 'admin' || r === 'hoi' || r === 'principal') return false;
+                        if (n.includes('administrator') || n.includes('principal')) return false;
+                        return r === 'staff' || !r;
+                    });
                     setReportData(staffOnly);
                 })
                 .catch(err => {
