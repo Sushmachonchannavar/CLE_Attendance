@@ -3,7 +3,21 @@ import Layout from '../components/Layout';
 import api from '../utils/api';
 import { Plus, X, Trash2, UploadCloud, FileText, Eye, Download, Calendar, MapPin, Clock } from 'lucide-react';
 
+const getTodayDate = () => {
+    try {
+        return new Intl.DateTimeFormat('en-CA', {
+            timeZone: 'Asia/Kolkata',
+            year: 'numeric',
+            month: '2-digit',
+            day: '2-digit'
+        }).format(new Date());
+    } catch {
+        return new Date().toISOString().split('T')[0];
+    }
+};
+
 const OD = () => {
+    const todayDate = getTodayDate();
     const [ods, setOds] = useState([]);
     const [showModal, setShowModal] = useState(false);
     const [loading, setLoading] = useState(false);
@@ -86,6 +100,12 @@ const OD = () => {
 
     const handleSubmit = async (e) => {
         e.preventDefault();
+
+        const today = getTodayDate();
+        if (formData.date < today) {
+            alert('OD date cannot be in the past. Please select today or a future date.');
+            return;
+        }
 
         const data = new FormData();
         data.append('date', formData.date);
@@ -382,9 +402,17 @@ const OD = () => {
                                     <input
                                         id="od_date"
                                         type="date"
+                                        min={todayDate}
                                         className="w-full px-3.5 py-3 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
                                         value={formData.date}
-                                        onChange={(e) => setFormData({ ...formData, date: e.target.value })}
+                                        onChange={(e) => {
+                                            const val = e.target.value;
+                                            if (val && val < todayDate) {
+                                                alert('Past dates are not allowed. Please select today or a future date.');
+                                                return;
+                                            }
+                                            setFormData(prev => ({ ...prev, date: val }));
+                                        }}
                                         required
                                         disabled={isUploading}
                                     />

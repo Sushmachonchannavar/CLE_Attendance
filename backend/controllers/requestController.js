@@ -1,6 +1,7 @@
 const db = require('../database');
 const fs = require('fs');
 const path = require('path');
+const { getKolkataDate } = require('../utils/time');
 
 /**
  * Validates whether a string is a valid ISO calendar date (YYYY-MM-DD)
@@ -29,6 +30,15 @@ exports.applyLeave = (req, res) => {
         // Strict Date Format & Calendar Validation
         if (!isValidISODate(start_date) || !isValidISODate(end_date)) {
             return res.status(400).json({ error: 'Invalid date format. Dates must be valid calendar dates in YYYY-MM-DD format.' });
+        }
+
+        const today = getKolkataDate();
+        if (start_date < today) {
+            return res.status(400).json({ error: 'Leave start date cannot be in the past. You can only select today or future dates.' });
+        }
+
+        if (end_date < today) {
+            return res.status(400).json({ error: 'Leave end date cannot be in the past. You can only select today or future dates.' });
         }
 
         if (start_date > end_date) {
@@ -176,6 +186,14 @@ exports.applyOD = (req, res) => {
                 try { fs.unlinkSync(req.file.path); } catch (e) {}
             }
             return res.status(400).json({ error: 'Invalid date format. Date must be a valid calendar date in YYYY-MM-DD format.' });
+        }
+
+        const today = getKolkataDate();
+        if (date < today) {
+            if (req.file) {
+                try { fs.unlinkSync(req.file.path); } catch (e) {}
+            }
+            return res.status(400).json({ error: 'OD date cannot be in the past. You can only select today or future dates.' });
         }
 
         const roleVal = (req.user.role === 'hoi' || req.user.role === 'principal') ? 'PRINCIPAL' : 'STAFF';

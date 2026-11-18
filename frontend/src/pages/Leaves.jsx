@@ -3,7 +3,21 @@ import Layout from '../components/Layout';
 import api from '../utils/api';
 import { Plus, X, Trash2, Calendar, FileText, CheckCircle2, Clock } from 'lucide-react';
 
+const getTodayDate = () => {
+    try {
+        return new Intl.DateTimeFormat('en-CA', {
+            timeZone: 'Asia/Kolkata',
+            year: 'numeric',
+            month: '2-digit',
+            day: '2-digit'
+        }).format(new Date());
+    } catch {
+        return new Date().toISOString().split('T')[0];
+    }
+};
+
 const Leaves = () => {
+    const todayDate = getTodayDate();
     const [leaves, setLeaves] = useState([]);
     const [showModal, setShowModal] = useState(false);
     const [loading, setLoading] = useState(false);
@@ -35,6 +49,19 @@ const Leaves = () => {
 
     const handleSubmit = async (e) => {
         e.preventDefault();
+        const today = getTodayDate();
+        if (formData.start_date < today) {
+            alert('Leave start date cannot be in the past. Please select today or a future date.');
+            return;
+        }
+        if (formData.end_date < today) {
+            alert('Leave end date cannot be in the past. Please select today or a future date.');
+            return;
+        }
+        if (formData.start_date > formData.end_date) {
+            alert('Start date cannot be after end date.');
+            return;
+        }
         setSubmitting(true);
         try {
             await api.post('/requests/leaves', formData);
@@ -253,9 +280,21 @@ const Leaves = () => {
                                     <input
                                         id="start_date"
                                         type="date"
+                                        min={todayDate}
                                         className="w-full px-3.5 py-3 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
                                         value={formData.start_date}
-                                        onChange={(e) => setFormData({ ...formData, start_date: e.target.value })}
+                                        onChange={(e) => {
+                                            const val = e.target.value;
+                                            if (val && val < todayDate) {
+                                                alert('Past dates are not allowed. Please select today or a future date.');
+                                                return;
+                                            }
+                                            setFormData(prev => ({
+                                                ...prev,
+                                                start_date: val,
+                                                end_date: prev.end_date && prev.end_date < val ? val : prev.end_date
+                                            }));
+                                        }}
                                         required
                                     />
                                 </div>
@@ -266,9 +305,20 @@ const Leaves = () => {
                                     <input
                                         id="end_date"
                                         type="date"
+                                        min={formData.start_date || todayDate}
                                         className="w-full px-3.5 py-3 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
                                         value={formData.end_date}
-                                        onChange={(e) => setFormData({ ...formData, end_date: e.target.value })}
+                                        onChange={(e) => {
+                                            const val = e.target.value;
+                                            const minAllowed = formData.start_date || todayDate;
+                                            if (val && val < minAllowed) {
+                                                alert(val < todayDate 
+                                                    ? 'Past dates are not allowed. Please select today or a future date.' 
+                                                    : 'End date cannot be earlier than start date.');
+                                                return;
+                                            }
+                                            setFormData(prev => ({ ...prev, end_date: val }));
+                                        }}
                                         required
                                     />
                                 </div>
