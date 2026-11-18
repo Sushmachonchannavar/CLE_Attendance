@@ -45,23 +45,15 @@ export default function DownloadApp() {
     return (
         <div className="min-h-screen bg-gradient-to-b from-slate-900 via-slate-800 to-indigo-950 text-slate-100 flex flex-col justify-between">
             {/* Header / Navbar */}
-            <header className="border-b border-slate-700/60 bg-slate-900/80 backdrop-blur-md sticky top-0 z-50">
-                <div className="max-w-6xl mx-auto px-4 py-3.5 flex items-center justify-between">
-                    <Link to="/login" className="flex items-center gap-3 group">
-                        <CleLogo className="w-10 h-10 object-contain drop-shadow" />
-                        <div>
-                            <span className="block text-base font-bold text-white tracking-tight group-hover:text-indigo-400 transition-colors">
-                                C.L.E. Society
-                            </span>
-                            <span className="block text-xs text-slate-400 font-medium">
-                                Staff Attendance & Location System
-                            </span>
-                        </div>
+            <header className="border-b border-slate-800 bg-[#0b1329] backdrop-blur-md sticky top-0 z-50">
+                <div className="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between">
+                    <Link to="/login" className="flex items-center group">
+                        <CleLogo size="sm" variant="light" />
                     </Link>
 
                     <Link 
                         to="/login"
-                        className="inline-flex items-center gap-2 text-xs font-semibold px-4 py-2 rounded-lg bg-indigo-600/90 hover:bg-indigo-600 text-white shadow-sm transition-all"
+                        className="inline-flex items-center gap-2 text-xs font-semibold px-4 py-2 rounded-xl bg-indigo-600/90 hover:bg-indigo-600 text-white shadow-sm transition-all active:scale-95"
                     >
                         Web Login
                         <ArrowRight className="w-3.5 h-3.5" />

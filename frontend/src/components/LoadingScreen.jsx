@@ -24,7 +24,7 @@ export default function LoadingScreen({ message = 'Verifying authenticated sessi
                     {message}
                 </p>
                 <span className="text-[11px] text-slate-400 font-mono mt-1">
-                    C.L.E. Society Attendance System
+                    Staff Attendance & Location System
                 </span>
             </div>
         </div>
