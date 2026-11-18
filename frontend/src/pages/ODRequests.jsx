@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import Layout from '../components/Layout';
 import api from '../utils/api';
 import { useAuth } from '../context/AuthContext';
-import { FileText, Eye, Download, CheckCircle, XCircle, Trash2, Clock, Calendar } from 'lucide-react';
+import { FileText, Eye, Download, CheckCircle, XCircle, Trash2, Clock, Calendar, ExternalLink, X } from 'lucide-react';
 
 const ODRequests = () => {
     const { user } = useAuth();
@@ -11,6 +11,7 @@ const ODRequests = () => {
     const [ods, setOds] = useState([]);
     const [loading, setLoading] = useState(false);
     const [activeRoleFilter, setActiveRoleFilter] = useState('STAFF');
+    const [previewDoc, setPreviewDoc] = useState(null); // { id, name, url, type, loading }
 
     const fetchOds = useCallback(async () => {
         setLoading(true);
@@ -62,16 +63,26 @@ const ODRequests = () => {
         }
     };
 
-    const handleViewDocument = async (id) => {
+    const handleViewDocument = async (id, documentName) => {
+        setPreviewDoc({ id, name: documentName, url: null, type: null, loading: true });
         try {
             const res = await api.get(`/requests/od/view/${id}`, { responseType: 'blob' });
             const contentType = res.headers['content-type'] || 'application/pdf';
             const blobUrl = window.URL.createObjectURL(new Blob([res.data], { type: contentType }));
-            window.open(blobUrl, '_blank', 'noopener,noreferrer');
+            setPreviewDoc({ id, name: documentName, url: blobUrl, type: contentType, loading: false });
         } catch (err) {
             console.error('Failed to view document:', err);
-            alert('Failed to view document.');
+            const msg = err.response?.data?.error || 'Document could not be loaded from server.';
+            alert(`Failed to view document: ${msg}`);
+            setPreviewDoc(null);
         }
+    };
+
+    const handleClosePreview = () => {
+        if (previewDoc?.url) {
+            window.URL.revokeObjectURL(previewDoc.url);
+        }
+        setPreviewDoc(null);
     };
 
     const handleDownloadDocument = async (id, documentName) => {
@@ -205,7 +216,7 @@ const ODRequests = () => {
                                             <div className="flex gap-1">
                                                 <button
                                                     type="button"
-                                                    onClick={() => handleViewDocument(o.id)}
+                                                    onClick={() => handleViewDocument(o.id, o.document_name)}
                                                     className="p-1.5 text-blue-600 hover:bg-blue-50 rounded-lg transition"
                                                     title="View Document"
                                                 >
@@ -268,6 +279,92 @@ const ODRequests = () => {
                     </div>
                 )}
             </div>
+
+            {/* In-App Document Preview Modal */}
+            {previewDoc && (
+                <div 
+                    className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-5 bg-slate-950/70 backdrop-blur-sm animate-in fade-in duration-200"
+                    onClick={handleClosePreview}
+                >
+                    <div 
+                        className="relative bg-white rounded-3xl shadow-2xl w-full max-w-4xl max-h-[92vh] flex flex-col overflow-hidden border border-slate-100"
+                        onClick={(e) => e.stopPropagation()}
+                    >
+                        {/* Header */}
+                        <div className="flex items-center justify-between px-5 sm:px-6 py-4 border-b border-slate-100 bg-slate-50/90">
+                            <div className="flex items-center gap-3 overflow-hidden">
+                                <div className="w-10 h-10 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center shrink-0">
+                                    <FileText className="w-5 h-5" />
+                                </div>
+                                <div className="overflow-hidden">
+                                    <h4 className="text-sm font-bold text-slate-800 truncate" title={previewDoc.name}>
+                                        {previewDoc.name || 'Supporting Document'}
+                                    </h4>
+                                    <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider block">
+                                        Verified OD Supporting Document
+                                    </span>
+                                </div>
+                            </div>
+
+                            <div className="flex items-center gap-2">
+                                {previewDoc.url && (
+                                    <>
+                                        <a
+                                            href={previewDoc.url}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            className="px-3 py-1.5 text-xs font-bold text-slate-700 bg-white hover:bg-slate-100 border border-slate-200 rounded-xl transition flex items-center gap-1.5 shadow-sm"
+                                            title="Open in new browser tab"
+                                        >
+                                            <ExternalLink className="w-3.5 h-3.5 text-blue-600" />
+                                            <span className="hidden sm:inline">New Tab</span>
+                                        </a>
+                                        <button
+                                            type="button"
+                                            onClick={() => handleDownloadDocument(previewDoc.id, previewDoc.name)}
+                                            className="px-3 py-1.5 text-xs font-bold text-white bg-blue-600 hover:bg-blue-700 rounded-xl transition flex items-center gap-1.5 shadow-sm"
+                                            title="Download Document"
+                                        >
+                                            <Download className="w-3.5 h-3.5" />
+                                            <span className="hidden sm:inline">Download</span>
+                                        </button>
+                                    </>
+                                )}
+                                <button
+                                    type="button"
+                                    onClick={handleClosePreview}
+                                    className="p-2 text-slate-400 hover:text-slate-700 hover:bg-slate-200/60 rounded-xl transition-colors ml-1"
+                                    title="Close Preview"
+                                >
+                                    <X className="w-5 h-5" />
+                                </button>
+                            </div>
+                        </div>
+
+                        {/* Content Area */}
+                        <div className="p-3 sm:p-5 overflow-y-auto flex-1 flex items-center justify-center bg-slate-100/60 min-h-[320px]">
+                            {previewDoc.loading ? (
+                                <div className="flex flex-col items-center justify-center py-16 gap-3">
+                                    <div className="w-10 h-10 border-3 border-blue-600 border-t-transparent rounded-full animate-spin" />
+                                    <span className="text-xs font-bold text-slate-500">Loading document preview...</span>
+                                </div>
+                            ) : previewDoc.type?.startsWith('image/') || /\.(jpg|jpeg|png)$/i.test(previewDoc.name || '') ? (
+                                <img
+                                    src={previewDoc.url}
+                                    alt={previewDoc.name}
+                                    className="max-h-[75vh] w-auto max-w-full object-contain rounded-2xl shadow-sm border border-slate-200 bg-white"
+                                />
+                            ) : (
+                                <iframe
+                                    src={previewDoc.url}
+                                    title={previewDoc.name}
+                                    className="w-full h-[75vh] rounded-2xl border border-slate-200 bg-white shadow-sm"
+                                />
+                            )}
+                        </div>
+                    </div>
+                </div>
+            )}
         </Layout>
     );
 };

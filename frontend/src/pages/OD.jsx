@@ -136,14 +136,27 @@ const OD = () => {
     };
 
     const handleViewDocument = async (id) => {
+        // Pre-open window synchronously to prevent browser popup blockers
+        const newWindow = window.open('about:blank', '_blank');
+        if (newWindow) {
+            newWindow.document.write('<p style="font-family:sans-serif;padding:30px;color:#555;text-align:center;font-size:14px;">Loading document preview...</p>');
+        }
         try {
             const res = await api.get(`/requests/od/view/${id}`, { responseType: 'blob' });
             const contentType = res.headers['content-type'] || 'application/pdf';
             const blobUrl = window.URL.createObjectURL(new Blob([res.data], { type: contentType }));
-            window.open(blobUrl, '_blank', 'noopener,noreferrer');
+            if (newWindow && !newWindow.closed) {
+                newWindow.location.href = blobUrl;
+            } else {
+                window.open(blobUrl, '_blank', 'noopener,noreferrer');
+            }
         } catch (err) {
+            if (newWindow && !newWindow.closed) {
+                newWindow.close();
+            }
             console.error('Failed to view document:', err);
-            alert('Failed to view document.');
+            const msg = err.response?.data?.error || 'Failed to view document.';
+            alert(`Error: ${msg}`);
         }
     };
 

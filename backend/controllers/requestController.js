@@ -478,7 +478,7 @@ exports.deleteOD = (req, res) => {
         const isAdmin = req.user.role?.toLowerCase() === 'admin';
         const isPrincipal = req.user.role?.toLowerCase() === 'hoi' || req.user.role?.toLowerCase() === 'principal';
 
-        if (isAdmin || (isPrincipal && od.role === 'STAFF')) {
+        if (isAdmin || (isPrincipal && (!od.role || od.role.toUpperCase() === 'STAFF'))) {
             // Rule: Only after 1 month
             const applyDate = new Date(od.date);
             const oneMonthAgo = new Date();
@@ -528,7 +528,8 @@ exports.viewODDocument = (req, res) => {
         const userRole = req.user.role?.toLowerCase();
         const isOwner = od.user_id === req.user.id;
         const isAdmin = userRole === 'admin';
-        const isPrincipalAuthorized = (userRole === 'hoi' || userRole === 'principal') && od.role === 'STAFF';
+        const isPrincipal = userRole === 'hoi' || userRole === 'principal';
+        const isPrincipalAuthorized = isPrincipal && (!od.role || od.role.toUpperCase() === 'STAFF');
 
         if (!isOwner && !isAdmin && !isPrincipalAuthorized) {
             return res.status(403).json({ error: 'Access denied. You do not have permission to view this document.' });
@@ -583,7 +584,8 @@ exports.downloadODDocument = (req, res) => {
         const userRole = req.user.role?.toLowerCase();
         const isOwner = od.user_id === req.user.id;
         const isAdmin = userRole === 'admin';
-        const isPrincipalAuthorized = (userRole === 'hoi' || userRole === 'principal') && od.role === 'STAFF';
+        const isPrincipal = userRole === 'hoi' || userRole === 'principal';
+        const isPrincipalAuthorized = isPrincipal && (!od.role || od.role.toUpperCase() === 'STAFF');
 
         if (!isOwner && !isAdmin && !isPrincipalAuthorized) {
             return res.status(403).json({ error: 'Access denied. You do not have permission to download this document.' });
