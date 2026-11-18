@@ -178,11 +178,12 @@ exports.applyOD = (req, res) => {
             return res.status(400).json({ error: 'Invalid date format. Date must be a valid calendar date in YYYY-MM-DD format.' });
         }
 
-        if (!req.file) {
-            return res.status(400).json({ error: 'Supporting Document is mandatory.' });
-        }
-
         const roleVal = (req.user.role === 'hoi' || req.user.role === 'principal') ? 'PRINCIPAL' : 'STAFF';
+
+        // Supporting Document is optional
+        const documentName = req.file ? req.file.originalname : null;
+        const documentPath = req.file ? req.file.filename : null;
+        const uploadedAt = req.file ? new Date().toISOString() : null;
 
         const result = db.prepare(`
             INSERT INTO od_requests (user_id, purpose, place, date, role, document_name, document_path, uploaded_at) 
@@ -193,9 +194,9 @@ exports.applyOD = (req, res) => {
             place, 
             date, 
             roleVal, 
-            req.file.originalname, 
-            req.file.filename, 
-            new Date().toISOString()
+            documentName, 
+            documentPath, 
+            uploadedAt
         );
 
         res.json({ message: 'OD requested successfully', id: result.lastInsertRowid });

@@ -1,0 +1,1335 @@
+{
+  "info": {
+    "name": "CLE Society – Staff Attendance & Location System API",
+    "_postman_id": "7ece3ef6-e6a5-4987-88a1-f12c0d4e1531",
+    "description": "Comprehensive, automated Postman Collection covering all endpoints: Authentication, Attendance, Leaves, ODs, Location Tracking, and Reports.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:5001",
+      "type": "string"
+    },
+    {
+      "key": "staffToken",
+      "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6MTA3Niwicm9sZSI6InN0YWZmIiwiZW1wbG95ZWVJZCI6IkVNUC02MzYwNjcwMjQ3IiwicGhvbmUiOiI2MzYwNjcwMjQ3IiwiaWF0IjoxNzk1MDEyMzI0LCJleHAiOjE3OTc2MDQzMjR9.reRvnyZa_Bp77gL5lGyz7YtnsyM_TNyF6f3IS_8nLBc",
+      "type": "string"
+    },
+    {
+      "key": "principalToken",
+      "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6Miwicm9sZSI6ImhvaSIsImVtcGxveWVlSWQiOiJQUklOLTAwMSIsInBob25lIjoiODg4ODg4ODg4OCIsImlhdCI6MTc5NTAxMjMyNCwiZXhwIjoxNzk3NjA0MzI0fQ.uDckZD99u1fASx4XidyfNQ1Xxdg-I4XI5fBUPlobpYI",
+      "type": "string"
+    },
+    {
+      "key": "adminToken",
+      "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6MTU1LCJyb2xlIjoiYWRtaW4iLCJlbXBsb3llZUlkIjoiQURNLTAwMSIsInBob25lIjoiOTQ0ODM3ODQxNyIsImlhdCI6MTc5NTAxMjMyNCwiZXhwIjoxNzk3NjA0MzI0fQ.wjBXOpKNBb8KOGr7Lw-BTATzvnwS_FpZbm_HbgveCDQ",
+      "type": "string"
+    },
+    {
+      "key": "deviceId",
+      "value": "postman-client-01",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "1. System & Health",
+      "item": [
+        {
+          "name": "API Root Welcome",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:5001/",
+              "host": [
+                "localhost"
+              ],
+              "path": [
+                ""
+              ],
+              "protocol": "http",
+              "port": "5001"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status code is 200 OK\", function () { pm.response.to.have.status(200); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "System Health Check",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:5001/health",
+              "host": [
+                "localhost"
+              ],
+              "path": [
+                "health"
+              ],
+              "protocol": "http",
+              "port": "5001"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status code is 200 OK\", function () { pm.response.to.have.status(200); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Detailed Database & Geofence Diagnostics",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:5001/api/health/detailed",
+              "host": [
+                "localhost"
+              ],
+              "path": [
+                "api",
+                "health",
+                "detailed"
+              ],
+              "protocol": "http",
+              "port": "5001"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status code is 200 OK\", function () { pm.response.to.have.status(200); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Geofence Status Check (Coordinates Test)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:5001/api/geofence/status?lat=16.426026&lng=74.58925",
+              "host": [
+                "localhost"
+              ],
+              "path": [
+                "api",
+                "geofence",
+                "status"
+              ],
+              "query": [
+                {
+                  "key": "lat",
+                  "value": "16.426026"
+                },
+                {
+                  "key": "lng",
+                  "value": "74.58925"
+                }
+              ],
+              "protocol": "http",
+              "port": "5001"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status code is 200 OK\", function () { pm.response.to.have.status(200); });"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "2. Authentication & Identity",
+      "item": [
+        {
+          "name": "Staff Registration",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"firstName\": \"Dr. Ramesh\",\n  \"lastName\": \"Patil\",\n  \"mobile\": \"9876543210\",\n  \"collegeName\": \"CLE Society's Degree College, Chikodi\",\n  \"departmentName\": \"Physics\",\n  \"designation\": \"Assistant Professor\"\n}"
+            },
+            "url": {
+              "raw": "http://localhost:5001/api/auth/register",
+              "host": [
+                "localhost"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "register"
+              ],
+              "protocol": "http",
+              "port": "5001"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 201 Created or 409 Conflict\", function () { pm.expect(pm.response.code).to.be.oneOf([201, 409]); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Login (Send OTP)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"phone\": \"9876543210\",\n  \"role\": \"staff\"\n}"
+            },
+            "url": {
+              "raw": "http://localhost:5001/api/auth/login",
+              "host": [
+                "localhost"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "login"
+              ],
+              "protocol": "http",
+              "port": "5001"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Login OTP endpoint reachable\", function () { pm.expect(pm.response.code).to.be.oneOf([200, 503]); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Verify OTP & Issue Session Token",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "x-device-id",
+                "value": "postman-client-01"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"phone\": \"9876543210\",\n  \"otp\": \"123456\",\n  \"role\": \"staff\",\n  \"deviceId\": \"{{deviceId}}\"\n}"
+            },
+            "url": {
+              "raw": "http://localhost:5001/api/auth/verify",
+              "host": [
+                "localhost"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "verify"
+              ],
+              "protocol": "http",
+              "port": "5001"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status code is 200 OK\", function () { pm.response.to.have.status(200); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Verify Authentication Token",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6MTA3Niwicm9sZSI6InN0YWZmIiwiZW1wbG95ZWVJZCI6IkVNUC02MzYwNjcwMjQ3IiwicGhvbmUiOiI2MzYwNjcwMjQ3IiwiaWF0IjoxNzk1MDEyMzI0LCJleHAiOjE3OTc2MDQzMjR9.reRvnyZa_Bp77gL5lGyz7YtnsyM_TNyF6f3IS_8nLBc"
+              }
+            ],
+            "url": {
+              "raw": "http://localhost:5001/api/auth/verify-token",
+              "host": [
+                "localhost"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "verify-token"
+              ],
+              "protocol": "http",
+              "port": "5001"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status code is 200 OK\", function () { pm.response.to.have.status(200); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get Active User Sessions",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6MTA3Niwicm9sZSI6InN0YWZmIiwiZW1wbG95ZWVJZCI6IkVNUC02MzYwNjcwMjQ3IiwicGhvbmUiOiI2MzYwNjcwMjQ3IiwiaWF0IjoxNzk1MDEyMzI0LCJleHAiOjE3OTc2MDQzMjR9.reRvnyZa_Bp77gL5lGyz7YtnsyM_TNyF6f3IS_8nLBc"
+              }
+            ],
+            "url": {
+              "raw": "http://localhost:5001/api/auth/sessions",
+              "host": [
+                "localhost"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "sessions"
+              ],
+              "protocol": "http",
+              "port": "5001"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status code is 200 OK\", function () { pm.response.to.have.status(200); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Update Profile Information",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6MTA3Niwicm9sZSI6InN0YWZmIiwiZW1wbG95ZWVJZCI6IkVNUC02MzYwNjcwMjQ3IiwicGhvbmUiOiI2MzYwNjcwMjQ3IiwiaWF0IjoxNzk1MDEyMzI0LCJleHAiOjE3OTc2MDQzMjR9.reRvnyZa_Bp77gL5lGyz7YtnsyM_TNyF6f3IS_8nLBc"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Dr. Ramesh Patil\",\n  \"department\": \"Physics & Electronics\",\n  \"designation\": \"Associate Professor\"\n}"
+            },
+            "url": {
+              "raw": "http://localhost:5001/api/auth/profile",
+              "host": [
+                "localhost"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "profile"
+              ],
+              "protocol": "http",
+              "port": "5001"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status code is 200 OK\", function () { pm.response.to.have.status(200); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "User Logout",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6MTA3Niwicm9sZSI6InN0YWZmIiwiZW1wbG95ZWVJZCI6IkVNUC02MzYwNjcwMjQ3IiwicGhvbmUiOiI2MzYwNjcwMjQ3IiwiaWF0IjoxNzk1MDEyMzI0LCJleHAiOjE3OTc2MDQzMjR9.reRvnyZa_Bp77gL5lGyz7YtnsyM_TNyF6f3IS_8nLBc"
+              }
+            ],
+            "url": {
+              "raw": "http://localhost:5001/api/auth/logout",
+              "host": [
+                "localhost"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "logout"
+              ],
+              "protocol": "http",
+              "port": "5001"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status code is 200 OK\", function () { pm.response.to.have.status(200); });"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "3. Attendance & GPS Geofencing",
+      "item": [
+        {
+          "name": "Get Attendance Status",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6MTA3Niwicm9sZSI6InN0YWZmIiwiZW1wbG95ZWVJZCI6IkVNUC02MzYwNjcwMjQ3IiwicGhvbmUiOiI2MzYwNjcwMjQ3IiwiaWF0IjoxNzk1MDEyMzI0LCJleHAiOjE3OTc2MDQzMjR9.reRvnyZa_Bp77gL5lGyz7YtnsyM_TNyF6f3IS_8nLBc"
+              }
+            ],
+            "url": {
+              "raw": "http://localhost:5001/api/attendance/status",
+              "host": [
+                "localhost"
+              ],
+              "path": [
+                "api",
+                "attendance",
+                "status"
+              ],
+              "protocol": "http",
+              "port": "5001"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status code is 200 OK\", function () { pm.response.to.have.status(200); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Punch In (Inside Campus Boundary)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6MTA3Niwicm9sZSI6InN0YWZmIiwiZW1wbG95ZWVJZCI6IkVNUC02MzYwNjcwMjQ3IiwicGhvbmUiOiI2MzYwNjcwMjQ3IiwiaWF0IjoxNzk1MDEyMzI0LCJleHAiOjE3OTc2MDQzMjR9.reRvnyZa_Bp77gL5lGyz7YtnsyM_TNyF6f3IS_8nLBc"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"lat\": 16.426026,\n  \"lng\": 74.58925\n}"
+            },
+            "url": {
+              "raw": "http://localhost:5001/api/attendance/punch",
+              "host": [
+                "localhost"
+              ],
+              "path": [
+                "api",
+                "attendance",
+                "punch"
+              ],
+              "protocol": "http",
+              "port": "5001"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Punch recorded or status check\", function () { pm.expect(pm.response.code).to.be.oneOf([200, 400]); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Automatic GPS Punch-Out (On Campus Exit)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6MTA3Niwicm9sZSI6InN0YWZmIiwiZW1wbG95ZWVJZCI6IkVNUC02MzYwNjcwMjQ3IiwicGhvbmUiOiI2MzYwNjcwMjQ3IiwiaWF0IjoxNzk1MDEyMzI0LCJleHAiOjE3OTc2MDQzMjR9.reRvnyZa_Bp77gL5lGyz7YtnsyM_TNyF6f3IS_8nLBc"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"lat\": 16.435,\n  \"lng\": 74.599,\n  \"reason\": \"Exited campus boundary\"\n}"
+            },
+            "url": {
+              "raw": "http://localhost:5001/api/attendance/auto-punch-out",
+              "host": [
+                "localhost"
+              ],
+              "path": [
+                "api",
+                "attendance",
+                "auto-punch-out"
+              ],
+              "protocol": "http",
+              "port": "5001"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status code is 200 OK\", function () { pm.response.to.have.status(200); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Live GPS Location Heartbeat",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6MTA3Niwicm9sZSI6InN0YWZmIiwiZW1wbG95ZWVJZCI6IkVNUC02MzYwNjcwMjQ3IiwicGhvbmUiOiI2MzYwNjcwMjQ3IiwiaWF0IjoxNzk1MDEyMzI0LCJleHAiOjE3OTc2MDQzMjR9.reRvnyZa_Bp77gL5lGyz7YtnsyM_TNyF6f3IS_8nLBc"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"lat\": 16.42608,\n  \"lng\": 74.58927\n}"
+            },
+            "url": {
+              "raw": "http://localhost:5001/api/employee/location",
+              "host": [
+                "localhost"
+              ],
+              "path": [
+                "api",
+                "employee",
+                "location"
+              ],
+              "protocol": "http",
+              "port": "5001"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status code is 200 OK\", function () { pm.response.to.have.status(200); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Admin Live Employee Locations Tracking",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6MTU1LCJyb2xlIjoiYWRtaW4iLCJlbXBsb3llZUlkIjoiQURNLTAwMSIsInBob25lIjoiOTQ0ODM3ODQxNyIsImlhdCI6MTc5NTAxMjMyNCwiZXhwIjoxNzk3NjA0MzI0fQ.wjBXOpKNBb8KOGr7Lw-BTATzvnwS_FpZbm_HbgveCDQ"
+              }
+            ],
+            "url": {
+              "raw": "http://localhost:5001/api/admin/employee-locations",
+              "host": [
+                "localhost"
+              ],
+              "path": [
+                "api",
+                "admin",
+                "employee-locations"
+              ],
+              "protocol": "http",
+              "port": "5001"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status code is 200 OK\", function () { pm.response.to.have.status(200); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Attendance History",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6MTA3Niwicm9sZSI6InN0YWZmIiwiZW1wbG95ZWVJZCI6IkVNUC02MzYwNjcwMjQ3IiwicGhvbmUiOiI2MzYwNjcwMjQ3IiwiaWF0IjoxNzk1MDEyMzI0LCJleHAiOjE3OTc2MDQzMjR9.reRvnyZa_Bp77gL5lGyz7YtnsyM_TNyF6f3IS_8nLBc"
+              }
+            ],
+            "url": {
+              "raw": "http://localhost:5001/api/attendance/history",
+              "host": [
+                "localhost"
+              ],
+              "path": [
+                "api",
+                "attendance",
+                "history"
+              ],
+              "protocol": "http",
+              "port": "5001"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status code is 200 OK\", function () { pm.response.to.have.status(200); });"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "4. Leave Requests",
+      "item": [
+        {
+          "name": "Apply For Leave",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6MTA3Niwicm9sZSI6InN0YWZmIiwiZW1wbG95ZWVJZCI6IkVNUC02MzYwNjcwMjQ3IiwicGhvbmUiOiI2MzYwNjcwMjQ3IiwiaWF0IjoxNzk1MDEyMzI0LCJleHAiOjE3OTc2MDQzMjR9.reRvnyZa_Bp77gL5lGyz7YtnsyM_TNyF6f3IS_8nLBc"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"type\": \"Casual Leave\",\n  \"start_date\": \"2026-11-25\",\n  \"end_date\": \"2026-11-26\",\n  \"reason\": \"Attending National Academic Conference\"\n}"
+            },
+            "url": {
+              "raw": "http://localhost:5001/api/requests/leaves",
+              "host": [
+                "localhost"
+              ],
+              "path": [
+                "api",
+                "requests",
+                "leaves"
+              ],
+              "protocol": "http",
+              "port": "5001"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status code is 200 OK\", function () { pm.response.to.have.status(200); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get My Leaves",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6MTA3Niwicm9sZSI6InN0YWZmIiwiZW1wbG95ZWVJZCI6IkVNUC02MzYwNjcwMjQ3IiwicGhvbmUiOiI2MzYwNjcwMjQ3IiwiaWF0IjoxNzk1MDEyMzI0LCJleHAiOjE3OTc2MDQzMjR9.reRvnyZa_Bp77gL5lGyz7YtnsyM_TNyF6f3IS_8nLBc"
+              }
+            ],
+            "url": {
+              "raw": "http://localhost:5001/api/requests/leaves",
+              "host": [
+                "localhost"
+              ],
+              "path": [
+                "api",
+                "requests",
+                "leaves"
+              ],
+              "protocol": "http",
+              "port": "5001"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status code is 200 OK\", function () { pm.response.to.have.status(200); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get All Leaves (Principal / Admin)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6Miwicm9sZSI6ImhvaSIsImVtcGxveWVlSWQiOiJQUklOLTAwMSIsInBob25lIjoiODg4ODg4ODg4OCIsImlhdCI6MTc5NTAxMjMyNCwiZXhwIjoxNzk3NjA0MzI0fQ.uDckZD99u1fASx4XidyfNQ1Xxdg-I4XI5fBUPlobpYI"
+              }
+            ],
+            "url": {
+              "raw": "http://localhost:5001/api/requests/leaves/all",
+              "host": [
+                "localhost"
+              ],
+              "path": [
+                "api",
+                "requests",
+                "leaves",
+                "all"
+              ],
+              "protocol": "http",
+              "port": "5001"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status code is 200 OK\", function () { pm.response.to.have.status(200); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Principal Update Leave Status (Approve/Reject)",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6Miwicm9sZSI6ImhvaSIsImVtcGxveWVlSWQiOiJQUklOLTAwMSIsInBob25lIjoiODg4ODg4ODg4OCIsImlhdCI6MTc5NTAxMjMyNCwiZXhwIjoxNzk3NjA0MzI0fQ.uDckZD99u1fASx4XidyfNQ1Xxdg-I4XI5fBUPlobpYI"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"approved\",\n  \"reason\": \"Approved by Principal\"\n}"
+            },
+            "url": {
+              "raw": "http://localhost:5001/api/requests/leaves/1",
+              "host": [
+                "localhost"
+              ],
+              "path": [
+                "api",
+                "requests",
+                "leaves",
+                "1"
+              ],
+              "protocol": "http",
+              "port": "5001"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status code is 200 OK\", function () { pm.response.to.have.status(200); });"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "5. On-Duty (OD) Requests",
+      "item": [
+        {
+          "name": "Submit On-Duty (OD) Request (Multipart Form)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6MTA3Niwicm9sZSI6InN0YWZmIiwiZW1wbG95ZWVJZCI6IkVNUC02MzYwNjcwMjQ3IiwicGhvbmUiOiI2MzYwNjcwMjQ3IiwiaWF0IjoxNzk1MDEyMzI0LCJleHAiOjE3OTc2MDQzMjR9.reRvnyZa_Bp77gL5lGyz7YtnsyM_TNyF6f3IS_8nLBc"
+              }
+            ],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "purpose",
+                  "value": "University Examination Observer Duty",
+                  "type": "text"
+                },
+                {
+                  "key": "place",
+                  "value": "VTU Belagavi Center",
+                  "type": "text"
+                },
+                {
+                  "key": "date",
+                  "value": "2026-11-28",
+                  "type": "text"
+                },
+                {
+                  "key": "document",
+                  "type": "file",
+                  "src": "duty_order.pdf"
+                }
+              ]
+            },
+            "url": {
+              "raw": "http://localhost:5001/api/requests/od",
+              "host": [
+                "localhost"
+              ],
+              "path": [
+                "api",
+                "requests",
+                "od"
+              ],
+              "protocol": "http",
+              "port": "5001"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status code is 200 OK\", function () { pm.response.to.have.status(200); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get My OD Requests",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6MTA3Niwicm9sZSI6InN0YWZmIiwiZW1wbG95ZWVJZCI6IkVNUC02MzYwNjcwMjQ3IiwicGhvbmUiOiI2MzYwNjcwMjQ3IiwiaWF0IjoxNzk1MDEyMzI0LCJleHAiOjE3OTc2MDQzMjR9.reRvnyZa_Bp77gL5lGyz7YtnsyM_TNyF6f3IS_8nLBc"
+              }
+            ],
+            "url": {
+              "raw": "http://localhost:5001/api/requests/od",
+              "host": [
+                "localhost"
+              ],
+              "path": [
+                "api",
+                "requests",
+                "od"
+              ],
+              "protocol": "http",
+              "port": "5001"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status code is 200 OK\", function () { pm.response.to.have.status(200); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get All OD Requests (Principal / Admin)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6Miwicm9sZSI6ImhvaSIsImVtcGxveWVlSWQiOiJQUklOLTAwMSIsInBob25lIjoiODg4ODg4ODg4OCIsImlhdCI6MTc5NTAxMjMyNCwiZXhwIjoxNzk3NjA0MzI0fQ.uDckZD99u1fASx4XidyfNQ1Xxdg-I4XI5fBUPlobpYI"
+              }
+            ],
+            "url": {
+              "raw": "http://localhost:5001/api/requests/od/all",
+              "host": [
+                "localhost"
+              ],
+              "path": [
+                "api",
+                "requests",
+                "od",
+                "all"
+              ],
+              "protocol": "http",
+              "port": "5001"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status code is 200 OK\", function () { pm.response.to.have.status(200); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Principal Update OD Status (Approve/Reject)",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6Miwicm9sZSI6ImhvaSIsImVtcGxveWVlSWQiOiJQUklOLTAwMSIsInBob25lIjoiODg4ODg4ODg4OCIsImlhdCI6MTc5NTAxMjMyNCwiZXhwIjoxNzk3NjA0MzI0fQ.uDckZD99u1fASx4XidyfNQ1Xxdg-I4XI5fBUPlobpYI"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"approved\",\n  \"reason\": \"OD approved for university evaluation\"\n}"
+            },
+            "url": {
+              "raw": "http://localhost:5001/api/requests/od/1",
+              "host": [
+                "localhost"
+              ],
+              "path": [
+                "api",
+                "requests",
+                "od",
+                "1"
+              ],
+              "protocol": "http",
+              "port": "5001"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status code is 200 OK\", function () { pm.response.to.have.status(200); });"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "6. Institutional Reports & Analytics",
+      "item": [
+        {
+          "name": "Get Staff Count",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6Miwicm9sZSI6ImhvaSIsImVtcGxveWVlSWQiOiJQUklOLTAwMSIsInBob25lIjoiODg4ODg4ODg4OCIsImlhdCI6MTc5NTAxMjMyNCwiZXhwIjoxNzk3NjA0MzI0fQ.uDckZD99u1fASx4XidyfNQ1Xxdg-I4XI5fBUPlobpYI"
+              }
+            ],
+            "url": {
+              "raw": "http://localhost:5001/api/reports/staff-count",
+              "host": [
+                "localhost"
+              ],
+              "path": [
+                "api",
+                "reports",
+                "staff-count"
+              ],
+              "protocol": "http",
+              "port": "5001"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status code is 200 OK\", function () { pm.response.to.have.status(200); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get Staff Roster",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6Miwicm9sZSI6ImhvaSIsImVtcGxveWVlSWQiOiJQUklOLTAwMSIsInBob25lIjoiODg4ODg4ODg4OCIsImlhdCI6MTc5NTAxMjMyNCwiZXhwIjoxNzk3NjA0MzI0fQ.uDckZD99u1fASx4XidyfNQ1Xxdg-I4XI5fBUPlobpYI"
+              }
+            ],
+            "url": {
+              "raw": "http://localhost:5001/api/reports/staff",
+              "host": [
+                "localhost"
+              ],
+              "path": [
+                "api",
+                "reports",
+                "staff"
+              ],
+              "protocol": "http",
+              "port": "5001"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status code is 200 OK\", function () { pm.response.to.have.status(200); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Daily Attendance Report",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6Miwicm9sZSI6ImhvaSIsImVtcGxveWVlSWQiOiJQUklOLTAwMSIsInBob25lIjoiODg4ODg4ODg4OCIsImlhdCI6MTc5NTAxMjMyNCwiZXhwIjoxNzk3NjA0MzI0fQ.uDckZD99u1fASx4XidyfNQ1Xxdg-I4XI5fBUPlobpYI"
+              }
+            ],
+            "url": {
+              "raw": "http://localhost:5001/api/reports/daily?date=2026-11-18",
+              "host": [
+                "localhost"
+              ],
+              "path": [
+                "api",
+                "reports",
+                "daily"
+              ],
+              "query": [
+                {
+                  "key": "date",
+                  "value": "2026-11-18"
+                }
+              ],
+              "protocol": "http",
+              "port": "5001"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status code is 200 OK\", function () { pm.response.to.have.status(200); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Monthly Attendance Report",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6Miwicm9sZSI6ImhvaSIsImVtcGxveWVlSWQiOiJQUklOLTAwMSIsInBob25lIjoiODg4ODg4ODg4OCIsImlhdCI6MTc5NTAxMjMyNCwiZXhwIjoxNzk3NjA0MzI0fQ.uDckZD99u1fASx4XidyfNQ1Xxdg-I4XI5fBUPlobpYI"
+              }
+            ],
+            "url": {
+              "raw": "http://localhost:5001/api/reports/monthly?month=11&year=2026",
+              "host": [
+                "localhost"
+              ],
+              "path": [
+                "api",
+                "reports",
+                "monthly"
+              ],
+              "query": [
+                {
+                  "key": "month",
+                  "value": "11"
+                },
+                {
+                  "key": "year",
+                  "value": "2026"
+                }
+              ],
+              "protocol": "http",
+              "port": "5001"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status code is 200 OK\", function () { pm.response.to.have.status(200); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Download Monthly Excel Spreadsheet",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6MTU1LCJyb2xlIjoiYWRtaW4iLCJlbXBsb3llZUlkIjoiQURNLTAwMSIsInBob25lIjoiOTQ0ODM3ODQxNyIsImlhdCI6MTc5NTAxMjMyNCwiZXhwIjoxNzk3NjA0MzI0fQ.wjBXOpKNBb8KOGr7Lw-BTATzvnwS_FpZbm_HbgveCDQ"
+              }
+            ],
+            "url": {
+              "raw": "http://localhost:5001/api/reports/monthly/download?month=11&year=2026",
+              "host": [
+                "localhost"
+              ],
+              "path": [
+                "api",
+                "reports",
+                "monthly",
+                "download"
+              ],
+              "query": [
+                {
+                  "key": "month",
+                  "value": "11"
+                },
+                {
+                  "key": "year",
+                  "value": "2026"
+                }
+              ],
+              "protocol": "http",
+              "port": "5001"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status code is 200 OK\", function () { pm.response.to.have.status(200); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Download SQLite Database Snapshot",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6MTU1LCJyb2xlIjoiYWRtaW4iLCJlbXBsb3llZUlkIjoiQURNLTAwMSIsInBob25lIjoiOTQ0ODM3ODQxNyIsImlhdCI6MTc5NTAxMjMyNCwiZXhwIjoxNzk3NjA0MzI0fQ.wjBXOpKNBb8KOGr7Lw-BTATzvnwS_FpZbm_HbgveCDQ"
+              }
+            ],
+            "url": {
+              "raw": "http://localhost:5001/api/reports/database/backup",
+              "host": [
+                "localhost"
+              ],
+              "path": [
+                "api",
+                "reports",
+                "database",
+                "backup"
+              ],
+              "protocol": "http",
+              "port": "5001"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status code is 200 OK\", function () { pm.response.to.have.status(200); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Database Health Metrics",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6MTU1LCJyb2xlIjoiYWRtaW4iLCJlbXBsb3llZUlkIjoiQURNLTAwMSIsInBob25lIjoiOTQ0ODM3ODQxNyIsImlhdCI6MTc5NTAxMjMyNCwiZXhwIjoxNzk3NjA0MzI0fQ.wjBXOpKNBb8KOGr7Lw-BTATzvnwS_FpZbm_HbgveCDQ"
+              }
+            ],
+            "url": {
+              "raw": "http://localhost:5001/api/reports/database/health",
+              "host": [
+                "localhost"
+              ],
+              "path": [
+                "api",
+                "reports",
+                "database",
+                "health"
+              ],
+              "protocol": "http",
+              "port": "5001"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status code is 200 OK\", function () { pm.response.to.have.status(200); });"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

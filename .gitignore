@@ -30,3 +30,5 @@ backups_pre_deployment/
 /blob-report/
 /playwright/.cache/
 /playwright/.auth/
+
+.postman/

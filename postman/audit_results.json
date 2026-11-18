@@ -1,0 +1,575 @@
+{
+  "timestamp": "2026-11-18T14:02:38.841Z",
+  "totalTests": 63,
+  "passedTests": 63,
+  "failedTests": 0,
+  "results": [
+    {
+      "endpoint": "/",
+      "method": "GET",
+      "expectedStatus": 200,
+      "actualStatus": 200,
+      "name": "Root API Welcome Message",
+      "result": "PASS",
+      "details": ""
+    },
+    {
+      "endpoint": "/health",
+      "method": "GET",
+      "expectedStatus": 200,
+      "actualStatus": 200,
+      "name": "Standard Health Check & DB Ping",
+      "result": "PASS",
+      "details": ""
+    },
+    {
+      "endpoint": "/api/health",
+      "method": "GET",
+      "expectedStatus": 200,
+      "actualStatus": 200,
+      "name": "API Prefixed Health Check",
+      "result": "PASS",
+      "details": ""
+    },
+    {
+      "endpoint": "/api/health/detailed",
+      "method": "GET",
+      "expectedStatus": 200,
+      "actualStatus": 200,
+      "name": "Detailed Health & Geofence Topology Metrics",
+      "result": "PASS",
+      "details": ""
+    },
+    {
+      "endpoint": "/api/geofence/status (inside)",
+      "method": "GET",
+      "expectedStatus": 200,
+      "actualStatus": 200,
+      "name": "Geofence Inside Campus Evaluation",
+      "result": "PASS",
+      "details": ""
+    },
+    {
+      "endpoint": "/api/geofence/status (outside)",
+      "method": "GET",
+      "expectedStatus": 200,
+      "actualStatus": 200,
+      "name": "Geofence Outside Campus Evaluation",
+      "result": "PASS",
+      "details": ""
+    },
+    {
+      "endpoint": "/downloads/cle-attendance.apk",
+      "method": "GET",
+      "expectedStatus": "200 or 404",
+      "actualStatus": 404,
+      "name": "Mobile APK Download Endpoint",
+      "result": "PASS",
+      "details": ""
+    },
+    {
+      "endpoint": "/api/debug/cors",
+      "method": "GET",
+      "expectedStatus": 200,
+      "actualStatus": 200,
+      "name": "CORS Diagnostic Status",
+      "result": "PASS",
+      "details": ""
+    },
+    {
+      "endpoint": "/api/auth/register",
+      "method": "POST",
+      "expectedStatus": 400,
+      "actualStatus": 400,
+      "name": "Registration Missing Fields Rejection",
+      "result": "PASS",
+      "details": ""
+    },
+    {
+      "endpoint": "/api/auth/register",
+      "method": "POST",
+      "expectedStatus": 400,
+      "actualStatus": 400,
+      "name": "Registration Invalid Phone Rejection",
+      "result": "PASS",
+      "details": ""
+    },
+    {
+      "endpoint": "/api/auth/register",
+      "method": "POST",
+      "expectedStatus": 201,
+      "actualStatus": 201,
+      "name": "Valid Staff Registration & SQLite Persistence",
+      "result": "PASS",
+      "details": ""
+    },
+    {
+      "endpoint": "/api/auth/register",
+      "method": "POST",
+      "expectedStatus": 409,
+      "actualStatus": 409,
+      "name": "Duplicate Registration Rejection (HTTP 409 Conflict)",
+      "result": "PASS",
+      "details": ""
+    },
+    {
+      "endpoint": "/api/auth/login",
+      "method": "POST",
+      "expectedStatus": 403,
+      "actualStatus": 403,
+      "name": "Unregistered Phone Login Rejection",
+      "result": "PASS",
+      "details": ""
+    },
+    {
+      "endpoint": "/api/auth/login",
+      "method": "POST",
+      "expectedStatus": 403,
+      "actualStatus": 403,
+      "name": "Role Mismatch Login Rejection (Staff as Admin)",
+      "result": "PASS",
+      "details": ""
+    },
+    {
+      "endpoint": "/api/auth/send-otp",
+      "method": "POST",
+      "expectedStatus": "200 or 503",
+      "actualStatus": 503,
+      "name": "OTP Dispatch Endpoint & Route Alias",
+      "result": "PASS",
+      "details": ""
+    },
+    {
+      "endpoint": "/api/auth/verify",
+      "method": "POST",
+      "expectedStatus": 400,
+      "actualStatus": 400,
+      "name": "OTP Verification Missing Parameters Rejection",
+      "result": "PASS",
+      "details": ""
+    },
+    {
+      "endpoint": "/api/auth/verify",
+      "method": "POST",
+      "expectedStatus": 400,
+      "actualStatus": 400,
+      "name": "Invalid OTP Code Rejection",
+      "result": "PASS",
+      "details": ""
+    },
+    {
+      "endpoint": "/api/auth/verify",
+      "method": "POST",
+      "expectedStatus": 200,
+      "actualStatus": 200,
+      "name": "Valid OTP Verification, JWT & Device Session Creation",
+      "result": "PASS",
+      "details": ""
+    },
+    {
+      "endpoint": "/api/auth/verify-token (no token)",
+      "method": "GET",
+      "expectedStatus": 401,
+      "actualStatus": 401,
+      "name": "Unauthorized Access Denied Without Token",
+      "result": "PASS",
+      "details": ""
+    },
+    {
+      "endpoint": "/api/auth/verify-token (invalid)",
+      "method": "GET",
+      "expectedStatus": 401,
+      "actualStatus": 401,
+      "name": "Unauthorized Access Denied For Malformed Token",
+      "result": "PASS",
+      "details": ""
+    },
+    {
+      "endpoint": "/api/auth/verify-token (valid)",
+      "method": "GET",
+      "expectedStatus": 200,
+      "actualStatus": 200,
+      "name": "Token Verification & User Payload Extraction",
+      "result": "PASS",
+      "details": ""
+    },
+    {
+      "endpoint": "/api/auth/sessions",
+      "method": "GET",
+      "expectedStatus": 200,
+      "actualStatus": 200,
+      "name": "Multi-Device Active Sessions Query",
+      "result": "PASS",
+      "details": ""
+    },
+    {
+      "endpoint": "/api/auth/profile",
+      "method": "PUT",
+      "expectedStatus": 200,
+      "actualStatus": 200,
+      "name": "Staff Profile Information Update & SQLite Persistence",
+      "result": "PASS",
+      "details": ""
+    },
+    {
+      "endpoint": "/api/profile",
+      "method": "PUT",
+      "expectedStatus": 200,
+      "actualStatus": 200,
+      "name": "Root Profile Route Alias Compatibility",
+      "result": "PASS",
+      "details": ""
+    },
+    {
+      "endpoint": "/api/auth/refresh-token",
+      "method": "POST",
+      "expectedStatus": 200,
+      "actualStatus": 200,
+      "name": "Refresh Token Rotation & New Token Issuance",
+      "result": "PASS",
+      "details": ""
+    },
+    {
+      "endpoint": "/api/attendance/status (initial)",
+      "method": "GET",
+      "expectedStatus": 200,
+      "actualStatus": 200,
+      "name": "Initial Daily Attendance State Query",
+      "result": "PASS",
+      "details": ""
+    },
+    {
+      "endpoint": "/api/attendance/punch (missing coords)",
+      "method": "POST",
+      "expectedStatus": 400,
+      "actualStatus": 400,
+      "name": "Punch-In Missing GPS Coordinates Rejection",
+      "result": "PASS",
+      "details": ""
+    },
+    {
+      "endpoint": "/api/attendance/punch (outside geofence)",
+      "method": "POST",
+      "expectedStatus": 400,
+      "actualStatus": 400,
+      "name": "Punch-In Outside Geofence Strictly Blocked",
+      "result": "PASS",
+      "details": ""
+    },
+    {
+      "endpoint": "/api/attendance/punch (inside campus)",
+      "method": "POST",
+      "expectedStatus": 200,
+      "actualStatus": 200,
+      "name": "Punch-In Inside Campus & SQLite Attendance Persistence",
+      "result": "PASS",
+      "details": ""
+    },
+    {
+      "endpoint": "/api/attendance/status (punched in)",
+      "method": "GET",
+      "expectedStatus": 200,
+      "actualStatus": 200,
+      "name": "Active Duty State Verified via Status API",
+      "result": "PASS",
+      "details": ""
+    },
+    {
+      "endpoint": "/api/employee/location",
+      "method": "POST",
+      "expectedStatus": 200,
+      "actualStatus": 200,
+      "name": "Staff Live GPS Heartbeat Update",
+      "result": "PASS",
+      "details": ""
+    },
+    {
+      "endpoint": "/api/admin/employee-locations",
+      "method": "GET",
+      "expectedStatus": "403 (Staff) / 200 (Admin)",
+      "actualStatus": "403/200",
+      "name": "Admin Live Tracking Role Authorization Enforcement",
+      "result": "PASS",
+      "details": ""
+    },
+    {
+      "endpoint": "/api/attendance/auto-punch-out",
+      "method": "POST",
+      "expectedStatus": 200,
+      "actualStatus": 200,
+      "name": "Automatic GPS Punch-Out Without Logout",
+      "result": "PASS",
+      "details": ""
+    },
+    {
+      "endpoint": "/api/auth/verify-token (post punchout)",
+      "method": "GET",
+      "expectedStatus": 200,
+      "actualStatus": 200,
+      "name": "Staff Auth Session Preserved (Zero Disconnect)",
+      "result": "PASS",
+      "details": ""
+    },
+    {
+      "endpoint": "/api/attendance/history",
+      "method": "GET",
+      "expectedStatus": 200,
+      "actualStatus": 200,
+      "name": "Staff Personal Attendance History Query",
+      "result": "PASS",
+      "details": ""
+    },
+    {
+      "endpoint": "/api/requests/leaves (validation)",
+      "method": "POST",
+      "expectedStatus": 400,
+      "actualStatus": 400,
+      "name": "Leave Request Missing Dates Rejection",
+      "result": "PASS",
+      "details": ""
+    },
+    {
+      "endpoint": "/api/requests/leaves",
+      "method": "POST",
+      "expectedStatus": 200,
+      "actualStatus": 200,
+      "name": "Staff Leave Application Creation & SQLite Storage",
+      "result": "PASS",
+      "details": ""
+    },
+    {
+      "endpoint": "/api/requests/leaves",
+      "method": "GET",
+      "expectedStatus": 200,
+      "actualStatus": 200,
+      "name": "Staff Personal Leaves Query",
+      "result": "PASS",
+      "details": ""
+    },
+    {
+      "endpoint": "/api/requests/leaves/all",
+      "method": "GET",
+      "expectedStatus": "403 (Staff) / 200 (Principal)",
+      "actualStatus": "403/200",
+      "name": "All Leaves Role Permission Enforcement",
+      "result": "PASS",
+      "details": ""
+    },
+    {
+      "endpoint": "/api/requests/leaves/59",
+      "method": "PUT",
+      "expectedStatus": "403 (Staff) / 200 (Principal)",
+      "actualStatus": "403/200",
+      "name": "Principal Leave Approval & Reviewer Audit Recording",
+      "result": "PASS",
+      "details": ""
+    },
+    {
+      "endpoint": "/api/requests/audit-history/leave/59",
+      "method": "GET",
+      "expectedStatus": 200,
+      "actualStatus": 200,
+      "name": "Leave Approval Audit Trail Query",
+      "result": "PASS",
+      "details": ""
+    },
+    {
+      "endpoint": "/api/requests/od (validation)",
+      "method": "POST",
+      "expectedStatus": 400,
+      "actualStatus": 400,
+      "name": "OD Application Missing Date/Purpose Rejection",
+      "result": "PASS",
+      "details": ""
+    },
+    {
+      "endpoint": "/api/requests/od",
+      "method": "POST",
+      "expectedStatus": 200,
+      "actualStatus": 200,
+      "name": "Staff OD Application Creation with Document Upload",
+      "result": "PASS",
+      "details": ""
+    },
+    {
+      "endpoint": "/api/requests/od",
+      "method": "GET",
+      "expectedStatus": 200,
+      "actualStatus": 200,
+      "name": "Staff Personal OD Requests Query",
+      "result": "PASS",
+      "details": ""
+    },
+    {
+      "endpoint": "/api/requests/od/all",
+      "method": "GET",
+      "expectedStatus": "403 (Staff) / 200 (Principal)",
+      "actualStatus": "403/200",
+      "name": "All OD Requests Role Permission Enforcement",
+      "result": "PASS",
+      "details": ""
+    },
+    {
+      "endpoint": "/api/requests/od/18",
+      "method": "PUT",
+      "expectedStatus": 200,
+      "actualStatus": 200,
+      "name": "Principal OD Approval & Decision Persistence",
+      "result": "PASS",
+      "details": ""
+    },
+    {
+      "endpoint": "/api/requests/audit-history/od/18",
+      "method": "GET",
+      "expectedStatus": 200,
+      "actualStatus": 200,
+      "name": "OD Decision Audit Trail Query",
+      "result": "PASS",
+      "details": ""
+    },
+    {
+      "endpoint": "/api/reports/staff-count",
+      "method": "GET",
+      "expectedStatus": "403 (Staff) / 200 (Principal)",
+      "actualStatus": "403/200",
+      "name": "Live Staff Count Direct Database Computation",
+      "result": "PASS",
+      "details": ""
+    },
+    {
+      "endpoint": "/api/staff-count",
+      "method": "GET",
+      "expectedStatus": 200,
+      "actualStatus": 200,
+      "name": "Root Staff Count Route Alias Compatibility",
+      "result": "PASS",
+      "details": ""
+    },
+    {
+      "endpoint": "/api/reports/staff",
+      "method": "GET",
+      "expectedStatus": 200,
+      "actualStatus": 200,
+      "name": "Staff Roster Directory List Query",
+      "result": "PASS",
+      "details": ""
+    },
+    {
+      "endpoint": "/api/reports/daily",
+      "method": "GET",
+      "expectedStatus": 200,
+      "actualStatus": 200,
+      "name": "Daily Attendance Roll-Call (Zero Admin ABSENT)",
+      "result": "PASS",
+      "details": ""
+    },
+    {
+      "endpoint": "/api/reports/monthly",
+      "method": "GET",
+      "expectedStatus": 200,
+      "actualStatus": 200,
+      "name": "Monthly Roll-Call Audit Query",
+      "result": "PASS",
+      "details": ""
+    },
+    {
+      "endpoint": "/api/reports/monthly/download",
+      "method": "GET",
+      "expectedStatus": 200,
+      "actualStatus": 200,
+      "name": "Monthly Excel Spreadsheet Stream Generation",
+      "result": "PASS",
+      "details": ""
+    },
+    {
+      "endpoint": "/api/reports/database/backup",
+      "method": "GET",
+      "expectedStatus": 200,
+      "actualStatus": 200,
+      "name": "Live SQLite Backup Snapshot Export",
+      "result": "PASS",
+      "details": ""
+    },
+    {
+      "endpoint": "/api/reports/database/health",
+      "method": "GET",
+      "expectedStatus": 200,
+      "actualStatus": 200,
+      "name": "Database Health & Record Metric Audit",
+      "result": "PASS",
+      "details": ""
+    },
+    {
+      "endpoint": "/api/leaves/all (alias discovery)",
+      "method": "GET",
+      "expectedStatus": "404 (Alias) vs 200 (Actual)",
+      "actualStatus": "404 vs 200",
+      "name": "Route Namespace Audit (/api/requests/leaves/all)",
+      "result": "PASS",
+      "details": ""
+    },
+    {
+      "endpoint": "/api/od/all (alias discovery)",
+      "method": "GET",
+      "expectedStatus": "404 (Alias) vs 200 (Actual)",
+      "actualStatus": "404 vs 200",
+      "name": "Route Namespace Audit (/api/requests/od/all)",
+      "result": "PASS",
+      "details": ""
+    },
+    {
+      "endpoint": "/api/report/daily (singular vs plural)",
+      "method": "GET",
+      "expectedStatus": "404 (Singular) vs 200 (Plural)",
+      "actualStatus": "404 vs 200",
+      "name": "Route Namespace Audit (/api/reports/daily)",
+      "result": "PASS",
+      "details": ""
+    },
+    {
+      "endpoint": "/api/auth/logout",
+      "method": "POST",
+      "expectedStatus": 200,
+      "actualStatus": 200,
+      "name": "Staff User Logout & Session Revocation",
+      "result": "PASS",
+      "details": ""
+    },
+    {
+      "endpoint": "/api/auth/verify-token (revoked token)",
+      "method": "GET",
+      "expectedStatus": 401,
+      "actualStatus": 401,
+      "name": "Revoked Session Token Access Denied (HTTP 401)",
+      "result": "PASS",
+      "details": ""
+    },
+    {
+      "endpoint": "SQLite users Table Persistence",
+      "method": "DB CHECK",
+      "expectedStatus": "EXISTS",
+      "actualStatus": "EXISTS",
+      "name": "Staff Account Preserved Permanently (No Re-registration Required)",
+      "result": "PASS",
+      "details": ""
+    },
+    {
+      "endpoint": "SQLite attendance Table Persistence",
+      "method": "DB CHECK",
+      "expectedStatus": "EXISTS",
+      "actualStatus": "EXISTS",
+      "name": "Attendance Record Preserved Permanently (Never Resets on Logout)",
+      "result": "PASS",
+      "details": ""
+    },
+    {
+      "endpoint": "SQLite leaves & od_requests Persistence",
+      "method": "DB CHECK",
+      "expectedStatus": "APPROVED",
+      "actualStatus": "approved/approved",
+      "name": "Leave & OD Status Permanently Preserved in SQLite",
+      "result": "PASS",
+      "details": ""
+    }
+  ]
+}

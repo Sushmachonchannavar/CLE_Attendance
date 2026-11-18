@@ -87,16 +87,13 @@ const OD = () => {
     const handleSubmit = async (e) => {
         e.preventDefault();
 
-        if (!selectedFile) {
-            alert('Please upload a Supporting Document.');
-            return;
-        }
-
         const data = new FormData();
         data.append('date', formData.date);
         data.append('place', formData.place);
         data.append('purpose', formData.purpose);
-        data.append('document', selectedFile);
+        if (selectedFile) {
+            data.append('document', selectedFile);
+        }
 
         setIsUploading(true);
         setUploadProgress(0);
@@ -348,7 +345,7 @@ const OD = () => {
                         <div className="flex items-center justify-between pb-4 mb-5 border-b border-slate-100">
                             <div>
                                 <h3 className="text-xl font-bold text-slate-800">Apply for Official Duty (OD)</h3>
-                                <p className="text-xs text-slate-500 mt-0.5">Submit request with verified supporting document</p>
+                                <p className="text-xs text-slate-500 mt-0.5">Submit request with optional supporting document</p>
                             </div>
                             <button
                                 onClick={() => {
@@ -415,7 +412,7 @@ const OD = () => {
                             {/* Drag and Drop Zone */}
                             <div>
                                 <label className="block mb-1.5 text-xs font-bold text-slate-700 uppercase tracking-wider">
-                                    Supporting Document (Required)
+                                    Supporting Document (Optional)
                                 </label>
                                 <div
                                     onDragEnter={handleDrag}
