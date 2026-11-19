@@ -1,13 +1,10 @@
 import React, { useState } from 'react';
 import Sidebar from './Sidebar';
-import { Menu } from 'lucide-react';
-import CleLogo from './CleLogo';
-import { useAuth } from '../context/AuthContext';
+import Header from './Header';
 import ToastContainer from './ToastContainer';
 
 const Layout = ({ children }) => {
     const [isSidebarOpen, setIsSidebarOpen] = useState(false);
-    const { user } = useAuth();
 
     const toggleSidebar = () => {
         setIsSidebarOpen(!isSidebarOpen);
@@ -21,24 +18,7 @@ const Layout = ({ children }) => {
             {/* Main Content Area */}
             <div className="flex flex-col flex-1 w-full min-w-0 relative">
                 {/* Mobile Header (Hamburger Menu & Branding) */}
-                <header className="flex items-center justify-between px-4 sm:px-6 py-3 bg-[#0b1329] border-b border-slate-800 md:hidden shadow-md z-30">
-                    <div className="flex items-center gap-3">
-                        <button
-                            onClick={toggleSidebar}
-                            aria-label="Open navigation menu"
-                            className="p-2 text-slate-300 hover:text-white focus:outline-none hover:bg-slate-800 rounded-xl transition-colors active:scale-95"
-                        >
-                            <Menu className="w-6 h-6" />
-                        </button>
-                        <CleLogo size="sm" variant="light" />
-                    </div>
-
-                    {user && (
-                        <div className="w-8 h-8 rounded-lg bg-blue-600 text-white font-bold flex items-center justify-center text-xs shadow-sm flex-shrink-0">
-                            {user.name ? user.name.charAt(0).toUpperCase() : 'U'}
-                        </div>
-                    )}
-                </header>
+                <Header toggleSidebar={toggleSidebar} className="md:hidden" />
 
                 {/* Main scrollable content container */}
                 <main className="flex-1 overflow-x-hidden overflow-y-auto bg-[#f8fafc] custom-scrollbar">
