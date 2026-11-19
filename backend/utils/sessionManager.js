@@ -134,14 +134,14 @@ function createSession(db, { userId, deviceId, deviceInfo = {}, ip = '', userAge
  * Verifies a refresh token against SQLite and performs refresh-token rotation.
  */
 function verifyAndRotateSession(db, { rawRefreshToken, deviceId, ip = '', userAgent = '' }) {
-    if (!rawRefreshToken || typeof rawRefreshToken !== 'string') {
-        return { valid: false, error: 'Refresh token is required.' };
+    if (!rawRefreshToken || typeof rawRefreshToken !== 'string' || !rawRefreshToken.trim()) {
+        return { valid: false, error: 'Refresh token is required.', code: 'NO_REFRESH_TOKEN' };
     }
 
     const tokenHash = hashToken(rawRefreshToken);
     
-    // Find active, unexpired, non-revoked session
-    const session = db.prepare(`
+    // 1. Find active, unexpired, non-revoked session by current refresh token hash
+    let session = db.prepare(`
         SELECT s.*, u.name AS user_name, u.phone AS user_phone, u.role AS user_role, 
                u.employee_id AS user_employee_id, u.status AS user_status, u.college AS user_college,
                u.department AS user_department, u.designation AS user_designation
@@ -152,39 +152,44 @@ function verifyAndRotateSession(db, { rawRefreshToken, deviceId, ip = '', userAg
           AND s.expires_at > datetime('now')
     `).get(tokenHash);
 
+    let isGracePeriodReuse = false;
+
+    // 2. If not found by current hash, check if it matches the previous hash within the 30-second grace window
+    // (Protects against concurrent API race conditions and rapid retries without false logouts)
     if (!session) {
-        return { valid: false, error: 'Session is invalid, expired, or has been revoked.' };
+        try {
+            session = db.prepare(`
+                SELECT s.*, u.name AS user_name, u.phone AS user_phone, u.role AS user_role, 
+                       u.employee_id AS user_employee_id, u.status AS user_status, u.college AS user_college,
+                       u.department AS user_department, u.designation AS user_designation
+                FROM user_sessions s
+                JOIN users u ON s.user_id = u.id
+                WHERE s.prev_refresh_token_hash = ? 
+                  AND s.is_revoked = 0
+                  AND s.rotated_at > datetime('now', '-30 seconds')
+            `).get(tokenHash);
+
+            if (session) {
+                isGracePeriodReuse = true;
+                console.log(`[AUTH SESSION] Grace window hit for session ${session.id}: safely fulfilling concurrent request`);
+            }
+        } catch (colErr) {
+            // In case columns not yet present in initial test run
+        }
+    }
+
+    if (!session) {
+        return { valid: false, error: 'Session is invalid, expired, or has been revoked.', code: 'SESSION_INVALID' };
     }
 
     if (session.user_status !== 'active' && session.user_status !== 'approved') {
-        return { valid: false, error: 'User account is no longer active.' };
+        return { valid: false, error: 'User account is no longer active.', code: 'USER_INACTIVE' };
     }
 
     // Verify deviceId match if provided by client
     if (deviceId && session.device_id && session.device_id !== deviceId) {
         console.warn(`[AUTH SESSION] Device ID mismatch for session ${session.id}: expected ${session.device_id}, got ${deviceId}`);
     }
-
-    // ROTATE REFRESH TOKEN: Generate brand new token for this session
-    const newRawRefreshToken = crypto.randomBytes(48).toString('hex');
-    const newTokenHash = hashToken(newRawRefreshToken);
-
-    // Refresh expiration window: 30 days from now
-    const newExpiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();
-
-    db.prepare(`
-        UPDATE user_sessions 
-        SET refresh_token_hash = ?, 
-            last_active_at = datetime('now'),
-            expires_at = ?,
-            ip_address = CASE WHEN ? != '' THEN ? ELSE ip_address END,
-            user_agent = CASE WHEN ? != '' THEN ? ELSE user_agent END
-        WHERE id = ?
-    `).run(newTokenHash, newExpiresAt, ip, ip, userAgent, userAgent, session.id);
-
-    try {
-        db.pragma('wal_checkpoint(TRUNCATE)');
-    } catch (e) {}
 
     const updatedUser = {
         id: session.user_id,
@@ -197,6 +202,54 @@ function verifyAndRotateSession(db, { rawRefreshToken, deviceId, ip = '', userAg
         designation: session.user_designation,
         status: session.user_status
     };
+
+    // If request arrived within the 30-second grace window of a previous rotation,
+    // fulfill without re-rotating so client doesn't desync with the newly generated token.
+    if (isGracePeriodReuse) {
+        return {
+            valid: true,
+            sessionId: session.id,
+            deviceId: session.device_id,
+            newRefreshToken: rawRefreshToken,
+            user: updatedUser
+        };
+    }
+
+    // ROTATE REFRESH TOKEN: Generate brand new token for this session
+    const newRawRefreshToken = crypto.randomBytes(48).toString('hex');
+    const newTokenHash = hashToken(newRawRefreshToken);
+
+    // Refresh expiration window: 30 days from now
+    const newExpiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();
+
+    try {
+        db.prepare(`
+            UPDATE user_sessions 
+            SET prev_refresh_token_hash = refresh_token_hash,
+                rotated_at = datetime('now'),
+                refresh_token_hash = ?, 
+                last_active_at = datetime('now'),
+                expires_at = ?,
+                ip_address = CASE WHEN ? != '' THEN ? ELSE ip_address END,
+                user_agent = CASE WHEN ? != '' THEN ? ELSE user_agent END
+            WHERE id = ?
+        `).run(newTokenHash, newExpiresAt, ip, ip, userAgent, userAgent, session.id);
+    } catch (updateErr) {
+        // Fallback if prev_refresh_token_hash column is not present
+        db.prepare(`
+            UPDATE user_sessions 
+            SET refresh_token_hash = ?, 
+                last_active_at = datetime('now'),
+                expires_at = ?,
+                ip_address = CASE WHEN ? != '' THEN ? ELSE ip_address END,
+                user_agent = CASE WHEN ? != '' THEN ? ELSE user_agent END
+            WHERE id = ?
+        `).run(newTokenHash, newExpiresAt, ip, ip, userAgent, userAgent, session.id);
+    }
+
+    try {
+        db.pragma('wal_checkpoint(TRUNCATE)');
+    } catch (e) {}
 
     return {
         valid: true,

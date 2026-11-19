@@ -345,12 +345,12 @@ exports.refreshToken = async (req, res) => {
         const ip = req.ip || (req.headers && (req.headers['x-forwarded-for'] || req.headers['X-Forwarded-For'])) || req.socket?.remoteAddress || '';
         const userAgent = (req.headers && (req.headers['user-agent'] || req.headers['User-Agent'])) || '';
 
-        if (!rawRefreshToken) {
-            return res.status(401).json({ error: 'No refresh token provided.' });
+        if (!rawRefreshToken || typeof rawRefreshToken !== 'string' || !rawRefreshToken.trim()) {
+            return res.status(401).json({ error: 'No refresh token provided.', code: 'NO_REFRESH_TOKEN' });
         }
 
         const result = sessionManager.verifyAndRotateSession(db, {
-            rawRefreshToken,
+            rawRefreshToken: rawRefreshToken.trim(),
             deviceId,
             ip,
             userAgent
@@ -359,7 +359,10 @@ exports.refreshToken = async (req, res) => {
         if (!result.valid) {
             res.clearCookie('token', getClearCookieOptions());
             res.clearCookie('refreshToken', getClearRefreshCookieOptions());
-            return res.status(401).json({ error: result.error || 'Session expired or revoked.' });
+            return res.status(401).json({ 
+                error: result.error || 'Session expired or revoked.',
+                code: result.code || 'SESSION_EXPIRED'
+            });
         }
 
         // Generate newly refreshed JWT access token

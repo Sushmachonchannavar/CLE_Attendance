@@ -35,7 +35,6 @@ export const getBaseURL = () => {
         }
 
         // 2. If an explicit remote HTTPS API URL or relative path is configured via VITE_API_URL, use it directly.
-        //    This takes priority for any non-localhost deployed environment (e.g. self-hosted server reverse proxy).
         if (rawUrl && typeof rawUrl === 'string' && rawUrl.trim() !== '') {
             const trimmed = rawUrl.trim();
             if (trimmed.startsWith('/')) {
@@ -55,20 +54,16 @@ export const getBaseURL = () => {
                 const trimmed = rawUrl.trim().replace(/\/+$/, '');
                 return trimmed.endsWith('/api') ? trimmed : `${trimmed}/api`;
             }
-            // Point to backend on the same LAN host machine
             return `http://${hostname}:5001/api`;
         }
 
-        // 4. If running on Vercel (production or any preview deployment, e.g. *.vercel.app):
-        //    vercel.json rewrites /api/* → Render backend, so use relative /api path.
-        //    This avoids cross-origin preflight by keeping requests on the same Vercel origin.
+        // 4. If running on Vercel (production or preview deployments, *.vercel.app):
+        //    vercel.json rewrites /api/* → Render backend.
         if (hostname.endsWith('.vercel.app')) {
             return '/api';
         }
 
-        // 5. On Cloudflare Pages (e.g. cle-attendance.pages.dev) or any other remote production host:
-        //    Cloudflare Pages static redirects cannot proxy POST requests (405 Method Not Allowed).
-        //    Connect directly to the live HTTPS backend instead.
+        // 5. On Cloudflare Pages or any other remote production host:
         return LIVE_BACKEND_URL;
     }
 
@@ -76,9 +71,6 @@ export const getBaseURL = () => {
 };
 
 const resolvedBaseURL = getBaseURL();
-
-// Log the resolved API base URL in the browser's DevTools console on page load.
-// In production, open DevTools → Console and verify this matches the expected backend URL.
 console.log(`[API] Base URL resolved to: ${resolvedBaseURL}`);
 
 const api = axios.create({
@@ -107,16 +99,31 @@ api.interceptors.request.use((config) => {
     return config;
 });
 
-// Guard against concurrent refresh loops
+// Guard against concurrent refresh loops and queue pending requests during token refresh
 let isRefreshing = false;
 let refreshSubscribers = [];
 
-function subscribeTokenRefresh(cb) {
-    refreshSubscribers.push(cb);
+function subscribeTokenRefresh(subscriber) {
+    refreshSubscribers.push(subscriber);
 }
 
 function onRefreshed(newToken) {
-    refreshSubscribers.forEach(cb => cb(newToken));
+    refreshSubscribers.forEach(sub => {
+        if (typeof sub === 'function') {
+            sub(newToken);
+        } else if (sub && typeof sub.resolve === 'function') {
+            sub.resolve(newToken);
+        }
+    });
+    refreshSubscribers = [];
+}
+
+function onRefreshFailed(error) {
+    refreshSubscribers.forEach(sub => {
+        if (sub && typeof sub.reject === 'function') {
+            sub.reject(error);
+        }
+    });
     refreshSubscribers = [];
 }
 
@@ -128,74 +135,109 @@ api.interceptors.response.use(
         // If a protected API route returns 401 Unauthorized, attempt silent refresh token rotation
         if (error.response && error.response.status === 401 && originalRequest && !originalRequest._retry) {
             const requestUrl = originalRequest.url || '';
-            const isAuthRoute = requestUrl.includes('/auth/login') || 
-                                requestUrl.includes('/auth/verify') || 
-                                requestUrl.includes('/auth/refresh-token');
+            const isAuthEndpoint = requestUrl.includes('/auth/login') || 
+                                   requestUrl.includes('/auth/send-otp') ||
+                                   requestUrl.includes('/auth/verify') || 
+                                   requestUrl.includes('/auth/verify-otp') ||
+                                   requestUrl.includes('/auth/refresh-token');
 
-            if (!isAuthRoute) {
-                originalRequest._retry = true;
+            const storedRefresh = localStorage.getItem('refreshToken');
 
-                if (!isRefreshing) {
-                    isRefreshing = true;
-
-                    try {
-                        const deviceId = getDeviceId();
-                        const storedRefresh = localStorage.getItem('refreshToken') || '';
-                        const refreshRes = await axios.post(`${resolvedBaseURL}/auth/refresh-token`, {
-                            deviceId,
-                            refreshToken: storedRefresh
-                        }, {
-                            withCredentials: true,
-                            headers: {
-                                'x-device-id': deviceId,
-                                ...(storedRefresh ? { 'x-refresh-token': storedRefresh } : {})
-                            }
-                        });
-
-                        if (refreshRes.data && refreshRes.data.token) {
-                            const newToken = refreshRes.data.token;
-                            localStorage.setItem('token', newToken);
-                            if (refreshRes.data.refreshToken) {
-                                localStorage.setItem('refreshToken', refreshRes.data.refreshToken);
-                            }
-                            if (refreshRes.data.user) {
-                                localStorage.setItem('user', JSON.stringify(refreshRes.data.user));
-                            }
-                            isRefreshing = false;
-                            onRefreshed(newToken);
-                            originalRequest.headers.Authorization = `Bearer ${newToken}`;
-                            return api(originalRequest);
-                        }
-                    } catch (refreshErr) {
-                        isRefreshing = false;
-                        refreshSubscribers = [];
-                        console.warn('[AUTH SESSION] Refresh failed, session expired or revoked.');
-                        localStorage.removeItem('token');
-                        localStorage.removeItem('refreshToken');
-                        localStorage.removeItem('user');
-                        if (typeof window !== 'undefined' && window.dispatchEvent) {
-                            window.dispatchEvent(new CustomEvent('auth:session_expired'));
-                        }
-                        return Promise.reject(error);
-                    }
+            // If the failure occurred on an auth endpoint itself or if NO refresh token is available,
+            // do not attempt refresh (avoids doomed refresh calls that print 401s for unauthenticated users)
+            if (isAuthEndpoint || !storedRefresh || !storedRefresh.trim()) {
+                if (!storedRefresh && localStorage.getItem('token')) {
+                    localStorage.removeItem('token');
+                    localStorage.removeItem('user');
                 }
+                return Promise.reject(error);
+            }
 
-                // If already refreshing, wait for the token and replay
-                return new Promise((resolve) => {
-                    subscribeTokenRefresh((newToken) => {
-                        originalRequest.headers.Authorization = `Bearer ${newToken}`;
-                        resolve(api(originalRequest));
+            originalRequest._retry = true;
+
+            // If a refresh is already in flight, queue this request until the new token arrives
+            if (isRefreshing) {
+                return new Promise((resolve, reject) => {
+                    subscribeTokenRefresh({
+                        resolve: (newToken) => {
+                            originalRequest.headers.Authorization = `Bearer ${newToken}`;
+                            resolve(api(originalRequest));
+                        },
+                        reject: (refreshErr) => {
+                            reject(refreshErr);
+                        }
                     });
                 });
             }
+
+            isRefreshing = true;
+
+            try {
+                const deviceId = getDeviceId();
+                const refreshRes = await axios.post(`${resolvedBaseURL}/auth/refresh-token`, {
+                    deviceId,
+                    refreshToken: storedRefresh.trim()
+                }, {
+                    withCredentials: true,
+                    headers: {
+                        'x-device-id': deviceId,
+                        'x-refresh-token': storedRefresh.trim()
+                    }
+                });
+
+                if (refreshRes.data && refreshRes.data.token) {
+                    const newToken = refreshRes.data.token;
+                    localStorage.setItem('token', newToken);
+                    if (refreshRes.data.refreshToken) {
+                        localStorage.setItem('refreshToken', refreshRes.data.refreshToken);
+                    }
+                    if (refreshRes.data.user) {
+                        localStorage.setItem('user', JSON.stringify(refreshRes.data.user));
+                    }
+                    api.defaults.headers.common['Authorization'] = `Bearer ${newToken}`;
+                    
+                    isRefreshing = false;
+                    onRefreshed(newToken);
+
+                    originalRequest.headers.Authorization = `Bearer ${newToken}`;
+                    return api(originalRequest);
+                } else {
+                    throw new Error('Refresh response did not contain new access token.');
+                }
+            } catch (refreshErr) {
+                isRefreshing = false;
+                onRefreshFailed(refreshErr);
+
+                console.warn('[AUTH SESSION] Silent refresh failed or session revoked.');
+                localStorage.removeItem('token');
+                localStorage.removeItem('refreshToken');
+                localStorage.removeItem('user');
+                delete api.defaults.headers.common['Authorization'];
+
+                if (typeof window !== 'undefined' && window.dispatchEvent) {
+                    window.dispatchEvent(new CustomEvent('auth:session_expired', {
+                        detail: {
+                            reason: refreshErr.response?.data?.error || 'Your session has expired. Please log in again.'
+                        }
+                    }));
+                }
+                return Promise.reject(refreshErr);
+            }
         }
 
-        // Log actionable diagnostic information in browser console for production debugging
+        // Diagnostic console logging: suppress expected 401s for unauthenticated session probes
         if (error.response) {
-            console.error(
-                `[API Error] ${error.config?.method?.toUpperCase()} ${error.config?.url} → HTTP ${error.response.status}:`,
-                error.response.data
+            const isUnauthenticatedProbe = error.response.status === 401 && (
+                (error.config?.url?.includes('/auth/verify-token') && !localStorage.getItem('refreshToken')) ||
+                error.config?.url?.includes('/auth/refresh-token')
             );
+
+            if (!isUnauthenticatedProbe) {
+                console.error(
+                    `[API Error] ${error.config?.method?.toUpperCase()} ${error.config?.url} → HTTP ${error.response.status}:`,
+                    error.response.data
+                );
+            }
         } else if (error.request) {
             console.error(
                 '[API Error] No response received — possible network error or CORS block:',
@@ -205,6 +247,7 @@ api.interceptors.response.use(
         } else {
             console.error('[API Error]', error.message);
         }
+
         return Promise.reject(error);
     }
 );

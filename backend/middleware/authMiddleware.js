@@ -31,13 +31,16 @@ module.exports = (req, res, next) => {
     const jwtSecret = getJwtSecret();
     const token = extractToken(req);
     if (!token) {
-        return res.status(401).json({ error: 'Access denied. No valid authentication session or token provided.' });
+        return res.status(401).json({ 
+            error: 'Access denied. No valid authentication session or token provided.',
+            code: 'NO_TOKEN'
+        });
     }
 
     try {
         const decoded = jwt.verify(token, jwtSecret);
         if (!decoded || !decoded.id || !decoded.role) {
-            return res.status(401).json({ error: 'Invalid token payload.' });
+            return res.status(401).json({ error: 'Invalid token payload.', code: 'INVALID_TOKEN_PAYLOAD' });
         }
 
         // Verify if session has been explicitly revoked in SQLite
@@ -46,7 +49,10 @@ module.exports = (req, res, next) => {
                 const db = require('../database');
                 const sess = db.prepare('SELECT is_revoked, expires_at FROM user_sessions WHERE id = ?').get(decoded.sessionId);
                 if (sess && (sess.is_revoked === 1 || new Date(sess.expires_at) <= new Date())) {
-                    return res.status(401).json({ error: 'Session has been revoked or expired.' });
+                    return res.status(401).json({ 
+                        error: 'Session has been revoked or expired.',
+                        code: 'SESSION_REVOKED'
+                    });
                 }
             } catch (dbErr) {
                 // Table might not exist yet during initial boot
@@ -63,6 +69,10 @@ module.exports = (req, res, next) => {
         };
         next();
     } catch (ex) {
-        return res.status(401).json({ error: 'Invalid or expired token.' });
+        const isExpired = ex.name === 'TokenExpiredError';
+        return res.status(401).json({ 
+            error: isExpired ? 'Access token has expired.' : 'Invalid or expired token.',
+            code: isExpired ? 'TOKEN_EXPIRED' : 'INVALID_TOKEN'
+        });
     }
 };

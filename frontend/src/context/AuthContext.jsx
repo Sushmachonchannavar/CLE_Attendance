@@ -19,9 +19,20 @@ export const AuthProvider = ({ children }) => {
     /**
      * Centralized session verification callback.
      * Verifies current session with backend using both HTTP-only cookies and Bearer token.
-     * If access token is expired, transparently attempts refresh token rotation.
+     * If access token is expired, api.js response interceptor automatically handles silent refresh.
      */
     const checkSession = useCallback(async () => {
+        const token = localStorage.getItem('token');
+        const refreshToken = localStorage.getItem('refreshToken');
+
+        // If neither token nor refresh token exists, the user is genuinely unauthenticated.
+        // Avoid sending an unauthorized request that produces console 401 errors.
+        if (!token && !refreshToken) {
+            setUser(null);
+            setLoading(false);
+            return { authenticated: false };
+        }
+
         try {
             const res = await api.get('/auth/verify-token');
             if (res.data && res.data.user) {
@@ -35,52 +46,13 @@ export const AuthProvider = ({ children }) => {
             }
             throw new Error('Invalid user payload');
         } catch (err) {
-            const status = err.response?.status;
-            // If access token expired or 401, attempt silent refresh token rotation
-            if (status === 401) {
-                try {
-                    const deviceId = getDeviceId();
-                    const storedRefresh = localStorage.getItem('refreshToken') || '';
-                    const refreshRes = await api.post('/auth/refresh-token', {
-                        deviceId,
-                        refreshToken: storedRefresh
-                    });
-                    if (refreshRes.data && refreshRes.data.user) {
-                        const freshUser = refreshRes.data.user;
-                        if (refreshRes.data.token) {
-                            localStorage.setItem('token', refreshRes.data.token);
-                        }
-                        if (refreshRes.data.refreshToken) {
-                            localStorage.setItem('refreshToken', refreshRes.data.refreshToken);
-                        }
-                        setUser(freshUser);
-                        localStorage.setItem('user', JSON.stringify(freshUser));
-                        return { authenticated: true, user: freshUser };
-                    }
-                } catch (refreshErr) {
-                    console.warn('[AUTH SESSION] Silent session refresh failed or session revoked.');
-                    localStorage.removeItem('token');
-                    localStorage.removeItem('refreshToken');
-                    localStorage.removeItem('user');
-                    setUser(null);
-                    return { authenticated: false, error: 'Session expired' };
-                }
-            }
-
-            if (status === 403) {
-                localStorage.removeItem('token');
-                localStorage.removeItem('refreshToken');
-                localStorage.removeItem('user');
-                setUser(null);
-                return { authenticated: false, error: 'Session forbidden' };
-            }
-
-            // For transient network errors, keep cached user if present for offline support
-            const cachedUser = localStorage.getItem('user');
-            if (!cachedUser) {
-                setUser(null);
-            }
-            return { authenticated: Boolean(cachedUser), offline: true };
+            // api.js response interceptor already handled transparent refresh token rotation.
+            // Reaching here means both the token and refresh token are invalid or expired.
+            localStorage.removeItem('token');
+            localStorage.removeItem('refreshToken');
+            localStorage.removeItem('user');
+            setUser(null);
+            return { authenticated: false, error: err.message };
         } finally {
             setLoading(false);
         }
@@ -91,8 +63,8 @@ export const AuthProvider = ({ children }) => {
         checkSession();
 
         // Listen for session expired events dispatched by API response interceptor
-        const handleSessionExpired = () => {
-            console.warn('[AUTH SESSION] Received session expiration event.');
+        const handleSessionExpired = (event) => {
+            console.warn('[AUTH SESSION] Session expired or revoked:', event?.detail?.reason || 'Session ended');
             localStorage.removeItem('token');
             localStorage.removeItem('refreshToken');
             localStorage.removeItem('user');
