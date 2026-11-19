@@ -1,4 +1,5 @@
 import React from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Menu } from 'lucide-react';
 import CleLogo from './CleLogo';
 import { useAuth } from '../context/AuthContext';
@@ -12,10 +13,18 @@ import { useAuth } from '../context/AuthContext';
  * - "Staff Attendance & Location System" clear light-grey subtitle
  * - Dark navy-blue header background (#0b1329)
  * - Mobile hamburger navigation trigger
- * - Authenticated user avatar indicator
+ * - Authenticated user avatar indicator (clickable on mobile to navigate to /profile)
  */
 const Header = ({ toggleSidebar, className = '' }) => {
     const { user } = useAuth();
+    const navigate = useNavigate();
+
+    const handleAvatarClick = () => {
+        // Mobile-only behaviour: navigate to profile when tapped on mobile screens (< 768px)
+        if (typeof window !== 'undefined' && window.innerWidth < 768) {
+            navigate('/profile');
+        }
+    };
 
     return (
         <header
@@ -42,12 +51,24 @@ const Header = ({ toggleSidebar, className = '' }) => {
 
             {/* Right: Authenticated Staff Avatar */}
             {user && (
-                <div
-                    title={user.name || 'Authorized User'}
-                    className="w-8 h-8 rounded-lg bg-blue-600 text-white font-bold flex items-center justify-center text-xs shadow-sm flex-shrink-0 ml-2 select-none"
+                <button
+                    type="button"
+                    onClick={handleAvatarClick}
+                    data-testid="header-user-avatar-btn"
+                    title={user.name ? `${user.name} (Tap to view profile)` : 'View Profile'}
+                    aria-label="View Profile"
+                    className="w-8 h-8 rounded-lg bg-blue-600 text-white font-bold flex items-center justify-center text-xs shadow-sm flex-shrink-0 ml-2 select-none overflow-hidden transition-all duration-150 cursor-pointer active:scale-95 hover:bg-blue-500 focus:outline-none focus:ring-2 focus:ring-amber-400/50 md:cursor-default md:hover:bg-blue-600 md:active:scale-100"
                 >
-                    {user.name ? user.name.charAt(0).toUpperCase() : 'U'}
-                </div>
+                    {user.photo || user.avatar || user.profile_photo ? (
+                        <img 
+                            src={user.photo || user.avatar || user.profile_photo} 
+                            alt={user.name || 'User'} 
+                            className="w-full h-full object-cover" 
+                        />
+                    ) : (
+                        <span>{user.name ? user.name.charAt(0).toUpperCase() : 'U'}</span>
+                    )}
+                </button>
             )}
         </header>
     );

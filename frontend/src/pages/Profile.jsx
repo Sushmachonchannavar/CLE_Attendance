@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import Layout from '../components/Layout';
 import AttendancePanel from '../components/AttendancePanel';
 import { useAuth } from '../context/AuthContext';
@@ -24,11 +25,15 @@ import {
     RefreshCw,
     Globe,
     Clock,
-    ShieldCheck
+    ShieldCheck,
+    ArrowLeft,
+    Mail,
+    BadgeCheck
 } from 'lucide-react';
 
 const Profile = () => {
     const { user, updateUser, getSessions, revokeSession, revokeOtherSessions } = useAuth();
+    const navigate = useNavigate();
     const [isEditing, setIsEditing] = useState(false);
     const [isSaving, setIsSaving] = useState(false);
     const [formData, setFormData] = useState({
@@ -251,8 +256,26 @@ const Profile = () => {
         }
     };
 
+    const handleBackToDashboard = () => {
+        navigate('/dashboard');
+    };
+
     return (
         <Layout>
+            {/* Top Navigation Bar: Back to Dashboard */}
+            <div className="mb-4 flex items-center justify-between">
+                <button
+                    type="button"
+                    data-testid="profile-back-btn"
+                    onClick={handleBackToDashboard}
+                    className="inline-flex items-center gap-2 px-3.5 py-2 text-xs font-bold text-slate-700 hover:text-blue-700 bg-white hover:bg-blue-50/70 active:scale-95 rounded-xl border border-slate-200 shadow-xs transition-all cursor-pointer"
+                    aria-label="Back to Dashboard"
+                >
+                    <ArrowLeft className="w-4 h-4 text-slate-500" />
+                    <span>Back to Dashboard</span>
+                </button>
+            </div>
+
             {/* Header Banner */}
             <div className="mb-6 p-6 sm:p-8 rounded-3xl bg-gradient-to-r from-blue-900 via-blue-800 to-slate-900 text-white shadow-xl shadow-blue-950/20 border border-blue-700/30 relative overflow-hidden">
                 <div className="relative z-10 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -314,8 +337,16 @@ const Profile = () => {
                     <div>
                         <div className="flex items-center justify-between gap-3 mb-6 pb-4 border-b border-slate-100">
                             <div className="flex items-center gap-3.5 min-w-0">
-                                <div className="w-14 h-14 rounded-2xl bg-gradient-to-tr from-blue-700 to-blue-500 text-white font-extrabold text-xl flex items-center justify-center shadow-lg shadow-blue-600/30 shrink-0">
-                                    {user?.name ? user.name.charAt(0).toUpperCase() : 'U'}
+                                <div className="w-14 h-14 rounded-2xl bg-gradient-to-tr from-blue-700 to-blue-500 text-white font-extrabold text-xl flex items-center justify-center shadow-lg shadow-blue-600/30 shrink-0 overflow-hidden">
+                                    {user?.photo || user?.avatar || user?.profile_photo ? (
+                                        <img 
+                                            src={user.photo || user.avatar || user.profile_photo} 
+                                            alt={user?.name || 'Profile'} 
+                                            className="w-full h-full object-cover" 
+                                        />
+                                    ) : (
+                                        <span>{user?.name ? user.name.charAt(0).toUpperCase() : 'U'}</span>
+                                    )}
                                 </div>
                                 <div className="min-w-0">
                                     <h3 className="text-lg font-bold text-slate-900 leading-snug truncate">
@@ -376,6 +407,22 @@ const Profile = () => {
                                     </span>
                                 </div>
 
+                                {/* Official Employee ID */}
+                                <div className="p-3.5 bg-slate-50/80 rounded-2xl border border-slate-200/70 flex items-start gap-3">
+                                    <BadgeCheck className="w-4 h-4 text-blue-600 mt-0.5 shrink-0" />
+                                    <div className="min-w-0 flex-1">
+                                        <div className="flex items-center justify-between">
+                                            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Employee ID</p>
+                                            <span className="text-[9px] font-bold text-blue-700 bg-blue-50 px-1.5 py-0.5 rounded border border-blue-200">
+                                                Official Staff ID
+                                            </span>
+                                        </div>
+                                        <p data-testid="display-profile-employee-id" className="text-xs font-bold text-slate-800 mt-0.5 font-mono">
+                                            {user?.employee_id || user?.employeeId || 'EMP-CLE'}
+                                        </p>
+                                    </div>
+                                </div>
+
                                 {/* Mobile Number */}
                                 <div className="p-3.5 bg-slate-50/80 rounded-2xl border border-slate-200/70 flex items-start gap-3">
                                     <Phone className="w-4 h-4 text-slate-400 mt-0.5 shrink-0" />
@@ -387,6 +434,17 @@ const Profile = () => {
                                             </span>
                                         </div>
                                         <p className="text-xs font-bold text-slate-800 mt-0.5">+91 {user?.phone || 'N/A'}</p>
+                                    </div>
+                                </div>
+
+                                {/* Registered Email */}
+                                <div className="p-3.5 bg-slate-50/80 rounded-2xl border border-slate-200/70 flex items-start gap-3">
+                                    <Mail className="w-4 h-4 text-slate-400 mt-0.5 shrink-0" />
+                                    <div className="min-w-0 flex-1">
+                                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Email Address</p>
+                                        <p data-testid="display-profile-email" className="text-xs font-bold text-slate-800 mt-0.5 truncate">
+                                            {user?.email || 'Not registered (Mobile OTP Auth)'}
+                                        </p>
                                     </div>
                                 </div>
 
@@ -559,8 +617,12 @@ const Profile = () => {
                                     </div>
                                 </div>
 
-                                {/* Read-Only Note for Phone and Role */}
+                                {/* Read-Only Note for Employee ID, Phone and Role */}
                                 <div className="p-3 bg-slate-50 rounded-xl border border-slate-200/80 text-[11px] text-slate-500 space-y-1">
+                                    <div className="flex items-center justify-between">
+                                        <span className="font-semibold text-slate-600">Employee ID:</span>
+                                        <span className="font-bold text-slate-800 font-mono">{user?.employee_id || user?.employeeId || 'EMP-CLE'}</span>
+                                    </div>
                                     <div className="flex items-center justify-between">
                                         <span className="font-semibold text-slate-600">Registered Contact:</span>
                                         <span className="font-bold text-slate-800">+91 {user?.phone}</span>
@@ -570,7 +632,7 @@ const Profile = () => {
                                         <span className="font-bold text-slate-800 uppercase">{user?.role}</span>
                                     </div>
                                     <p className="text-[10px] text-slate-400 italic pt-1 border-t border-slate-200/60">
-                                        Phone number and role permissions are managed by institutional administrative control.
+                                        Employee ID, phone number, and role permissions are managed by institutional administrative control.
                                     </p>
                                 </div>
 
