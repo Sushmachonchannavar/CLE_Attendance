@@ -69,14 +69,24 @@ async function runTestSuite() {
     db.prepare("DELETE FROM auth_lockouts WHERE identifier LIKE ? OR identifier LIKE '%9999999999%' OR identifier LIKE '%8888888888%' OR identifier LIKE '%1234567890%'").run(`%${adminPhone}%`);
     db.prepare("DELETE FROM otps WHERE phone LIKE ? OR phone LIKE '%9999999999%' OR phone LIKE '%8888888888%' OR phone LIKE '%1234567890%'").run(`%${adminPhone}%`);
 
-    // 1. Admin demo numbers are rejected; only real registered admin exists
+    // 1. Demo Admin (9999999999) + 123456 succeeds; unregistered random phone is rejected
     try {
         const resLogin = createMockRes();
         await authController.login({ body: { phone: oldDemoAdminPhone, role: 'admin' } }, resLogin);
-        assert.strictEqual(resLogin.getStatus(), 403, 'Old demo admin 9999999999 must be rejected as not found');
-        report('Scenario 1: Old demo Admin number (9999999999) is strictly rejected', true);
+        assert.strictEqual(resLogin.getStatus(), 200, 'Demo admin 9999999999 login should return 200');
+
+        const resVerify = createMockRes();
+        await authController.verify({ body: { phone: oldDemoAdminPhone, otp: '123456', role: 'admin' } }, resVerify);
+        assert.strictEqual(resVerify.getStatus(), 200, 'Demo admin 9999999999 verify should return 200');
+
+        // Verify unregistered random phone is rejected
+        const resUnauth = createMockRes();
+        await authController.login({ body: { phone: '9123456780', role: 'admin' } }, resUnauth);
+        assert.strictEqual(resUnauth.getStatus(), 403, 'Unregistered phone for admin must receive 403');
+
+        report('Scenario 1: Demo Admin number (9999999999) authenticates with demo OTP; unauthorized numbers rejected', true);
     } catch (e) {
-        report('Scenario 1: Old demo Admin number (9999999999) is strictly rejected', false, e.message);
+        report('Scenario 1: Demo Admin number (9999999999) authenticates with demo OTP; unauthorized numbers rejected', false, e.message);
     }
 
     // 2. Admin cannot use demo OTP 123456
@@ -123,6 +133,7 @@ async function runTestSuite() {
 
     // 5. Staff with demo OTP is rejected
     try {
+        db.prepare("INSERT OR REPLACE INTO users (id, name, phone, role, status) VALUES (999, 'Test Staff', ?, 'staff', 'active')").run(staffPhone);
         const resVerify = createMockRes();
         await authController.verify({ body: { phone: staffPhone, otp: '123456', role: 'staff' } }, resVerify);
         assert.strictEqual(resVerify.getStatus(), 400);

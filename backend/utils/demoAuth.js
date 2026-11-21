@@ -11,8 +11,11 @@ function isDemoLoginEnabled() {
 
 /**
  * Returns the configured demo parameters.
- * Demo login is restricted EXCLUSIVELY to Principal / HOI testing accounts (e.g. 8888888888).
- * Admin and Staff roles NEVER have demo credentials and strictly require real SMS OTP.
+ * Demo login is restricted EXCLUSIVELY to:
+ * 1. Demo Admin (9999999999) with demo OTP 123456.
+ * 2. Demo Principal (8888888888) with demo OTP 123456.
+ * Staff role NEVER has demo credentials and strictly requires real SMS OTP.
+ * Real Admin (9448378417) NEVER has demo credentials and strictly requires real SMS OTP.
  */
 function getDemoConfig() {
     const defaultPrincipals = ['8888888888'];
@@ -23,10 +26,12 @@ function getDemoConfig() {
         principalPhones = Array.from(new Set([...defaultPrincipals, ...custom]));
     }
 
+    const demoAdminPhone = (process.env.DEMO_ADMIN_PHONE || '9999999999').replace(/\D/g, '').slice(-10);
     const demoOtp = (process.env.DEMO_OTP || '123456').trim();
 
     return {
         principalPhones,
+        demoAdminPhone,
         demoOtp
     };
 }
@@ -36,8 +41,9 @@ function getDemoConfig() {
  * STRICT CRITERIA:
  * 1. Demo login must be enabled.
  * 2. Role must NOT be 'staff' (Staff is strictly real SMS OTP only).
- * 3. Role must NOT be 'admin' (Admin is strictly real SMS OTP only).
- * 4. Role must be 'hoi'/'principal' AND phone must match authorized DEMO_PRINCIPAL_PHONE.
+ * 3. Role 'admin' is authorized ONLY if phone matches DEMO_ADMIN_PHONE (9999999999).
+ *    Real Admin (9448378417) is NEVER demo login and strictly uses real SMS OTP.
+ * 4. Role 'hoi'/'principal' is authorized ONLY if phone matches DEMO_PRINCIPAL_PHONE (8888888888).
  * 
  * @param {string} phone 
  * @param {string} role 
@@ -50,9 +56,9 @@ function isDemoLogin(phone, role) {
     const roleNorm = role.toString().trim().toLowerCase();
     
     // CRITICAL SECURITY ENFORCEMENT:
-    // Admin and Staff members can NEVER use demo login or static OTPs under any circumstances.
-    // They must always authenticate via their real registered mobile number and real carrier SMS OTP.
-    if (roleNorm === 'admin' || roleNorm === 'staff') {
+    // Staff members can NEVER use demo login or static OTPs under any circumstances.
+    // Staff must always authenticate via their real registered mobile number and real carrier SMS OTP.
+    if (roleNorm === 'staff') {
         return false;
     }
 
@@ -61,6 +67,13 @@ function isDemoLogin(phone, role) {
 
     const config = getDemoConfig();
 
+    // Demo Admin: strictly authorized ONLY for DEMO_ADMIN_PHONE (9999999999) under role 'admin'
+    // The real Admin (9448378417) returns false here and strictly uses real carrier SMS OTP.
+    if (roleNorm === 'admin') {
+        return cleanPhone === config.demoAdminPhone;
+    }
+
+    // Demo Principal: strictly authorized ONLY for principal phones (8888888888) under role 'hoi'/'principal'
     if (roleNorm === 'hoi' || roleNorm === 'principal') {
         return config.principalPhones.includes(cleanPhone);
     }

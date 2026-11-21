@@ -139,8 +139,17 @@ const sendVerification = async (phone) => {
             const hashedOtp = crypto.createHash('sha256').update(otp).digest('hex');
             db.prepare('DELETE FROM otps WHERE phone = ? OR phone = ?').run(formattedPhone, cleanPhone);
             db.prepare('INSERT INTO otps (phone, otp, expires_at, attempts) VALUES (?, ?, ?, 0)').run(formattedPhone, hashedOtp, expiresAt);
-            console.log(`[SMS TEST SIMULATION] Test environment generated OTP for ${maskPhone(formattedPhone)}: ${otp}`);
-            return { success: true, provider: 'test_simulation', testOtp: otp };
+            const adminPhoneDigits = (process.env.ADMIN_PHONE || '9448378417').replace(/\D/g, '').slice(-10);
+            if (cleanPhone === adminPhoneDigits) {
+                console.log(`[SMS TEST SIMULATION] Test environment generated secure OTP for Admin ${maskPhone(formattedPhone)}`);
+            } else {
+                console.log(`[SMS TEST SIMULATION] Test environment generated OTP for ${maskPhone(formattedPhone)}: ${otp}`);
+            }
+            return { 
+                success: true, 
+                provider: 'test_simulation', 
+                ...(cleanPhone === adminPhoneDigits ? {} : { testOtp: otp }) 
+            };
         }
         console.error(`[SMS ERROR] SMS gateway credentials (SMS_AUTH_KEY or SMS_API_KEY) are missing or invalid.`);
         return { success: false, error: 'SMS service unavailable: SMS_AUTH_KEY or SMS_API_KEY environment variable is missing.' };

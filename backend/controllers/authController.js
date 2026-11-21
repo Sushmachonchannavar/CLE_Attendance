@@ -7,11 +7,27 @@ const {
     getRefreshCookieOptions, 
     getClearRefreshCookieOptions 
 } = require('../utils/cookies');
-const { isDemoLogin, handleDemoSendOtp, verifyDemoOtp } = require('../utils/demoAuth');
+const { 
+    isDemoLogin, 
+    handleDemoSendOtp, 
+    verifyDemoOtp,
+    isDemoLoginEnabled,
+    getDemoConfig
+} = require('../utils/demoAuth');
 const sessionManager = require('../utils/sessionManager');
 
-// Institutional Administrator constant phone number (Only this number is authorized for Admin role)
+// Institutional Administrator constant phone number (Real Admin)
 const ADMIN_CONSTANT_PHONE = (process.env.ADMIN_PHONE || '9448378417').trim();
+
+// Configured Demo Admin phone number (defaults to 9999999999)
+const getDemoAdminPhone = () => {
+    try {
+        const config = getDemoConfig();
+        return (config.demoAdminPhone || '9999999999').replace(/\D/g, '').slice(-10);
+    } catch {
+        return (process.env.DEMO_ADMIN_PHONE || '9999999999').replace(/\D/g, '').slice(-10);
+    }
+};
 
 const getJwtSecret = () => process.env.JWT_SECRET || 'cle_secret_key_minimum_32_characters_prod_fallback';
 
@@ -94,16 +110,19 @@ exports.login = async (req, res) => {
         }
     }
 
-    // Strictly enforce constant Administrator phone number: only 9448378417 can access Admin
+    // Strictly enforce Administrator access: only real Admin (9448378417) or authorized demo Admin (9999999999) can access Admin
     const adminTenDigits = ADMIN_CONSTANT_PHONE.replace(/\D/g, '').slice(-10);
+    const demoAdminDigits = getDemoAdminPhone();
+    const isAuthorizedAdmin = tenDigits === adminTenDigits || (isDemoLoginEnabled() && tenDigits === demoAdminDigits);
+
     if ((role && role.toLowerCase() === 'admin') || (existingUser.role && existingUser.role.toLowerCase() === 'admin')) {
-        if (tenDigits !== adminTenDigits) {
+        if (!isAuthorizedAdmin) {
             console.warn('[AUTH FAILED] Unauthorized admin access attempt:', { phone: maskPhone(phone), role });
             return res.status(403).json({ error: 'This mobile number is not authorized for administrator access.' });
         }
     }
 
-    // Check if authorized demo login applies (Principal testing only; Admin & Staff strictly use real SMS OTP)
+    // Check if authorized demo login applies (Demo Admin 9999999999 or Demo Principal 8888888888)
     if (isDemoLogin(tenDigits, role)) {
         console.log(`[AUTH DEMO] Demo OTP initiated for authorized ${role} user: ${maskPhone(phone)}`);
         const demoRes = handleDemoSendOtp(tenDigits, role, db);
@@ -113,10 +132,13 @@ exports.login = async (req, res) => {
     try {
         const result = await sendVerification(phone);
         if (result.success) {
+            // Never expose real Admin OTP in API responses under any circumstances
+            const isRealAdmin = tenDigits === adminTenDigits;
+            const includeTestOtp = process.env.NODE_ENV === 'test' && result.testOtp && !isRealAdmin;
             return res.json({ 
                 success: true, 
                 message: 'OTP request submitted. Please check your registered mobile phone.',
-                ...(process.env.NODE_ENV === 'test' && result.testOtp ? { testOtp: result.testOtp } : {})
+                ...(includeTestOtp ? { testOtp: result.testOtp } : {})
             });
         } else {
             console.error(`[AUTH SMS Gateway Unavailable] Delivery failed for ${maskPhone(phone)}:`, result.error);
@@ -258,10 +280,13 @@ exports.verify = async (req, res) => {
         }
     }
 
-    // Strictly enforce constant Administrator phone number: only 9448378417 can access Admin
+    // Strictly enforce Administrator access: only real Admin (9448378417) or authorized demo Admin (9999999999) can access Admin
     const adminTenDigits = ADMIN_CONSTANT_PHONE.replace(/\D/g, '').slice(-10);
+    const demoAdminDigits = getDemoAdminPhone();
+    const isAuthorizedAdmin = tenDigits === adminTenDigits || (isDemoLoginEnabled() && tenDigits === demoAdminDigits);
+
     if ((role && role.toLowerCase() === 'admin') || (user.role && user.role.toLowerCase() === 'admin')) {
-        if (tenDigits !== adminTenDigits) {
+        if (!isAuthorizedAdmin) {
             console.warn('[AUTH VERIFY FAILED] Unauthorized admin access attempt:', { phone: maskPhone(phone), role });
             return res.status(403).json({ error: 'This mobile number is not authorized for administrator access.' });
         }

@@ -158,19 +158,20 @@ async function runTestSuite() {
     }
 
     // -------------------------------------------------------------
-    // Test 5: Former demo Admin number (9999999999) = Rejected
+    // Test 5: Dedicated Demo Admin number (9999999999) + 123456 = Success
     // -------------------------------------------------------------
     try {
         const resLogin = createMockRes();
         await authController.login({ body: { phone: demoAdminPhone, role: 'admin' } }, resLogin);
-        assert.strictEqual(resLogin.getStatus(), 403, 'Old demo admin number 9999999999 must be rejected as not found');
+        assert.strictEqual(resLogin.getStatus(), 200, 'Demo admin login should succeed with 200');
 
         const resVerify = createMockRes();
         await authController.verify({ body: { phone: demoAdminPhone, otp: '123456', role: 'admin' } }, resVerify);
-        assert.strictEqual(resVerify.getStatus(), 403, 'Old demo admin number verify must be rejected');
-        report('Scenario 5: Old demo Admin number (9999999999) is completely rejected', true);
+        assert.strictEqual(resVerify.getStatus(), 200, 'Demo admin verify should succeed with 200');
+        assert.strictEqual(resVerify.getData().user.role, 'admin');
+        report('Scenario 5: Dedicated Demo Admin number (9999999999 + 123456) authenticates as Admin', true);
     } catch (e) {
-        report('Scenario 5: Old demo Admin number (9999999999) is completely rejected', false, e.message);
+        report('Scenario 5: Dedicated Demo Admin number (9999999999 + 123456) authenticates as Admin', false, e.message);
     }
 
     // -------------------------------------------------------------
