@@ -342,14 +342,14 @@ const Dashboard = () => {
                             data-testid="card-total-staff"
                             onClick={() => handleCardClick('total_staff')}
                             onKeyDown={(e) => (e.key === 'Enter' || e.key === ' ') && handleCardClick('total_staff')}
-                            className="bg-white p-5 rounded-2xl shadow-sm border border-slate-200/80 flex items-center gap-4 hover:shadow-md hover:border-blue-400 active:scale-[0.99] transition-all cursor-pointer"
+                            className="bg-white p-4 sm:p-5 rounded-2xl shadow-sm border border-slate-200/80 flex items-center gap-3.5 sm:gap-4 hover:shadow-md hover:border-blue-400 active:scale-[0.99] transition-all cursor-pointer h-full"
                         >
-                            <div className="p-3.5 bg-blue-50 text-blue-700 rounded-2xl border border-blue-100">
-                                <Users className="w-6 h-6" />
+                            <div className="p-3 sm:p-3.5 bg-blue-50 text-blue-700 rounded-2xl border border-blue-100 shrink-0 flex items-center justify-center">
+                                <Users className="w-5 h-5 sm:w-6 sm:h-6" />
                             </div>
-                            <div>
-                                <h4 className="text-2xl font-black text-slate-800">{totalStaffPrincipal}</h4>
-                                <div className="text-xs text-slate-500 font-bold uppercase tracking-wider mt-0.5">Total Staff</div>
+                            <div className="min-w-0 flex-1">
+                                <h4 className="text-2xl font-black text-slate-800 leading-none">{totalStaffPrincipal}</h4>
+                                <div className="text-[11px] sm:text-xs text-slate-500 font-bold uppercase tracking-wider mt-1.5 whitespace-nowrap truncate" title="Total Staff">Total Staff</div>
                             </div>
                         </div>
 
@@ -360,14 +360,14 @@ const Dashboard = () => {
                             data-testid="card-present-today"
                             onClick={() => handleCardClick('present_today')}
                             onKeyDown={(e) => (e.key === 'Enter' || e.key === ' ') && handleCardClick('present_today')}
-                            className="bg-white p-5 rounded-2xl shadow-sm border border-slate-200/80 flex items-center gap-4 hover:shadow-md hover:border-emerald-400 active:scale-[0.99] transition-all cursor-pointer"
+                            className="bg-white p-4 sm:p-5 rounded-2xl shadow-sm border border-slate-200/80 flex items-center gap-3.5 sm:gap-4 hover:shadow-md hover:border-emerald-400 active:scale-[0.99] transition-all cursor-pointer h-full"
                         >
-                            <div className="p-3.5 bg-emerald-50 text-emerald-600 rounded-2xl border border-emerald-100">
-                                <ClipboardCheck className="w-6 h-6" />
+                            <div className="p-3 sm:p-3.5 bg-emerald-50 text-emerald-600 rounded-2xl border border-emerald-100 shrink-0 flex items-center justify-center">
+                                <ClipboardCheck className="w-5 h-5 sm:w-6 sm:h-6" />
                             </div>
-                            <div>
-                                <h4 className="text-2xl font-black text-slate-800">{presentStaffPrincipal}</h4>
-                                <div className="text-xs text-slate-500 font-bold uppercase tracking-wider mt-0.5">
+                            <div className="min-w-0 flex-1">
+                                <h4 className="text-2xl font-black text-slate-800 leading-none">{presentStaffPrincipal}</h4>
+                                <div className="text-[11px] sm:text-xs text-slate-500 font-bold uppercase tracking-wider mt-1.5 whitespace-nowrap truncate" title={isSelectedDateToday ? 'Present Today' : `Present (${selectedDate})`}>
                                     {isSelectedDateToday ? 'Present Today' : `Present (${selectedDate})`}
                                 </div>
                             </div>
@@ -380,14 +380,14 @@ const Dashboard = () => {
                             data-testid="card-absent-today"
                             onClick={() => handleCardClick('absent_today')}
                             onKeyDown={(e) => (e.key === 'Enter' || e.key === ' ') && handleCardClick('absent_today')}
-                            className="bg-white p-5 rounded-2xl shadow-sm border border-slate-200/80 flex items-center gap-4 hover:shadow-md hover:border-rose-400 active:scale-[0.99] transition-all cursor-pointer"
+                            className="bg-white p-4 sm:p-5 rounded-2xl shadow-sm border border-slate-200/80 flex items-center gap-3.5 sm:gap-4 hover:shadow-md hover:border-rose-400 active:scale-[0.99] transition-all cursor-pointer h-full"
                         >
-                            <div className="p-3.5 bg-rose-50 text-rose-600 rounded-2xl border border-rose-100">
-                                <ClipboardX className="w-6 h-6" />
+                            <div className="p-3 sm:p-3.5 bg-rose-50 text-rose-600 rounded-2xl border border-rose-100 shrink-0 flex items-center justify-center">
+                                <ClipboardX className="w-5 h-5 sm:w-6 sm:h-6" />
                             </div>
-                            <div>
-                                <h4 className="text-2xl font-black text-slate-800">{absentStaffPrincipal}</h4>
-                                <div className="text-xs text-slate-500 font-bold uppercase tracking-wider mt-0.5">
+                            <div className="min-w-0 flex-1">
+                                <h4 className="text-2xl font-black text-slate-800 leading-none">{absentStaffPrincipal}</h4>
+                                <div className="text-[11px] sm:text-xs text-slate-500 font-bold uppercase tracking-wider mt-1.5 whitespace-nowrap truncate" title={isSelectedDateToday ? 'Absent Today' : `Absent (${selectedDate})`}>
                                     {isSelectedDateToday ? 'Absent Today' : `Absent (${selectedDate})`}
                                 </div>
                             </div>
@@ -400,14 +400,14 @@ const Dashboard = () => {
                             data-testid="card-pending-leaves"
                             onClick={() => handleCardClick('pending_leaves')}
                             onKeyDown={(e) => (e.key === 'Enter' || e.key === ' ') && handleCardClick('pending_leaves')}
-                            className="bg-white p-5 rounded-2xl shadow-sm border border-slate-200/80 flex items-center gap-4 hover:shadow-md hover:border-amber-400 active:scale-[0.99] transition-all cursor-pointer"
+                            className="bg-white p-4 sm:p-5 rounded-2xl shadow-sm border border-slate-200/80 flex items-center gap-3.5 sm:gap-4 hover:shadow-md hover:border-amber-400 active:scale-[0.99] transition-all cursor-pointer h-full"
                         >
-                            <div className="p-3.5 bg-amber-50 text-amber-600 rounded-2xl border border-amber-100">
-                                <FileClock className="w-6 h-6" />
+                            <div className="p-3 sm:p-3.5 bg-amber-50 text-amber-600 rounded-2xl border border-amber-100 shrink-0 flex items-center justify-center">
+                                <FileClock className="w-5 h-5 sm:w-6 sm:h-6" />
                             </div>
-                            <div>
-                                <h4 className="text-2xl font-black text-slate-800">{pendingLeavesPrincipal}</h4>
-                                <div className="text-xs text-slate-500 font-bold uppercase tracking-wider mt-0.5">Pending Leaves</div>
+                            <div className="min-w-0 flex-1">
+                                <h4 className="text-2xl font-black text-slate-800 leading-none">{pendingLeavesPrincipal}</h4>
+                                <div className="text-[11px] sm:text-xs text-slate-500 font-bold uppercase tracking-wider mt-1.5 whitespace-nowrap truncate" title="Pending Leaves">Pending Leaves</div>
                             </div>
                         </div>
 
@@ -418,14 +418,14 @@ const Dashboard = () => {
                             data-testid="card-pending-ods"
                             onClick={() => handleCardClick('pending_ods')}
                             onKeyDown={(e) => (e.key === 'Enter' || e.key === ' ') && handleCardClick('pending_ods')}
-                            className="bg-white p-5 rounded-2xl shadow-sm border border-slate-200/80 flex items-center gap-4 hover:shadow-md hover:border-indigo-400 active:scale-[0.99] transition-all cursor-pointer"
+                            className="bg-white p-4 sm:p-5 rounded-2xl shadow-sm border border-slate-200/80 flex items-center gap-3.5 sm:gap-4 hover:shadow-md hover:border-indigo-400 active:scale-[0.99] transition-all cursor-pointer h-full"
                         >
-                            <div className="p-3.5 bg-indigo-50 text-indigo-600 rounded-2xl border border-indigo-100">
-                                <ShieldAlert className="w-6 h-6" />
+                            <div className="p-3 sm:p-3.5 bg-indigo-50 text-indigo-600 rounded-2xl border border-indigo-100 shrink-0 flex items-center justify-center">
+                                <ShieldAlert className="w-5 h-5 sm:w-6 sm:h-6" />
                             </div>
-                            <div>
-                                <h4 className="text-2xl font-black text-slate-800">{pendingODsPrincipal}</h4>
-                                <div className="text-xs text-slate-500 font-bold uppercase tracking-wider mt-0.5">Pending ODs</div>
+                            <div className="min-w-0 flex-1">
+                                <h4 className="text-2xl font-black text-slate-800 leading-none">{pendingODsPrincipal}</h4>
+                                <div className="text-[11px] sm:text-xs text-slate-500 font-bold uppercase tracking-wider mt-1.5 whitespace-nowrap truncate" title="Pending ODs">Pending ODs</div>
                             </div>
                         </div>
                     </div>
@@ -765,58 +765,58 @@ const Dashboard = () => {
                             data-testid="admin-card-total-staff"
                             onClick={() => handleCardClick('total_staff')}
                             onKeyDown={(e) => (e.key === 'Enter' || e.key === ' ') && handleCardClick('total_staff')}
-                            className="bg-white p-5 rounded-2xl shadow-sm border border-slate-200/80 flex items-center gap-4 hover:shadow-md hover:border-blue-400 active:scale-[0.99] transition-all cursor-pointer"
+                            className="bg-white p-4 sm:p-5 rounded-2xl shadow-sm border border-slate-200/80 flex items-center gap-3.5 sm:gap-4 hover:shadow-md hover:border-blue-400 active:scale-[0.99] transition-all cursor-pointer h-full"
                         >
-                            <div className="p-3.5 bg-blue-50 text-blue-700 rounded-2xl border border-blue-100">
-                                <Users className="w-6 h-6" />
+                            <div className="p-3 sm:p-3.5 bg-blue-50 text-blue-700 rounded-2xl border border-blue-100 shrink-0 flex items-center justify-center">
+                                <Users className="w-5 h-5 sm:w-6 sm:h-6" />
                             </div>
-                            <div>
-                                <h4 className="text-2xl font-black text-slate-800">{totalStaffAdmin}</h4>
-                                <div className="text-xs text-slate-500 font-bold uppercase tracking-wider mt-0.5">Total Staff</div>
+                            <div className="min-w-0 flex-1">
+                                <h4 className="text-2xl font-black text-slate-800 leading-none">{totalStaffAdmin}</h4>
+                                <div className="text-[11px] sm:text-xs text-slate-500 font-bold uppercase tracking-wider mt-1.5 whitespace-nowrap truncate" title="Total Staff">Total Staff</div>
                             </div>
                         </div>
 
                         {/* Pending Leave Requests */}
-                        <div className="bg-white p-5 rounded-2xl shadow-sm border border-slate-200/80 flex items-center gap-4 hover:shadow-md transition-shadow">
-                            <div className="p-3.5 bg-amber-50 text-amber-600 rounded-2xl border border-amber-100">
-                                <FileClock className="w-6 h-6" />
+                        <div className="bg-white p-4 sm:p-5 rounded-2xl shadow-sm border border-slate-200/80 flex items-center gap-3.5 sm:gap-4 hover:shadow-md transition-shadow h-full">
+                            <div className="p-3 sm:p-3.5 bg-amber-50 text-amber-600 rounded-2xl border border-amber-100 shrink-0 flex items-center justify-center">
+                                <FileClock className="w-5 h-5 sm:w-6 sm:h-6" />
                             </div>
-                            <div>
-                                <h4 className="text-2xl font-black text-slate-800">{pendingLeavesAdmin}</h4>
-                                <div className="text-xs text-slate-500 font-bold uppercase tracking-wider mt-0.5">Pending Leaves</div>
+                            <div className="min-w-0 flex-1">
+                                <h4 className="text-2xl font-black text-slate-800 leading-none">{pendingLeavesAdmin}</h4>
+                                <div className="text-[11px] sm:text-xs text-slate-500 font-bold uppercase tracking-wider mt-1.5 whitespace-nowrap truncate" title="Pending Leaves">Pending Leaves</div>
                             </div>
                         </div>
 
                         {/* Pending OD Requests */}
-                        <div className="bg-white p-5 rounded-2xl shadow-sm border border-slate-200/80 flex items-center gap-4 hover:shadow-md transition-shadow">
-                            <div className="p-3.5 bg-indigo-50 text-indigo-600 rounded-2xl border border-indigo-100">
-                                <ShieldAlert className="w-6 h-6" />
+                        <div className="bg-white p-4 sm:p-5 rounded-2xl shadow-sm border border-slate-200/80 flex items-center gap-3.5 sm:gap-4 hover:shadow-md transition-shadow h-full">
+                            <div className="p-3 sm:p-3.5 bg-indigo-50 text-indigo-600 rounded-2xl border border-indigo-100 shrink-0 flex items-center justify-center">
+                                <ShieldAlert className="w-5 h-5 sm:w-6 sm:h-6" />
                             </div>
-                            <div>
-                                <h4 className="text-2xl font-black text-slate-800">{pendingODsAdmin}</h4>
-                                <div className="text-xs text-slate-500 font-bold uppercase tracking-wider mt-0.5">Pending ODs</div>
+                            <div className="min-w-0 flex-1">
+                                <h4 className="text-2xl font-black text-slate-800 leading-none">{pendingODsAdmin}</h4>
+                                <div className="text-[11px] sm:text-xs text-slate-500 font-bold uppercase tracking-wider mt-1.5 whitespace-nowrap truncate" title="Pending ODs">Pending ODs</div>
                             </div>
                         </div>
 
                         {/* Approved Requests */}
-                        <div className="bg-white p-5 rounded-2xl shadow-sm border border-slate-200/80 flex items-center gap-4 hover:shadow-md transition-shadow">
-                            <div className="p-3.5 bg-emerald-50 text-emerald-600 rounded-2xl border border-emerald-100">
-                                <ClipboardCheck className="w-6 h-6" />
+                        <div className="bg-white p-4 sm:p-5 rounded-2xl shadow-sm border border-slate-200/80 flex items-center gap-3.5 sm:gap-4 hover:shadow-md transition-shadow h-full">
+                            <div className="p-3 sm:p-3.5 bg-emerald-50 text-emerald-600 rounded-2xl border border-emerald-100 shrink-0 flex items-center justify-center">
+                                <ClipboardCheck className="w-5 h-5 sm:w-6 sm:h-6" />
                             </div>
-                            <div>
-                                <h4 className="text-2xl font-black text-slate-800">{approvedRequestsAdmin}</h4>
-                                <div className="text-xs text-slate-500 font-bold uppercase tracking-wider mt-0.5">Approved</div>
+                            <div className="min-w-0 flex-1">
+                                <h4 className="text-2xl font-black text-slate-800 leading-none">{approvedRequestsAdmin}</h4>
+                                <div className="text-[11px] sm:text-xs text-slate-500 font-bold uppercase tracking-wider mt-1.5 whitespace-nowrap truncate" title="Approved">Approved</div>
                             </div>
                         </div>
 
                         {/* Rejected Requests */}
-                        <div className="bg-white p-5 rounded-2xl shadow-sm border border-slate-200/80 flex items-center gap-4 hover:shadow-md transition-shadow">
-                            <div className="p-3.5 bg-rose-50 text-rose-600 rounded-2xl border border-rose-100">
-                                <ClipboardX className="w-6 h-6" />
+                        <div className="bg-white p-4 sm:p-5 rounded-2xl shadow-sm border border-slate-200/80 flex items-center gap-3.5 sm:gap-4 hover:shadow-md transition-shadow h-full">
+                            <div className="p-3 sm:p-3.5 bg-rose-50 text-rose-600 rounded-2xl border border-rose-100 shrink-0 flex items-center justify-center">
+                                <ClipboardX className="w-5 h-5 sm:w-6 sm:h-6" />
                             </div>
-                            <div>
-                                <h4 className="text-2xl font-black text-slate-800">{rejectedRequestsAdmin}</h4>
-                                <div className="text-xs text-slate-500 font-bold uppercase tracking-wider mt-0.5">Rejected</div>
+                            <div className="min-w-0 flex-1">
+                                <h4 className="text-2xl font-black text-slate-800 leading-none">{rejectedRequestsAdmin}</h4>
+                                <div className="text-[11px] sm:text-xs text-slate-500 font-bold uppercase tracking-wider mt-1.5 whitespace-nowrap truncate" title="Rejected">Rejected</div>
                             </div>
                         </div>
                     </div>
