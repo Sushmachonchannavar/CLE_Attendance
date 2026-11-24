@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import Layout from '../components/Layout';
 import api from '../utils/api';
-import { BarChart, Calendar, Download, FileSpreadsheet, Clock, User, CheckCircle, Database } from 'lucide-react';
+import { BarChart, Calendar, Download, FileSpreadsheet, Clock, User, CheckCircle } from 'lucide-react';
 
 const getInitialDate = () => {
     try {
@@ -89,28 +89,6 @@ const Reports = () => {
         }
     };
 
-    const [downloadingBackup, setDownloadingBackup] = useState(false);
-    const downloadDatabaseBackup = async () => {
-        setDownloadingBackup(true);
-        try {
-            const res = await api.get('/reports/database/backup', {
-                responseType: 'blob',
-            });
-            const url = window.URL.createObjectURL(new Blob([res.data]));
-            const link = document.createElement('a');
-            link.href = url;
-            link.setAttribute('download', `CLE_Attendance_Permanent_Backup_${new Date().toISOString().split('T')[0]}.sqlite`);
-            document.body.appendChild(link);
-            link.click();
-            link.remove();
-        } catch (err) {
-            console.error("Failed to download database backup", err);
-            alert("Failed to download database backup.");
-        } finally {
-            setDownloadingBackup(false);
-        }
-    };
-
     useEffect(() => {
         fetchReport();
     }, [fetchReport]);
@@ -162,26 +140,15 @@ const Reports = () => {
 
                     {/* Controls based on active tab */}
                     {activeTab === 'daily' ? (
-                        <div className="flex flex-wrap items-center gap-3">
-                            <div className="flex items-center gap-2">
-                                <label htmlFor="report-date" className="text-xs font-bold text-slate-500 uppercase">Select Date:</label>
-                                <input
-                                    id="report-date"
-                                    type="date"
-                                    className="px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
-                                    value={date}
-                                    onChange={(e) => setDate(e.target.value)}
-                                />
-                            </div>
-                            <button
-                                onClick={downloadDatabaseBackup}
-                                disabled={downloadingBackup}
-                                title="Download complete persistent SQLite database backup"
-                                className="px-3.5 py-2 text-xs font-bold text-slate-700 bg-slate-100 hover:bg-slate-200 active:scale-95 rounded-xl border border-slate-200/80 transition-all flex items-center gap-1.5 disabled:opacity-50 cursor-pointer shadow-sm"
-                            >
-                                <Database className="w-4 h-4 text-blue-600" />
-                                <span>{downloadingBackup ? 'Creating Snapshot...' : 'Backup SQLite DB'}</span>
-                            </button>
+                        <div className="flex items-center gap-2">
+                            <label htmlFor="report-date" className="text-xs font-bold text-slate-500 uppercase">Select Date:</label>
+                            <input
+                                id="report-date"
+                                type="date"
+                                className="px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+                                value={date}
+                                onChange={(e) => setDate(e.target.value)}
+                            />
                         </div>
                     ) : (
                         <div className="flex flex-wrap items-center gap-3">
