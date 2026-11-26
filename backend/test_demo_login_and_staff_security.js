@@ -218,6 +218,7 @@ async function runTestSuite() {
     } catch (e) {
         report('Scenario 10: Persistent session restores full Admin profile across page refresh', false, e.message);
     } finally {
+        db.prepare("DELETE FROM users WHERE id = 999 OR phone = ?").run(staffPhone);
         db.prepare("UPDATE users SET role = 'admin', status = 'active' WHERE phone LIKE ?").run(`%${adminPhone}%`);
         db.prepare("DELETE FROM otps WHERE phone LIKE ?").run(`%${adminPhone}%`);
         db.prepare("DELETE FROM auth_lockouts WHERE identifier LIKE ?").run(`%${adminPhone}%`);

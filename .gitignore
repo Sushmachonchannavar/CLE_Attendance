@@ -22,6 +22,8 @@ backend/uploads/
 uploads/
 backend/backups/
 backups_pre_deployment/
+backend/data/
+*.bak
 *.zip
 
 # Playwright
