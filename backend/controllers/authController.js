@@ -70,11 +70,13 @@ exports.login = async (req, res) => {
 
     const rawPhone = phone.trim();
     const digits = rawPhone.replace(/\D/g, '');
-    const tenDigits = digits.length > 10 ? digits.slice(-10) : digits;
+    const tenDigits = digits.length >= 10 ? digits.slice(-10) : digits;
     const withPlus91 = '+91' + tenDigits;
+    const with91 = '91' + tenDigits;
+    const withZero = '0' + tenDigits;
 
-    // Check account lockout
-    const lockout = checkLockout(rawPhone) || checkLockout(withPlus91) || checkLockout(tenDigits);
+    // Check account lockout across all phone formats
+    const lockout = checkLockout(rawPhone) || checkLockout(withPlus91) || checkLockout(tenDigits) || checkLockout(with91);
     if (lockout) {
         const lockTime = new Date(lockout.locked_until).toLocaleTimeString();
         return res.status(423).json({
@@ -87,7 +89,11 @@ exports.login = async (req, res) => {
         return res.status(429).json({ error: 'Too many OTP requests. Please try again after 10 minutes.' });
     }
 
-    const existingUser = db.prepare("SELECT * FROM users WHERE (phone = ? OR phone = ? OR phone = ?)").get(rawPhone, tenDigits, withPlus91);
+    const existingUser = db.prepare(`
+        SELECT * FROM users 
+        WHERE phone IN (?, ?, ?, ?, ?) 
+           OR phone LIKE ?
+    `).get(rawPhone, tenDigits, withPlus91, with91, withZero, `%${tenDigits}`);
     if (!existingUser) {
         return res.status(403).json({ error: 'Mobile number not found. Please register first.' });
     }
@@ -245,11 +251,13 @@ exports.verify = async (req, res) => {
 
     const rawPhone = phone.trim();
     const digits = rawPhone.replace(/\D/g, '');
-    const tenDigits = digits.length > 10 ? digits.slice(-10) : digits;
+    const tenDigits = digits.length >= 10 ? digits.slice(-10) : digits;
     const withPlus91 = '+91' + tenDigits;
+    const with91 = '91' + tenDigits;
+    const withZero = '0' + tenDigits;
 
-    // Check account lockout
-    const lockout = checkLockout(rawPhone) || checkLockout(withPlus91) || checkLockout(tenDigits);
+    // Check account lockout across all phone formats
+    const lockout = checkLockout(rawPhone) || checkLockout(withPlus91) || checkLockout(tenDigits) || checkLockout(with91);
     if (lockout) {
         const lockTime = new Date(lockout.locked_until).toLocaleTimeString();
         return res.status(423).json({
@@ -257,7 +265,11 @@ exports.verify = async (req, res) => {
         });
     }
 
-    let user = db.prepare("SELECT * FROM users WHERE (phone = ? OR phone = ? OR phone = ?)").get(rawPhone, tenDigits, withPlus91);
+    let user = db.prepare(`
+        SELECT * FROM users 
+        WHERE phone IN (?, ?, ?, ?, ?) 
+           OR phone LIKE ?
+    `).get(rawPhone, tenDigits, withPlus91, with91, withZero, `%${tenDigits}`);
     if (!user) {
         return res.status(403).json({ error: 'User does not exist. Please register first.' });
     }

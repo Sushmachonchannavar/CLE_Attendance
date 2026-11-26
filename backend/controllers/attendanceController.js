@@ -293,9 +293,15 @@ exports.sendOTP = async (req, res) => {
         if (phone && phone.trim() !== '') {
             const rawPhone = phone.trim();
             const digits = rawPhone.replace(/\D/g, '');
-            const tenDigits = digits.length > 10 ? digits.slice(-10) : digits;
+            const tenDigits = digits.length >= 10 ? digits.slice(-10) : digits;
             const withPlus91 = '+91' + tenDigits;
-            user = db.prepare("SELECT * FROM users WHERE (phone = ? OR phone = ? OR phone = ?)").get(rawPhone, tenDigits, withPlus91);
+            const with91 = '91' + tenDigits;
+            const withZero = '0' + tenDigits;
+            user = db.prepare(`
+                SELECT * FROM users 
+                WHERE phone IN (?, ?, ?, ?, ?) 
+                   OR phone LIKE ?
+            `).get(rawPhone, tenDigits, withPlus91, with91, withZero, `%${tenDigits}`);
         } else {
             const cleanEmpId = employeeId.trim();
             user = db.prepare("SELECT * FROM users WHERE employee_id = ?").get(cleanEmpId);
@@ -438,9 +444,15 @@ exports.verifyOTP = async (req, res) => {
         if (phone && phone.trim() !== '') {
             const rawPhone = phone.trim();
             const digits = rawPhone.replace(/\D/g, '');
-            const tenDigits = digits.length > 10 ? digits.slice(-10) : digits;
+            const tenDigits = digits.length >= 10 ? digits.slice(-10) : digits;
             const withPlus91 = '+91' + tenDigits;
-            user = db.prepare("SELECT * FROM users WHERE (phone = ? OR phone = ? OR phone = ?)").get(rawPhone, tenDigits, withPlus91);
+            const with91 = '91' + tenDigits;
+            const withZero = '0' + tenDigits;
+            user = db.prepare(`
+                SELECT * FROM users 
+                WHERE phone IN (?, ?, ?, ?, ?) 
+                   OR phone LIKE ?
+            `).get(rawPhone, tenDigits, withPlus91, with91, withZero, `%${tenDigits}`);
         } else {
             const cleanEmpId = employeeId.trim();
             user = db.prepare("SELECT * FROM users WHERE employee_id = ?").get(cleanEmpId);

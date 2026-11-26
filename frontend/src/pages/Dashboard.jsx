@@ -85,6 +85,12 @@ const Dashboard = () => {
                 setDailyReport(staffOnly);
                 if (resData.summary) {
                     setDbSummary(resData.summary);
+                    if (typeof resData.summary.totalStaff === 'number') {
+                        setStaffCount(resData.summary.totalStaff);
+                        try {
+                            sessionStorage.setItem('cle_staff_count', String(resData.summary.totalStaff));
+                        } catch {}
+                    }
                     try {
                         sessionStorage.setItem('cle_db_summary', JSON.stringify(resData.summary));
                     } catch {}
@@ -191,7 +197,7 @@ const Dashboard = () => {
         if (n.includes('administrator') || n.includes('principal')) return false;
         return r === 'staff';
     });
-    const dbStaffCount = staffCount !== null ? staffCount : (dbSummary?.totalStaff ?? staffReport.length);
+    const dbStaffCount = Math.max(staffCount ?? 0, dbSummary?.totalStaff ?? 0, staffReport.length);
 
     // Admin role calculations
     const totalStaffAdmin = dbStaffCount;
